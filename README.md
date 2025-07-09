@@ -11,11 +11,15 @@ A secure, decentralized, peer-to-peer messaging app that works over Bluetooth me
 
 This is the **Android port** of the original [bitchat iOS app](https://github.com/jackjackbits/bitchat), maintaining 100% protocol compatibility for cross-platform communication.
 
-## About This Port
+## Install bitchat
 
-This Android implementation maintains full protocol compatibility with the original iOS version, allowing seamless communication between iPhone and Android users in the same mesh network. All core features including encryption, channels, private messaging, and mesh networking work identically across platforms.
+You can download the latest version of bitchat for Android from the [GitHub Releases page](https://github.com/your-username/bitchat-android/releases).
 
-**Original iOS Version**: [github.com/jackjackbits/bitchat](https://github.com/jackjackbits/bitchat)
+**Instructions:**
+
+1.  **Download the APK:** On your Android device, navigate to the link above and download the latest `.apk` file.
+2.  **Allow Unknown Sources:** Before you can install the APK, you may need to enable "Install from unknown sources" in your device's settings. This is typically found under **Settings > Security** or **Settings > Apps & notifications > Special app access**.
+3.  **Install:** Open the downloaded `.apk` file to begin the installation.
 
 ## License
 
