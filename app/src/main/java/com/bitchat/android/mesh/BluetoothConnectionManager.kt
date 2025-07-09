@@ -44,6 +44,17 @@ class BluetoothConnectionManager(private val context: Context, private val myPee
     private val gattConnections = ConcurrentHashMap<BluetoothDevice, BluetoothGatt>() // Track GATT client connections
     private val peripheralRSSI = ConcurrentHashMap<String, Int>() // Track RSSI by device address during discovery
     
+    // FIXED: Track connection attempts to prevent duplicates
+    private val pendingConnections = ConcurrentHashMap<String, Long>() // device address -> attempt timestamp
+    private val connectionAttempts = ConcurrentHashMap<String, Int>() // device address -> attempt count
+    private val maxConnectionAttempts = 3
+    private val connectionRetryDelay = 5000L // 5 seconds
+    
+    // Service registration tracking
+    private var serviceRegistered = false
+    private var advertisingActive = false
+    private var scanningActive = false
+    
     // Delegate for callbacks
     var delegate: BluetoothConnectionManagerDelegate? = null
     
@@ -194,6 +205,9 @@ class BluetoothConnectionManager(private val context: Context, private val myPee
             appendLine("BLE Scanner Available: ${bleScanner != null}")
             appendLine("BLE Advertiser Available: ${bleAdvertiser != null}")
             appendLine("GATT Server Active: ${gattServer != null}")
+            appendLine("Service Registered: $serviceRegistered")
+            appendLine("Advertising Active: $advertisingActive")
+            appendLine("Scanning Active: $scanningActive")
             appendLine()
             appendLine("Connected Devices: ${connectedDevices.size}")
             connectedDevices.forEach { (address, device) ->
@@ -208,6 +222,17 @@ class BluetoothConnectionManager(private val context: Context, private val myPee
             appendLine("Subscribed Devices (server mode): ${subscribedDevices.size}")
             subscribedDevices.forEach { device ->
                 appendLine("  - ${device.address}")
+            }
+            appendLine()
+            appendLine("Pending Connections: ${pendingConnections.size}")
+            pendingConnections.forEach { (address, timestamp) ->
+                val elapsed = (System.currentTimeMillis() - timestamp) / 1000
+                appendLine("  - $address (${elapsed}s ago)")
+            }
+            appendLine()
+            appendLine("Connection Attempts: ${connectionAttempts.size}")
+            connectionAttempts.forEach { (address, attempts) ->
+                appendLine("  - $address: $attempts attempts")
             }
             appendLine()
             appendLine("Peripheral RSSI: ${peripheralRSSI.size}")
@@ -514,94 +539,205 @@ class BluetoothConnectionManager(private val context: Context, private val myPee
     }
     
     /**
-     * Handle scan result and connect to discovered devices
+     * Handle scan result and connect to discovered devices - FIXED to prevent duplicate connections
      */
     @Suppress("DEPRECATION")
     private fun handleScanResult(result: ScanResult) {
         val device = result.device
         val rssi = result.rssi
+        val deviceAddress = device.address
         
         // Filter out weak signals
         if (rssi < -90) {
             return
         }
         
-        // Check if already connected
-        if (connectedDevices.values.any { it.address == device.address }) {
+        // FIXED: Check for existing client connections only, allow server connections
+        if (gattConnections.containsKey(device)) {
+            Log.d(TAG, "Already have client connection to $deviceAddress")
             return
         }
         
-        // Store RSSI
-        peripheralRSSI[device.address] = rssi
+        // FIXED: Check for pending connections to prevent duplicates
+        val currentTime = System.currentTimeMillis()
+        val pendingTime = pendingConnections[deviceAddress]
+        if (pendingTime != null && (currentTime - pendingTime) < connectionRetryDelay) {
+            Log.d(TAG, "Connection attempt to $deviceAddress already pending, skipping")
+            return
+        }
         
-        Log.i(TAG, "Found bitchat service at ${device.address} (RSSI: $rssi), connecting...")
+        // Check connection attempt limits
+        val attempts = connectionAttempts.getOrDefault(deviceAddress, 0)
+        if (attempts >= maxConnectionAttempts) {
+            if (pendingTime == null || (currentTime - pendingTime) > connectionRetryDelay * 2) {
+                // Reset after extended delay
+                connectionAttempts[deviceAddress] = 0
+                pendingConnections.remove(deviceAddress)
+                Log.d(TAG, "Reset connection attempts for $deviceAddress after extended delay")
+            } else {
+                Log.d(TAG, "Max connection attempts reached for $deviceAddress")
+                return
+            }
+        }
+        
+        // Store RSSI and track connection attempt
+        peripheralRSSI[deviceAddress] = rssi
+        pendingConnections[deviceAddress] = currentTime
+        connectionAttempts[deviceAddress] = attempts + 1
+        
+        Log.i(TAG, "Found bitchat service at $deviceAddress (RSSI: $rssi), connecting (attempt ${attempts + 1})...")
         
         // Connect to device
-        connectToDevice(device)
+        connectToDeviceFixed(device)
     }
     
     /**
-     * Connect to a discovered device
+     * Connect to a discovered device - FIXED version with proper timeout and cleanup handling
      */
     @Suppress("DEPRECATION")
-    private fun connectToDevice(device: BluetoothDevice) {
+    private fun connectToDeviceFixed(device: BluetoothDevice) {
         if (!hasBluetoothPermissions()) return
+        
+        val deviceAddress = device.address
+        Log.d(TAG, "Attempting to connect to $deviceAddress")
         
         val gattCallback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                val statusMessage = when (status) {
+                    BluetoothGatt.GATT_SUCCESS -> "SUCCESS"
+                    147 -> "CONNECTION_TIMEOUT" 
+                    133 -> "GATT_ERROR"
+                    8 -> "CONNECTION_TIMEOUT"
+                    else -> "ERROR_$status"
+                }
+                
+                Log.d(TAG, "onConnectionStateChange: $deviceAddress status=$statusMessage($status) newState=$newState")
+                
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> {
-                        Log.d(TAG, "Connected to ${gatt.device.address} as client")
-                        connectedDevices[gatt.device.address] = gatt.device
-                        gattConnections[gatt.device] = gatt
-                        gatt.discoverServices()
+                        if (status == BluetoothGatt.GATT_SUCCESS) {
+                            Log.i(TAG, "Successfully connected to $deviceAddress as client")
+                            connectedDevices[deviceAddress] = gatt.device
+                            gattConnections[gatt.device] = gatt
+                            pendingConnections.remove(deviceAddress) // Clear pending connection
+                            
+                            // Discover services with a slight delay for stability
+                            connectionScope.launch {
+                                delay(200) // Small delay for connection stabilization
+                                if (gattConnections.containsKey(gatt.device)) {
+                                    gatt.discoverServices()
+                                }
+                            }
+                        } else {
+                            Log.e(TAG, "Connected to $deviceAddress with error status: $status")
+                            gatt.disconnect()
+                        }
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
-                        Log.d(TAG, "Disconnected from ${gatt.device.address}")
-                        connectedDevices.remove(gatt.device.address)
+                        Log.d(TAG, "Disconnected from $deviceAddress (status: $status)")
+                        connectedDevices.remove(deviceAddress)
                         deviceCharacteristics.remove(gatt.device)
                         gattConnections.remove(gatt.device)
-                        gatt.close()
-                    }
-                }
-            }
-            
-            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    val service = gatt.getService(SERVICE_UUID)
-                    val characteristic = service?.getCharacteristic(CHARACTERISTIC_UUID)
-                    
-                    if (characteristic != null) {
-                        deviceCharacteristics[gatt.device] = characteristic
-                        gatt.setCharacteristicNotification(characteristic, true)
+                        pendingConnections.remove(deviceAddress) // Clear pending connection
                         
-                        // Enable notifications
-                        val descriptor = characteristic.getDescriptor(
-                            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-                        )
-                        descriptor?.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                        gatt.writeDescriptor(descriptor)
+                        // Handle connection errors
+                        if (status == 147 || status == 133 || status == 8) { // Timeout or connection errors
+                            Log.w(TAG, "Connection failed to $deviceAddress with status $status")
+                        }
                         
-                        // Notify delegate
-                        connectionScope.launch {
-                            delay(200)
-                            delegate?.onDeviceConnected(gatt.device)
+                        // Close the GATT connection
+                        try {
+                            gatt.close()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error closing GATT connection to $deviceAddress: ${e.message}")
                         }
                     }
                 }
             }
             
+            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                Log.d(TAG, "onServicesDiscovered: $deviceAddress status=$status")
+                
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    val service = gatt.getService(SERVICE_UUID)
+                    val characteristic = service?.getCharacteristic(CHARACTERISTIC_UUID)
+                    
+                    if (characteristic != null) {
+                        Log.d(TAG, "Found bitchat service and characteristic on $deviceAddress")
+                        deviceCharacteristics[gatt.device] = characteristic
+                        
+                        // Enable notifications
+                        val notificationSuccess = gatt.setCharacteristicNotification(characteristic, true)
+                        Log.d(TAG, "Set notification for $deviceAddress: $notificationSuccess")
+                        
+                        // Write notification descriptor
+                        val descriptor = characteristic.getDescriptor(
+                            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+                        )
+                        if (descriptor != null) {
+                            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                            val descriptorSuccess = gatt.writeDescriptor(descriptor)
+                            Log.d(TAG, "Write notification descriptor for $deviceAddress: $descriptorSuccess")
+                        }
+                        
+                        // Notify delegate about successful connection
+                        connectionScope.launch {
+                            delay(100) // Ensure everything is set up
+                            delegate?.onDeviceConnected(gatt.device)
+                        }
+                    } else {
+                        Log.e(TAG, "Bitchat service or characteristic not found on $deviceAddress")
+                        gatt.disconnect()
+                    }
+                } else {
+                    Log.e(TAG, "Service discovery failed on $deviceAddress with status: $status")
+                    gatt.disconnect()
+                }
+            }
+            
             override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
                 val value = characteristic.value
+                Log.d(TAG, "Received ${value.size} bytes from $deviceAddress")
+                
                 val packet = BitchatPacket.fromBinaryData(value)
                 if (packet != null) {
                     val peerID = String(packet.senderID).replace("\u0000", "")
                     delegate?.onPacketReceived(packet, peerID, gatt.device)
+                } else {
+                    Log.w(TAG, "Failed to parse packet from $deviceAddress")
+                }
+            }
+            
+            override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
+                Log.d(TAG, "onDescriptorWrite: $deviceAddress status=$status")
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.i(TAG, "Successfully enabled notifications for $deviceAddress")
+                } else {
+                    Log.e(TAG, "Failed to enable notifications for $deviceAddress: $status")
                 }
             }
         }
         
-        device.connectGatt(context, false, gattCallback)
+        // Attempt the connection
+        try {
+            val gatt = device.connectGatt(context, false, gattCallback)
+            if (gatt == null) {
+                Log.e(TAG, "Failed to create GATT connection to $deviceAddress")
+                pendingConnections.remove(deviceAddress)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception connecting to $deviceAddress: ${e.message}")
+            pendingConnections.remove(deviceAddress)
+        }
+    }
+    
+    /**
+     * Connect to a discovered device - LEGACY METHOD (kept for compatibility)
+     */
+    @Suppress("DEPRECATION")
+    private fun connectToDevice(device: BluetoothDevice) {
+        // Redirect to fixed method
+        connectToDeviceFixed(device)
     }
     
     /**
@@ -613,6 +749,9 @@ class BluetoothConnectionManager(private val context: Context, private val myPee
         subscribedDevices.clear()
         gattConnections.clear()
         peripheralRSSI.clear()
+        // FIXED: Clear new tracking maps
+        pendingConnections.clear()
+        connectionAttempts.clear()
     }
 }
 
