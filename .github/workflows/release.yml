@@ -1,6 +1,7 @@
 name: Release APK
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*.*.*' # Triggers for tags like v1.0.0
