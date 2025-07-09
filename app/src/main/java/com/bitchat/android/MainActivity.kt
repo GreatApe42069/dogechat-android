@@ -15,9 +15,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.lifecycleScope
 import com.bitchat.android.ui.ChatScreen
 import com.bitchat.android.ui.ChatViewModel
 import com.bitchat.android.ui.theme.BitchatTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     
@@ -51,6 +54,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Notify that app is in foreground for power optimization
+        chatViewModel.setAppBackgroundState(false)
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        // Notify that app is in background for power optimization
+        chatViewModel.setAppBackgroundState(true)
     }
     
     private fun requestPermissions() {

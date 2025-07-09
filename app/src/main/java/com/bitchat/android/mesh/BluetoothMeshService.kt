@@ -44,7 +44,7 @@ class BluetoothMeshService(private val context: Context) {
     private val securityManager = SecurityManager(encryptionService, myPeerID)
     private val storeForwardManager = StoreForwardManager()
     private val messageHandler = MessageHandler(myPeerID)
-    private val connectionManager = BluetoothConnectionManager(context, myPeerID)
+    internal val connectionManager = BluetoothConnectionManager(context, myPeerID) // Made internal for access
     private val packetProcessor = PacketProcessor(myPeerID)
     
     // Delegate for message callbacks (maintains same interface)
