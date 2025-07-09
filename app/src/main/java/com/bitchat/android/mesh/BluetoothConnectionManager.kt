@@ -128,7 +128,7 @@ class BluetoothConnectionManager(
         
         try {
             isActive = true
-            setupGattServer()
+            // setupGattServer()
             
             // Start power manager and services
             connectionScope.launch {
@@ -804,7 +804,7 @@ class BluetoothConnectionManager(
         
         try {
             Log.d(TAG, "Attempting GATT connection to $deviceAddress with autoConnect=false")
-            val gatt = device.connectGatt(context, false, gattCallback)
+            val gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
             if (gatt == null) {
                 Log.e(TAG, "connectGatt returned null for $deviceAddress")
                 pendingConnections.remove(deviceAddress)

@@ -112,41 +112,38 @@ class PowerManager(private val context: Context) {
     /**
      * Get scan settings optimized for current power mode
      */
-    fun getScanSettings(): ScanSettings {
-        return when (currentMode) {
-            PowerMode.PERFORMANCE -> ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+        fun getScanSettings(): ScanSettings {
+            // CRITICAL FIX: Set reportDelay to 0 for all modes.
+            // When using a custom duty cycle, we want scan results delivered immediately,
+            // not batched. A non-zero report delay can conflict with the scan window,
+            // causing missed results if the scan stops before the delay is met.
+            val builder = ScanSettings.Builder()
                 .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-                .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
-                .setNumOfMatches(ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT)
-                .setReportDelay(50) // Reduced from 10ms
-                .build()
-                
-            PowerMode.BALANCED -> ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
-                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-                .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
-                .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
-                .setReportDelay(200)
-                .build()
-                
-            PowerMode.POWER_SAVER -> ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
-                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-                .setMatchMode(ScanSettings.MATCH_MODE_STICKY)
-                .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
-                .setReportDelay(1000)
-                .build()
-                
-            PowerMode.ULTRA_LOW_POWER -> ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_OPPORTUNISTIC)
-                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-                .setMatchMode(ScanSettings.MATCH_MODE_STICKY)
-                .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
-                .setReportDelay(5000)
-                .build()
+
+            when (currentMode) {
+                PowerMode.PERFORMANCE -> builder
+                    .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                    .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
+                    .setNumOfMatches(ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT)
+
+                PowerMode.BALANCED -> builder
+                    .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                    .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
+                    .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
+
+                PowerMode.POWER_SAVER -> builder
+                    .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+                    .setMatchMode(ScanSettings.MATCH_MODE_STICKY)
+                    .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
+
+                PowerMode.ULTRA_LOW_POWER -> builder
+                    .setScanMode(ScanSettings.SCAN_MODE_OPPORTUNISTIC)
+                    .setMatchMode(ScanSettings.MATCH_MODE_STICKY)
+                    .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
+            }
+
+            return builder.setReportDelay(0).build()
         }
-    }
     
     /**
      * Get advertising settings optimized for current power mode
