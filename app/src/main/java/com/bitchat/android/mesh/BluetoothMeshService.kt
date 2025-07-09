@@ -55,6 +55,26 @@ class BluetoothMeshService(private val context: Context) {
     
     init {
         setupDelegates()
+        startPeriodicDebugLogging()
+    }
+    
+    /**
+     * Start periodic debug logging every 10 seconds
+     */
+    private fun startPeriodicDebugLogging() {
+        serviceScope.launch {
+            while (isActive) {
+                try {
+                    delay(10000) // 10 seconds
+                    val debugInfo = getDebugStatus()
+                    Log.d(TAG, "=== PERIODIC DEBUG STATUS ===")
+                    Log.d(TAG, debugInfo)
+                    Log.d(TAG, "=== END DEBUG STATUS ===")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in periodic debug logging: ${e.message}")
+                }
+            }
+        }
     }
     
     /**
