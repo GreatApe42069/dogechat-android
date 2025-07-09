@@ -6,7 +6,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -97,18 +98,13 @@ fun PeerCounter(
         }
         
         if (hasUnreadPrivateMessages.isNotEmpty()) {
-            // Mail icon in a Box to ensure consistent 16.dp size matching the person icon
-            Box(
+            // Filled mail icon to match sidebar style
+            Icon(
+                imageVector = Icons.Filled.Email,
+                contentDescription = "Unread private messages",
                 modifier = Modifier.size(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "✉",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFF8C00),
-                    fontSize = 16.sp
-                )
-            }
+                tint = Color(0xFFFF8C00) // Orange to match private message theme
+            )
             Spacer(modifier = Modifier.width(6.dp))
         }
         
@@ -229,7 +225,12 @@ private fun PrivateChatHeader(
         Spacer(modifier = Modifier.weight(1f))
         
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🔒", fontSize = 16.sp) // Slightly larger
+            Icon(
+                imageVector = Icons.Filled.Lock,
+                contentDescription = "Private chat",
+                modifier = Modifier.size(16.dp),
+                tint = Color(0xFFFF8C00) // Orange to match private message theme
+            )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = peerNickname,
@@ -240,12 +241,13 @@ private fun PrivateChatHeader(
         
         Spacer(modifier = Modifier.weight(1f))
         
-        // Favorite button
+        // Favorite button with proper filled/outlined star
         IconButton(onClick = onToggleFavorite) {
-            Text(
-                text = if (isFavorite) "★" else "☆",
-                color = if (isFavorite) Color.Yellow else colorScheme.primary,
-                fontSize = 18.sp // Larger icon
+            Icon(
+                imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
+                contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                modifier = Modifier.size(18.dp), // Slightly larger than sidebar icon
+                tint = if (isFavorite) Color(0xFFFFD700) else Color(0xFF4CAF50) // Yellow for filled, green for outlined
             )
         }
     }

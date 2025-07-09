@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -309,19 +310,14 @@ private fun PeerItem(
             .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Show mail icon instead of signal strength when user has unread DMs
+        // Show filled mail icon instead of signal strength when user has unread DMs
         if (hasUnreadDM) {
-            Box(
-                modifier = Modifier.width(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "✉",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFF8C00), // Orange to match private message theme
-                    fontSize = 16.sp
-                )
-            }
+            Icon(
+                imageVector = Icons.Filled.Email,
+                contentDescription = "Unread messages",
+                modifier = Modifier.size(16.dp),
+                tint = Color(0xFFFF8C00) // Orange to match private message theme
+            )
         } else {
             // Signal strength indicators
             SignalStrengthIndicator(
@@ -340,16 +336,16 @@ private fun PeerItem(
             modifier = Modifier.weight(1f)
         )
         
-        // Favorite star
+        // Favorite star with proper filled/outlined states
         IconButton(
             onClick = onToggleFavorite,
             modifier = Modifier.size(24.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Star,
+                imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
                 contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
                 modifier = Modifier.size(16.dp),
-                tint = if (isFavorite) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.3f)
+                tint = if (isFavorite) Color(0xFFFFD700) else Color(0xFF4CAF50) // Yellow for filled, green for outlined
             )
         }
     }
