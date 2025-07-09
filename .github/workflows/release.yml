@@ -26,6 +26,18 @@ jobs:
       - name: Build APK
         run: ./gradlew assembleRelease
       
+      - name: DEBUG
+        run: |
+          set -x
+
+          pwd
+
+          ls -all
+
+          cd app/build/outputs/
+          ls -all
+          tree
+      
       # Optional: Sign APK (requires secrets)
       # - name: Sign APK
       #   uses: r0adkll/sign-android-release@v1
