@@ -13,12 +13,12 @@ This is the **Android port** of the original [bitchat iOS app](https://github.co
 
 ## Install bitchat
 
-You can download the latest version of bitchat for Android from the [GitHub Releases page](https://github.com/your-username/bitchat-android/releases).
+You can download the latest version of bitchat for Android from the [GitHub Releases page](https://github.com/callebtc/bitchat-android/releases).
 
 **Instructions:**
 
-1.  **Download the APK:** On your Android device, navigate to the link above and download the latest `.apk` file.
-2.  **Allow Unknown Sources:** Before you can install the APK, you may need to enable "Install from unknown sources" in your device's settings. This is typically found under **Settings > Security** or **Settings > Apps & notifications > Special app access**.
+1.  **Download the APK:** On your Android device, navigate to the link above and download the latest `.apk` file. Open it.
+2.  **Allow Unknown Sources:** On some devices, before you can install the APK, you may need to enable "Install from unknown sources" in your device's settings. This is typically found under **Settings > Security** or **Settings > Apps & notifications > Special app access**.
 3.  **Install:** Open the downloaded `.apk` file to begin the installation.
 
 ## License
