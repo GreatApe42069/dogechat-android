@@ -518,11 +518,10 @@ class BluetoothConnectionManager(
             .setServiceUuid(ParcelUuid(SERVICE_UUID))
             .build()
         
-        // DEBUG: For now, let's scan ALL devices to see what's around
-        // Change back to listOf(scanFilter) when we understand the issue
-        val scanFilters = emptyList<ScanFilter>()  // No filter = see all devices
+
+        val scanFilters = listOf(scanFilter) 
         
-        Log.d(TAG, "Starting BLE scan with ${scanFilters.size} filters (0=all devices). Target service UUID: $SERVICE_UUID")
+        Log.d(TAG, "Starting BLE scan with target service UUID: $SERVICE_UUID")
         
         scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -537,7 +536,6 @@ class BluetoothConnectionManager(
             override fun onBatchScanResults(results: MutableList<ScanResult>) {
                 Log.d(TAG, "Batch scan results received: ${results.size} devices")
                 results.forEach { result ->
-                    Log.d(TAG, "Batch result: ${result.device.address} (${result.device.name}) RSSI: ${result.rssi}")
                     handleScanResult(result)
                 }
             }
@@ -608,8 +606,6 @@ class BluetoothConnectionManager(
         // CRITICAL: Only process devices that have our service UUID
         val hasOurService = scanRecord?.serviceUuids?.any { it.uuid == SERVICE_UUID } == true
         if (!hasOurService) {
-            // Still log for debugging but don't try to connect
-            Log.d(TAG, "Skipping device $deviceAddress - doesn't advertise our service UUID")
             return
         }
         
