@@ -350,10 +350,7 @@ class BluetoothMeshService(private val context: Context) {
                 )
                 
                 // Send with random delay and retry for reliability
-                delay(Random.nextLong(50, 500))
-                connectionManager.broadcastPacket(packet)
-                
-                delay(300 + Random.nextLong(0, 200))
+                // delay(Random.nextLong(50, 500))
                 connectionManager.broadcastPacket(packet)
             }
         }

@@ -128,7 +128,7 @@ class BluetoothConnectionManager(
         
         try {
             isActive = true
-            // setupGattServer()
+            setupGattServer()
             
             // Start power manager and services
             connectionScope.launch {
