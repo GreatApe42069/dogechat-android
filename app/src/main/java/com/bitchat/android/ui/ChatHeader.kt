@@ -78,25 +78,37 @@ fun PeerCounter(
     
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.clickable { onClick() }
+        modifier = modifier.clickable { onClick() }.padding(end = 8.dp) // Added right margin to match "bitchat" logo spacing
     ) {
         if (hasUnreadChannels.values.any { it > 0 }) {
-            Text(
-                text = "#",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF0080FF),
-                fontSize = 16.sp
-            )
+            // Channel icon in a Box to ensure consistent size with other icons
+            Box(
+                modifier = Modifier.size(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "#",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF0080FF),
+                    fontSize = 16.sp
+                )
+            }
             Spacer(modifier = Modifier.width(6.dp))
         }
         
         if (hasUnreadPrivateMessages.isNotEmpty()) {
-            Text(
-                text = "✉",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFFF8C00),
-                fontSize = 16.sp
-            )
+            // Mail icon in a Box to ensure consistent 16.dp size matching the person icon
+            Box(
+                modifier = Modifier.size(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "✉",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFFF8C00),
+                    fontSize = 16.sp
+                )
+            }
             Spacer(modifier = Modifier.width(6.dp))
         }
         

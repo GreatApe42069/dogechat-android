@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 
 /**
@@ -256,21 +257,17 @@ fun PeopleSection(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
             )
         } else {
-            // Sort peers: favorites first, then by nickname
-            val sortedPeers = connectedPeers.sortedWith { peer1, peer2 ->
-                val isFav1 = viewModel.isFavorite(peer1)
-                val isFav2 = viewModel.isFavorite(peer2)
-                
-                when {
-                    isFav1 && !isFav2 -> -1
-                    !isFav1 && isFav2 -> 1
-                    else -> {
-                        val name1 = if (peer1 == nickname) "You" else (peerNicknames[peer1] ?: peer1)
-                        val name2 = if (peer2 == nickname) "You" else (peerNicknames[peer2] ?: peer2)
-                        name1.compareTo(name2, ignoreCase = true)
-                    }
-                }
-            }
+            // Get unread private messages and private chat history for sorting
+            val hasUnreadPrivateMessages by viewModel.unreadPrivateMessages.observeAsState(emptySet())
+            val privateChats by viewModel.privateChats.observeAsState(emptyMap())
+            
+            // Smart sorting: unread DMs first, then by most recent DM, then favorites, then alphabetical
+            val sortedPeers = connectedPeers.sortedWith(
+                compareBy<String> { !hasUnreadPrivateMessages.contains(it) } // Unread DM senders first
+                .thenByDescending { privateChats[it]?.maxByOrNull { msg -> msg.timestamp }?.timestamp?.time ?: 0L } // Most recent DM (convert Date to Long)
+                .thenBy { !viewModel.isFavorite(it) } // Favorites 
+                .thenBy { (if (it == nickname) "You" else (peerNicknames[it] ?: it)).lowercase() } // Alphabetical
+            )
             
             sortedPeers.forEach { peerID ->
                 PeerItem(
@@ -279,6 +276,7 @@ fun PeopleSection(
                     signalStrength = peerRSSI[peerID] ?: 0,
                     isSelected = peerID == selectedPrivatePeer,
                     isFavorite = viewModel.isFavorite(peerID),
+                    hasUnreadDM = hasUnreadPrivateMessages.contains(peerID),
                     colorScheme = colorScheme,
                     onItemClick = { onPrivateChatStart(peerID) },
                     onToggleFavorite = { viewModel.toggleFavorite(peerID) }
@@ -295,6 +293,7 @@ private fun PeerItem(
     signalStrength: Int,
     isSelected: Boolean,
     isFavorite: Boolean,
+    hasUnreadDM: Boolean,
     colorScheme: ColorScheme,
     onItemClick: () -> Unit,
     onToggleFavorite: () -> Unit
@@ -310,11 +309,26 @@ private fun PeerItem(
             .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Signal strength indicators
-        SignalStrengthIndicator(
-            signalStrength = signalStrength,
-            colorScheme = colorScheme
-        )
+        // Show mail icon instead of signal strength when user has unread DMs
+        if (hasUnreadDM) {
+            Box(
+                modifier = Modifier.width(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "✉",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFFF8C00), // Orange to match private message theme
+                    fontSize = 16.sp
+                )
+            }
+        } else {
+            // Signal strength indicators
+            SignalStrengthIndicator(
+                signalStrength = signalStrength,
+                colorScheme = colorScheme
+            )
+        }
         
         Spacer(modifier = Modifier.width(8.dp))
         
