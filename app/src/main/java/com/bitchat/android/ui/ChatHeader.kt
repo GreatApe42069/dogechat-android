@@ -215,11 +215,22 @@ private fun PrivateChatHeader(
             ),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
         ) {
-            Text(
-                text = "← back",
-                style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.primary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    modifier = Modifier.size(16.dp),
+                    tint = colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "back",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.primary
+                )
+            }
         }
         
         Spacer(modifier = Modifier.weight(1f))
@@ -268,11 +279,22 @@ private fun ChannelHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBackClick) {
-            Text(
-                text = "← back",
-                style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.primary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    modifier = Modifier.size(16.dp),
+                    tint = colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "back",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.primary
+                )
+            }
         }
         
         Spacer(modifier = Modifier.weight(1f))

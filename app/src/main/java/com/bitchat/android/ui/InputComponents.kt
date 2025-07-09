@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -97,20 +99,18 @@ fun MessageInput(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "↑",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = if (selectedPrivatePeer != null) {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowUp,
+                    contentDescription = "Send message",
+                    modifier = Modifier.size(20.dp),
+                    tint = if (selectedPrivatePeer != null) {
                         // Black arrow on orange in private mode
                         Color.Black
                     } else if (colorScheme.background == Color.Black) {
                         Color.Black // Black arrow on bright green in dark theme
                     } else {
                         Color.White // White arrow on dark green in light theme
-                    },
+                    }
                 )
             }
         }
