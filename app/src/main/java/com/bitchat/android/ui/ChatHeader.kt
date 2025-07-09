@@ -198,7 +198,15 @@ private fun PrivateChatHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBackClick) {
+        // Fixed: Make back button wider to prevent text cropping
+        Button(
+            onClick = onBackClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent,
+                contentColor = colorScheme.primary
+            ),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+        ) {
             Text(
                 text = "← back",
                 style = MaterialTheme.typography.bodyMedium,
