@@ -261,12 +261,16 @@ fun PeopleSection(
             // Get unread private messages and private chat history for sorting
             val hasUnreadPrivateMessages by viewModel.unreadPrivateMessages.observeAsState(emptySet())
             val privateChats by viewModel.privateChats.observeAsState(emptyMap())
-            
-            // Smart sorting: unread DMs first, then by most recent DM, then favorites, then alphabetical
+            val favoritePeers by viewModel.favoritePeers.observeAsState(emptySet()) 
+ 
+             // Smart sorting: unread DMs first, then by most recent DM, then favorites, then alphabetical
             val sortedPeers = connectedPeers.sortedWith(
                 compareBy<String> { !hasUnreadPrivateMessages.contains(it) } // Unread DM senders first
                 .thenByDescending { privateChats[it]?.maxByOrNull { msg -> msg.timestamp }?.timestamp?.time ?: 0L } // Most recent DM (convert Date to Long)
-                .thenBy { !viewModel.isFavorite(it) } // Favorites 
+                .thenBy {
+                    val fingerprint = viewModel.privateChatManager.getPeerFingerprint(it)
+                    fingerprint == null || !favoritePeers.contains(fingerprint)
+                } // Favorites
                 .thenBy { (if (it == nickname) "You" else (peerNicknames[it] ?: it)).lowercase() } // Alphabetical
             )
             
@@ -276,7 +280,7 @@ fun PeopleSection(
                     displayName = if (peerID == nickname) "You" else (peerNicknames[peerID] ?: peerID),
                     signalStrength = peerRSSI[peerID] ?: 0,
                     isSelected = peerID == selectedPrivatePeer,
-                    isFavorite = viewModel.isFavorite(peerID),
+                    isFavorite = favoritePeers.contains(viewModel.privateChatManager.getPeerFingerprint(peerID)),
                     hasUnreadDM = hasUnreadPrivateMessages.contains(peerID),
                     colorScheme = colorScheme,
                     onItemClick = { onPrivateChatStart(peerID) },

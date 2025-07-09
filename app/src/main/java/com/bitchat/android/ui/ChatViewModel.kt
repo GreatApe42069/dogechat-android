@@ -33,7 +33,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
     private val dataManager = DataManager(context)
     private val messageManager = MessageManager(state)
     private val channelManager = ChannelManager(state, messageManager, dataManager, viewModelScope)
-    private val privateChatManager = PrivateChatManager(state, messageManager, dataManager)
+    val privateChatManager = PrivateChatManager(state, messageManager, dataManager)
     private val commandProcessor = CommandProcessor(state, messageManager, channelManager, privateChatManager)
     
     // Delegate handler for mesh callbacks
@@ -67,6 +67,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
     val hasUnreadPrivateMessages = state.hasUnreadPrivateMessages
     val showCommandSuggestions: LiveData<Boolean> = state.showCommandSuggestions
     val commandSuggestions: LiveData<List<CommandSuggestion>> = state.commandSuggestions
+    val favoritePeers: LiveData<Set<String>> = state.favoritePeers
     
     init {
         meshService.delegate = this
@@ -94,6 +95,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
         
         // Load other data
         dataManager.loadFavorites()
+        state.setFavoritePeers(dataManager.favoritePeers)
         dataManager.loadBlockedUsers()
         
         // Start mesh service
