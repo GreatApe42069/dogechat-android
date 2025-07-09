@@ -1,4 +1,4 @@
-name: Release APK
+name: Release
 
 on:
   workflow_dispatch:
@@ -25,6 +25,10 @@ jobs:
 
       - name: Build APK
         run: ./gradlew assembleRelease
+
+      - name: Rename APK
+        run: |
+          mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/bitchat.apk
       
       - name: DEBUG
         run: |
