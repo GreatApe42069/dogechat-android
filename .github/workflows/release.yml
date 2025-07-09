@@ -19,6 +19,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+    
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: wrapper
 
       - name: Cache Gradle files
         uses: actions/cache@v3
@@ -34,7 +39,12 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build APK
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+      
+      - name: List APK files
+        run: |
+          echo "APK files built:"
+          find app/build/outputs/apk/release -name "*.apk" -type f
 
       - name: Rename APK
         run: |
@@ -65,8 +75,10 @@ jobs:
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
+          name: bitchat-release-apk-${{ github.ref_name }}
           path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+          if-no-files-found: error
 
   release:
     needs: build
@@ -76,12 +88,13 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: app-release-apk
+          name: bitchat-release-apk-${{ github.ref_name }}
           path: .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: bitchat.apk
+          name: Release ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
