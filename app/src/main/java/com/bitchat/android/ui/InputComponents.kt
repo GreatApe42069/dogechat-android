@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,24 +76,35 @@ fun MessageInput(
         
         Spacer(modifier = Modifier.width(8.dp)) // Reduced spacing
         
-        // Send button - smaller with light green background
+        // Send button - solid bright green background with thick transparent arrow
         IconButton(
             onClick = onSend,
-            modifier = Modifier.size(32.dp) // Reduced from 40dp
+            modifier = Modifier.size(32.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp) // Reduced size
+                    .size(30.dp)
                     .background(
-                        color = Color(0xFF00C851).copy(alpha = 0.15f), // Light green background
+                        color = if (colorScheme.background == Color.Black) {
+                            Color(0xFF00FF00).copy(alpha = 0.75f) // Bright green for dark theme
+                        } else {
+                            Color(0xFF008000).copy(alpha = 0.75f) // Dark green for light theme
+                        },
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "↑",
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp), // Smaller arrow
-                    color = Color(0xFF00C851) // Green arrow
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = if (colorScheme.background == Color.Black) {
+                        Color.Black // Black arrow on bright green in dark theme
+                    } else {
+                        Color.White // White arrow on dark green in light theme
+                    },
                 )
             }
         }
