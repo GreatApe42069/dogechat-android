@@ -676,101 +676,89 @@ class BluetoothConnectionManager(
         
         val deviceAddress = device.address
         
-        val gattCallback = object : BluetoothGattCallback() {
+                val gattCallback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-                // FIXED: Enhanced error logging to diagnose connection failures
                 Log.d(TAG, "Client: Connection state change - Device: $deviceAddress, Status: $status, NewState: $newState")
-                
-                when (newState) {
-                    BluetoothProfile.STATE_CONNECTED -> {
-                        if (status == BluetoothGatt.GATT_SUCCESS) {
-                            Log.i(TAG, "Client: Successfully connected to $deviceAddress")
-                            val deviceConn = DeviceConnection(
-                                device = device,
-                                gatt = gatt,
-                                rssi = rssi,
-                                isClient = true
-                            )
-                            connectedDevices[deviceAddress] = deviceConn
-                            pendingConnections.remove(deviceAddress)
-                            
-                            connectionScope.launch {
-                                delay(500) // FIXED: Increased delay for better stability
-                                Log.d(TAG, "Starting service discovery for $deviceAddress")
-                                gatt.discoverServices()
-                            }
-                        } else {
-                            Log.w(TAG, "Client: Connection failed to $deviceAddress with status $status")
-                            // CRITICAL FIX: Clean up failed connection attempt immediately
-                            pendingConnections.remove(deviceAddress)
-                            gatt.disconnect()
+
+                if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.i(TAG, "Client: Successfully connected to $deviceAddress. Requesting MTU...")
+                    // FIX: Request a larger MTU. Must be done before any data transfer.
+                    // 517 is the maximum supported MTU size on Android.
+                    connectionScope.launch {
+                        delay(200) // A small delay can improve reliability of MTU request.
+                        gatt.requestMtu(517)
+                    }
+                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    if (status != BluetoothGatt.GATT_SUCCESS) {
+                        Log.w(TAG, "Client: Disconnected from $deviceAddress with error status $status")
+                        if (status == 147) {
+                            Log.e(TAG, "Client: Connection establishment failed (status 147) for $deviceAddress")
                         }
+                    } else {
+                        Log.d(TAG, "Client: Cleanly disconnected from $deviceAddress")
                     }
-                    BluetoothProfile.STATE_CONNECTING -> {
-                        Log.d(TAG, "Client: Connecting to $deviceAddress...")
-                    }
-                    BluetoothProfile.STATE_DISCONNECTING -> {
-                        Log.d(TAG, "Client: Disconnecting from $deviceAddress...")
-                    }
-                    BluetoothProfile.STATE_DISCONNECTED -> {
-                        if (status != BluetoothGatt.GATT_SUCCESS) {
-                            Log.w(TAG, "Client: Disconnected from $deviceAddress with error status $status")
-                            // Special handling for connection establishment failure (status 147)
-                            if (status == 147) {
-                                Log.e(TAG, "Client: Connection establishment failed (status 147) for $deviceAddress - likely due to device compatibility or timing issues")
-                            }
-                        } else {
-                            Log.d(TAG, "Client: Cleanly disconnected from $deviceAddress")
-                        }
-                        
-                        cleanupDeviceConnection(deviceAddress)
-                        
-                        connectionScope.launch {
-                            delay(CLEANUP_DELAY)
-                            try {
-                                gatt.close()
-                            } catch (e: Exception) {
-                                Log.w(TAG, "Error closing GATT: ${e.message}")
-                            }
+                    
+                    cleanupDeviceConnection(deviceAddress)
+                    
+                    connectionScope.launch {
+                        delay(CLEANUP_DELAY)
+                        try {
+                            gatt.close()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error closing GATT: ${e.message}")
                         }
                     }
                 }
             }
             
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                val deviceAddress = gatt.device.address
+                Log.i(TAG, "Client: MTU changed for $deviceAddress to $mtu with status $status")
+
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.i(TAG, "MTU successfully negotiated for $deviceAddress. Discovering services.")
+                    
+                    // Now that MTU is set, connection is fully ready.
+                    val deviceConn = DeviceConnection(
+                        device = gatt.device,
+                        gatt = gatt,
+                        rssi = rssi,
+                        isClient = true
+                    )
+                    connectedDevices[deviceAddress] = deviceConn
+                    pendingConnections.remove(deviceAddress)
+                    
+                    // Start service discovery only AFTER MTU is set.
+                    gatt.discoverServices()
+                } else {
+                    Log.w(TAG, "MTU negotiation failed for $deviceAddress with status: $status. Disconnecting.")
+                    pendingConnections.remove(deviceAddress)
+                    gatt.disconnect()
+                }
+            }
+
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 Log.d(TAG, "Client: Service discovery completed for $deviceAddress with status: $status")
                 
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     val service = gatt.getService(SERVICE_UUID)
-                    Log.d(TAG, "Client: Service found: ${service != null} for $deviceAddress")
-                    
                     if (service != null) {
                         val characteristic = service.getCharacteristic(CHARACTERISTIC_UUID)
-                        Log.d(TAG, "Client: Characteristic found: ${characteristic != null} for $deviceAddress")
-                        
                         if (characteristic != null) {
-                            // Update device connection with characteristic
                             connectedDevices[deviceAddress]?.let { deviceConn ->
                                 val updatedConn = deviceConn.copy(characteristic = characteristic)
                                 connectedDevices[deviceAddress] = updatedConn
                                 Log.d(TAG, "Client: Updated device connection with characteristic for $deviceAddress")
                             }
                             
-                            // Enable notifications
-                            val notificationEnabled = gatt.setCharacteristicNotification(characteristic, true)
-                            Log.d(TAG, "Client: Notification enabled: $notificationEnabled for $deviceAddress")
-                            
-                            val descriptor = characteristic.getDescriptor(
-                                UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-                            )
-                            
+                            gatt.setCharacteristicNotification(characteristic, true)
+                            val descriptor = characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
                             if (descriptor != null) {
                                 descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                                val descriptorWritten = gatt.writeDescriptor(descriptor)
-                                Log.d(TAG, "Client: Descriptor write initiated: $descriptorWritten for $deviceAddress")
+                                gatt.writeDescriptor(descriptor)
                                 
                                 connectionScope.launch {
-                                    delay(200) // Wait for descriptor write to complete
+                                    delay(200)
                                     Log.i(TAG, "Client: Connection setup complete for $deviceAddress")
                                     delegate?.onDeviceConnected(device)
                                 }
