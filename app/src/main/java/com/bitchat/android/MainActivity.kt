@@ -1,6 +1,7 @@
 package com.bitchat.android
 
 import android.Manifest
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -44,6 +45,9 @@ class MainActivity : ComponentActivity() {
         // Request necessary permissions
         requestPermissions()
         
+        // Handle notification intent if app was opened from a notification
+        handleNotificationIntent(intent)
+        
         setContent {
             BitchatTheme {
                 Surface(
@@ -56,16 +60,47 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        // Handle notification intents when app is already running
+        intent?.let { handleNotificationIntent(it) }
+    }
+    
     override fun onResume() {
         super.onResume()
-        // Notify that app is in foreground for power optimization
+        // Notify that app is in foreground for power optimization and notifications
         chatViewModel.setAppBackgroundState(false)
     }
     
     override fun onPause() {
         super.onPause()
-        // Notify that app is in background for power optimization
+        // Notify that app is in background for power optimization and notifications
         chatViewModel.setAppBackgroundState(true)
+    }
+    
+    /**
+     * Handle intents from notification clicks - open specific private chat
+     */
+    private fun handleNotificationIntent(intent: Intent) {
+        val shouldOpenPrivateChat = intent.getBooleanExtra(
+            com.bitchat.android.ui.NotificationManager.EXTRA_OPEN_PRIVATE_CHAT, 
+            false
+        )
+        
+        if (shouldOpenPrivateChat) {
+            val peerID = intent.getStringExtra(com.bitchat.android.ui.NotificationManager.EXTRA_PEER_ID)
+            val senderNickname = intent.getStringExtra(com.bitchat.android.ui.NotificationManager.EXTRA_SENDER_NICKNAME)
+            
+            if (peerID != null) {
+                android.util.Log.d("MainActivity", "Opening private chat with $senderNickname (peerID: $peerID) from notification")
+                
+                // Open the private chat with this peer
+                chatViewModel.startPrivateChat(peerID)
+                
+                // Clear notifications for this sender since user is now viewing the chat
+                chatViewModel.clearNotificationsForSender(peerID)
+            }
+        }
     }
     
     private fun requestPermissions() {

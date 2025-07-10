@@ -149,11 +149,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
     // MARK: - Private Chat Management (delegated)
     
     fun startPrivateChat(peerID: String) {
-        privateChatManager.startPrivateChat(peerID, meshService)
+        val success = privateChatManager.startPrivateChat(peerID, meshService)
+        if (success) {
+            // Notify notification manager about current private chat
+            setCurrentPrivateChatPeer(peerID)
+            // Clear notifications for this sender since user is now viewing the chat
+            clearNotificationsForSender(peerID)
+        }
     }
     
     fun endPrivateChat() {
         privateChatManager.endPrivateChat()
+        // Notify notification manager that no private chat is active
+        setCurrentPrivateChatPeer(null)
     }
     
     // MARK: - Message Sending
@@ -266,6 +274,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
     fun setAppBackgroundState(inBackground: Boolean) {
         // Forward to connection manager for power optimization
         meshService.connectionManager.setAppBackgroundState(inBackground)
+        
+        // Forward to notification manager for notification logic
+        notificationManager.setAppBackgroundState(inBackground)
+    }
+    
+    fun setCurrentPrivateChatPeer(peerID: String?) {
+        // Update notification manager with current private chat peer
+        notificationManager.setCurrentPrivateChatPeer(peerID)
+    }
+    
+    fun clearNotificationsForSender(peerID: String) {
+        // Clear notifications when user opens a chat
+        notificationManager.clearNotificationsForSender(peerID)
     }
     
     // MARK: - Command Autocomplete (delegated)
