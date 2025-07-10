@@ -2,6 +2,9 @@ package com.bitchat.android.onboarding
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,19 +68,13 @@ private fun BluetoothDisabledContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Bluetooth icon
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFE3F2FD)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Text(
-                text = "📶",
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.padding(16.dp)
-            )
-        }
+        // Bluetooth icon - using Bluetooth outlined icon in app's green color
+        Icon(
+            imageVector = Icons.Outlined.Bluetooth,
+            contentDescription = "Bluetooth",
+            modifier = Modifier.size(64.dp),
+            tint = Color(0xFF00C851) // App's main green color
+        )
 
         Text(
             text = "Bluetooth Required",
@@ -134,7 +131,7 @@ private fun BluetoothDisabledContent(
                     onClick = onEnableBluetooth,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2196F3) // Bluetooth blue
+                        containerColor = Color(0xFF00C851) // App's main green color
                     )
                 ) {
                     Text(
