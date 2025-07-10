@@ -158,8 +158,17 @@ class MainActivity : ComponentActivity() {
      */
     private fun checkBluetoothAndProceed() {
         android.util.Log.d("MainActivity", "Checking Bluetooth status")
-        bluetoothStatusManager.logBluetoothStatus()
         
+        // For first-time users, skip Bluetooth check and go straight to permissions
+        // We'll check Bluetooth after permissions are granted
+        if (permissionManager.isFirstTimeLaunch()) {
+            android.util.Log.d("MainActivity", "First-time launch, skipping Bluetooth check - will check after permissions")
+            proceedWithPermissionCheck()
+            return
+        }
+        
+        // For existing users, check Bluetooth status first
+        bluetoothStatusManager.logBluetoothStatus()
         bluetoothStatus = bluetoothStatusManager.checkBluetoothStatus()
         
         when (bluetoothStatus) {
@@ -168,7 +177,7 @@ class MainActivity : ComponentActivity() {
                 proceedWithPermissionCheck()
             }
             BluetoothStatus.DISABLED -> {
-                // Show Bluetooth enable screen
+                // Show Bluetooth enable screen (should have permissions as existing user)
                 android.util.Log.d("MainActivity", "Bluetooth disabled, showing enable screen")
                 onboardingState = OnboardingState.BLUETOOTH_CHECK
                 isBluetoothLoading = false
@@ -183,10 +192,10 @@ class MainActivity : ComponentActivity() {
     }
     
     /**
-     * Proceed with permission checking after Bluetooth is confirmed enabled
+     * Proceed with permission checking 
      */
     private fun proceedWithPermissionCheck() {
-        android.util.Log.d("MainActivity", "Bluetooth enabled, checking permissions")
+        android.util.Log.d("MainActivity", "Proceeding with permission check")
         
         lifecycleScope.launch {
             delay(200) // Small delay for smooth transition
@@ -223,20 +232,46 @@ class MainActivity : ComponentActivity() {
         isBluetoothLoading = false
         bluetoothStatus = bluetoothStatusManager.checkBluetoothStatus()
         
-        if (bluetoothStatus == BluetoothStatus.NOT_SUPPORTED) {
-            // Show permanent error for unsupported devices
-            errorMessage = message
-            onboardingState = OnboardingState.ERROR
-        } else {
-            // Stay on Bluetooth check screen for retry
-            onboardingState = OnboardingState.BLUETOOTH_CHECK
+        when {
+            bluetoothStatus == BluetoothStatus.NOT_SUPPORTED -> {
+                // Show permanent error for unsupported devices
+                errorMessage = message
+                onboardingState = OnboardingState.ERROR
+            }
+            message.contains("Permission") && permissionManager.isFirstTimeLaunch() -> {
+                // During first-time onboarding, if Bluetooth enable fails due to permissions,
+                // proceed to permission explanation screen where user will grant permissions first
+                android.util.Log.d("MainActivity", "Bluetooth enable requires permissions, proceeding to permission explanation")
+                proceedWithPermissionCheck()
+            }
+            message.contains("Permission") -> {
+                // For existing users, redirect to permission explanation to grant missing permissions
+                android.util.Log.d("MainActivity", "Bluetooth enable requires permissions, showing permission explanation")
+                onboardingState = OnboardingState.PERMISSION_EXPLANATION
+            }
+            else -> {
+                // Stay on Bluetooth check screen for retry
+                onboardingState = OnboardingState.BLUETOOTH_CHECK
+            }
         }
     }
     
     private fun handleOnboardingComplete() {
-        android.util.Log.d("MainActivity", "Onboarding completed, initializing app")
-        onboardingState = OnboardingState.INITIALIZING
-        initializeApp()
+        android.util.Log.d("MainActivity", "Onboarding completed, checking Bluetooth again before initializing app")
+        
+        // After permissions are granted, re-check Bluetooth status
+        val currentBluetoothStatus = bluetoothStatusManager.checkBluetoothStatus()
+        if (currentBluetoothStatus == BluetoothStatus.ENABLED) {
+            // Bluetooth is enabled, proceed to app initialization
+            onboardingState = OnboardingState.INITIALIZING
+            initializeApp()
+        } else {
+            // Bluetooth still disabled, but now we have permissions to enable it
+            android.util.Log.d("MainActivity", "Permissions granted, but Bluetooth still disabled. Showing Bluetooth enable screen.")
+            bluetoothStatus = currentBluetoothStatus
+            onboardingState = OnboardingState.BLUETOOTH_CHECK
+            isBluetoothLoading = false
+        }
     }
     
     private fun handleOnboardingFailed(message: String) {

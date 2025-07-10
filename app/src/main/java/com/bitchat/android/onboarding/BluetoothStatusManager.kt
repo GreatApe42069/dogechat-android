@@ -71,14 +71,23 @@ class BluetoothStatusManager(
     }
 
     /**
-     * Check if Bluetooth is currently enabled
+     * Check if Bluetooth is currently enabled (permission-safe)
      */
     fun isBluetoothEnabled(): Boolean {
-        return bluetoothAdapter?.isEnabled == true
+        return try {
+            bluetoothAdapter?.isEnabled == true
+        } catch (securityException: SecurityException) {
+            // If we can't check due to permissions, assume disabled
+            Log.w(TAG, "Cannot check Bluetooth enabled state due to missing permissions")
+            false
+        } catch (e: Exception) {
+            Log.w(TAG, "Error checking Bluetooth enabled state: ${e.message}")
+            false
+        }
     }
 
     /**
-     * Check Bluetooth status and handle accordingly
+     * Check Bluetooth status and handle accordingly (permission-safe)
      * This should be called on every app startup
      */
     fun checkBluetoothStatus(): BluetoothStatus {
@@ -89,8 +98,8 @@ class BluetoothStatusManager(
                 Log.e(TAG, "Bluetooth not supported on this device")
                 BluetoothStatus.NOT_SUPPORTED
             }
-            !bluetoothAdapter!!.isEnabled -> {
-                Log.w(TAG, "Bluetooth is disabled")
+            !isBluetoothEnabled() -> {
+                Log.w(TAG, "Bluetooth is disabled or cannot be checked")
                 BluetoothStatus.DISABLED
             }
             else -> {
@@ -101,7 +110,7 @@ class BluetoothStatusManager(
     }
 
     /**
-     * Request user to enable Bluetooth
+     * Request user to enable Bluetooth (permission-aware)
      */
     fun requestEnableBluetooth() {
         Log.d(TAG, "Requesting user to enable Bluetooth")
@@ -109,6 +118,10 @@ class BluetoothStatusManager(
         try {
             val enableBluetoothIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             bluetoothEnableLauncher?.launch(enableBluetoothIntent)
+        } catch (securityException: SecurityException) {
+            // Permission not granted yet - this is expected during onboarding
+            Log.w(TAG, "Cannot request Bluetooth enable due to missing BLUETOOTH_CONNECT permission")
+            onBluetoothDisabled("Bluetooth permissions are required before enabling Bluetooth. Please grant permissions first.")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to request Bluetooth enable", e)
             onBluetoothDisabled("Failed to request Bluetooth enable: ${e.message}")
@@ -147,7 +160,7 @@ class BluetoothStatusManager(
     }
 
     /**
-     * Get detailed diagnostics
+     * Get detailed diagnostics (permission-safe)
      */
     fun getDiagnostics(): String {
         return buildString {
@@ -157,9 +170,18 @@ class BluetoothStatusManager(
             appendLine("Bluetooth enabled: ${isBluetoothEnabled()}")
             appendLine("Current status: ${checkBluetoothStatus()}")
             
+            // Only access adapter details if we have permission and adapter is available
             bluetoothAdapter?.let { adapter ->
-                appendLine("Adapter name: ${adapter.name ?: "Unknown"}")
-                appendLine("Adapter address: ${adapter.address ?: "Unknown"}")
+                try {
+                    // These calls require BLUETOOTH_CONNECT permission on Android 12+
+                    appendLine("Adapter name: ${adapter.name ?: "Unknown"}")
+                    appendLine("Adapter address: ${adapter.address ?: "Unknown"}")
+                } catch (securityException: SecurityException) {
+                    // Permission not granted yet, skip detailed info
+                    appendLine("Adapter details: [Permission required]")
+                } catch (e: Exception) {
+                    appendLine("Adapter details: [Error: ${e.message}]")
+                }
                 appendLine("Adapter state: ${getAdapterStateName(adapter.state)}")
             }
         }
