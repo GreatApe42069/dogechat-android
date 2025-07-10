@@ -35,6 +35,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
     private val channelManager = ChannelManager(state, messageManager, dataManager, viewModelScope)
     val privateChatManager = PrivateChatManager(state, messageManager, dataManager)
     private val commandProcessor = CommandProcessor(state, messageManager, channelManager, privateChatManager)
+    private val notificationManager = NotificationManager(application.applicationContext)
     
     // Delegate handler for mesh callbacks
     private val meshDelegateHandler = MeshDelegateHandler(
@@ -42,6 +43,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
         messageManager = messageManager,
         channelManager = channelManager,
         privateChatManager = privateChatManager,
+        notificationManager = notificationManager,
         coroutineScope = viewModelScope,
         onHapticFeedback = { ChatViewModelUtils.triggerHapticFeedback(context) },
         getMyPeerID = { meshService.myPeerID }

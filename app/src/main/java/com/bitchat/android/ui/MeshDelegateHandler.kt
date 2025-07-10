@@ -18,11 +18,12 @@ class MeshDelegateHandler(
     private val messageManager: MessageManager,
     private val channelManager: ChannelManager,
     private val privateChatManager: PrivateChatManager,
+    private val notificationManager: NotificationManager,
     private val coroutineScope: CoroutineScope,
     private val onHapticFeedback: () -> Unit,
     private val getMyPeerID: () -> String
 ) : BluetoothMeshDelegate {
-    
+
     override fun didReceiveMessage(message: BitchatMessage) {
         coroutineScope.launch {
             // FIXED: Deduplicate messages from dual connection paths
@@ -45,6 +46,9 @@ class MeshDelegateHandler(
             if (message.isPrivate) {
                 // Private message
                 privateChatManager.handleIncomingPrivateMessage(message)
+                if (state.getSelectedPrivateChatPeerValue() != message.senderPeerID) {
+                    notificationManager.showPrivateMessageNotification(message.sender, message.content)
+                }
             } else if (message.channel != null) {
                 // Channel message
                 if (state.getJoinedChannelsValue().contains(message.channel)) {
