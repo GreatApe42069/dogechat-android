@@ -30,10 +30,11 @@ fun PermissionExplanationScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(horizontal = 24.dp)
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Spacer(modifier = Modifier.height(24.dp))
         // Header
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -164,6 +165,7 @@ fun PermissionExplanationScreen(
                 )
             }
         }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
