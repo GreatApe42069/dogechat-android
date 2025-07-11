@@ -203,35 +203,39 @@ class BluetoothConnectionManager(
     }
     
     // Function to send data to a single device (server side)
-    private fun notifyDevice(device: BluetoothDevice, data: ByteArray) {
-        try {
+    private fun notifyDevice(device: BluetoothDevice, data: ByteArray): Boolean {
+        return try {
             characteristic?.let { char ->
                 char.value = data
-                gattServer?.notifyCharacteristicChanged(device, char, false)
-            }
+                val result = gattServer?.notifyCharacteristicChanged(device, char, false) ?: false
+                result
+            } ?: false
         } catch (e: Exception) {
             Log.w(TAG, "Error sending to server connection ${device.address}: ${e.message}")
             connectionScope.launch {
                 delay(CLEANUP_DELAY)
                 subscribedDevices.remove(device)
-                addressPeerMap.remove(device.getAddress())
+                addressPeerMap.remove(device.address)
             }
+            false
         }
     }
 
     // Function to send data to a single device (client side)
-    private fun writeToDeviceConn(deviceConn: DeviceConnection, data: ByteArray) {
-        try {
+    private fun writeToDeviceConn(deviceConn: DeviceConnection, data: ByteArray): Boolean {
+        return try {
             deviceConn.characteristic?.let { char ->
                 char.value = data
-                deviceConn.gatt?.writeCharacteristic(char)
-            }
+                val result = deviceConn.gatt?.writeCharacteristic(char) ?: false
+                result
+            } ?: false
         } catch (e: Exception) {
             Log.w(TAG, "Error sending to client connection ${deviceConn.device.address}: ${e.message}")
             connectionScope.launch {
                 delay(CLEANUP_DELAY)
                 cleanupDeviceConnection(deviceConn.device.address)
             }
+            false
         }
     }
 
@@ -255,8 +259,8 @@ class BluetoothConnectionManager(
             // If found, send directly
             if (targetDevice != null) {
                 Log.d(TAG, "Send packet type ${packet.type} directly to target device for recipient $recipientID: ${targetDevice.address}")
-                notifyDevice(targetDevice, data)
-                return  // Sent, no need to continue
+                if (notifyDevice(targetDevice, data))
+                    return  // Sent, no need to continue
             }
 
             // Try to find the recipient in client connections (connectedDevices)
@@ -264,8 +268,8 @@ class BluetoothConnectionManager(
             // If found, send directly
             if (targetDeviceConn != null) {
                 Log.d(TAG, "Send packet type ${packet.type} directly to target client connection for recipient $recipientID: ${targetDeviceConn.device.address}")
-                writeToDeviceConn(targetDeviceConn, data)
-                return  // Sent, no need to continue
+                if (writeToDeviceConn(targetDeviceConn, data))
+                    return  // Sent, no need to continue
             }
         }
 
