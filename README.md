@@ -53,7 +53,7 @@ This project is released into the public domain. See the [LICENSE](LICENSE.md) f
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/bitchat-android.git
+   git clone https://github.com/permissionlesstech/bitchat-android.git
    cd bitchat-android
    ```
 
