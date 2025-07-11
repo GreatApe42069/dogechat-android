@@ -37,7 +37,7 @@ class CommandProcessor(
         when (cmd) {
             "/j", "/join" -> handleJoinCommand(parts, myPeerID)
             "/m", "/msg" -> handleMessageCommand(parts, meshService)
-            "/w" -> handleWhoCommand()
+            "/w" -> handleWhoCommand(meshService)
             "/clear" -> handleClearCommand()
             "/block" -> handleBlockCommand(parts, meshService)
             "/unblock" -> handleUnblockCommand(parts, meshService)
@@ -127,11 +127,11 @@ class CommandProcessor(
         }
     }
     
-    private fun handleWhoCommand() {
+    private fun handleWhoCommand(meshService: Any) {
         val connectedPeers = state.getConnectedPeersValue()
         val peerList = connectedPeers.joinToString(", ") { peerID ->
-            // This would need mesh service access for nicknames
-            peerID // For now just use peer ID
+            // Convert peerID to nickname using the mesh service
+            getPeerNickname(peerID, meshService)
         }
         
         val systemMessage = BitchatMessage(
