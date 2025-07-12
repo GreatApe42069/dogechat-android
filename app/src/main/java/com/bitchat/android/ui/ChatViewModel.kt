@@ -2,6 +2,7 @@ package com.bitchat.android.ui
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.viewModelScope
@@ -99,6 +100,10 @@ class ChatViewModel(
         dataManager.loadFavorites()
         state.setFavoritePeers(dataManager.favoritePeers)
         dataManager.loadBlockedUsers()
+        
+        // Log all favorites at startup
+        dataManager.logAllFavorites()
+        logCurrentFavoriteState()
         
         // Note: Mesh service is now started by MainActivity
         
@@ -249,7 +254,19 @@ class ChatViewModel(
     }
     
     fun toggleFavorite(peerID: String) {
+        Log.d("ChatViewModel", "toggleFavorite called for peerID: $peerID")
         privateChatManager.toggleFavorite(peerID)
+        
+        // Log current state after toggle
+        logCurrentFavoriteState()
+    }
+    
+    private fun logCurrentFavoriteState() {
+        Log.i("ChatViewModel", "=== CURRENT FAVORITE STATE ===")
+        Log.i("ChatViewModel", "LiveData favorite peers: ${favoritePeers.value}")
+        Log.i("ChatViewModel", "DataManager favorite peers: ${dataManager.favoritePeers}")
+        Log.i("ChatViewModel", "Peer fingerprints: ${privateChatManager.getAllPeerFingerprints()}")
+        Log.i("ChatViewModel", "==============================")
     }
     
     // MARK: - Debug and Troubleshooting

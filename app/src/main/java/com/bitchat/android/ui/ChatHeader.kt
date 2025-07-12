@@ -1,5 +1,6 @@
 package com.bitchat.android.ui
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
@@ -253,7 +254,10 @@ private fun PrivateChatHeader(
         
         // Favorite button - positioned on the right
         IconButton(
-            onClick = onToggleFavorite,
+            onClick = {
+                Log.d("ChatHeader", "Header toggle favorite: peerID=$peerID, currentFavorite=$isFavorite")
+                onToggleFavorite()
+            },
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
             Icon(

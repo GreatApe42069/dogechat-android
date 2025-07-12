@@ -1,5 +1,6 @@
 package com.bitchat.android.ui
 
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -275,16 +276,22 @@ fun PeopleSection(
             )
             
             sortedPeers.forEach { peerID ->
+                val fingerprint = viewModel.privateChatManager.getPeerFingerprint(peerID)
+                val isFavorite = favoritePeers.contains(fingerprint)
+                
                 PeerItem(
                     peerID = peerID,
                     displayName = if (peerID == nickname) "You" else (peerNicknames[peerID] ?: peerID),
                     signalStrength = peerRSSI[peerID] ?: 0,
                     isSelected = peerID == selectedPrivatePeer,
-                    isFavorite = favoritePeers.contains(viewModel.privateChatManager.getPeerFingerprint(peerID)),
+                    isFavorite = isFavorite,
                     hasUnreadDM = hasUnreadPrivateMessages.contains(peerID),
                     colorScheme = colorScheme,
                     onItemClick = { onPrivateChatStart(peerID) },
-                    onToggleFavorite = { viewModel.toggleFavorite(peerID) }
+                    onToggleFavorite = { 
+                        Log.d("SidebarComponents", "Sidebar toggle favorite: peerID=$peerID, fingerprint=$fingerprint, currentFavorite=$isFavorite")
+                        viewModel.toggleFavorite(peerID) 
+                    }
                 )
             }
         }

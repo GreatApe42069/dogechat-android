@@ -1,5 +1,6 @@
 package com.bitchat.android.ui
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
@@ -188,6 +189,7 @@ class ChatState {
     }
 
     fun setFavoritePeers(favorites: Set<String>) {
+        Log.d("ChatState", "setFavoritePeers called with ${favorites.size} favorites: $favorites")
         _favoritePeers.value = favorites
     }
 
