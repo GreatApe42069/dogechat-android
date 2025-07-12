@@ -189,8 +189,17 @@ class ChatState {
     }
 
     fun setFavoritePeers(favorites: Set<String>) {
+        val currentValue = _favoritePeers.value ?: emptySet()
         Log.d("ChatState", "setFavoritePeers called with ${favorites.size} favorites: $favorites")
+        Log.d("ChatState", "Current value: $currentValue")
+        Log.d("ChatState", "Values equal: ${currentValue == favorites}")
+        Log.d("ChatState", "Setting on thread: ${Thread.currentThread().name}")
+        
+        // Always set the value - even if equal, this ensures observers are triggered
         _favoritePeers.value = favorites
+        
+        Log.d("ChatState", "LiveData value after set: ${_favoritePeers.value}")
+        Log.d("ChatState", "LiveData has active observers: ${_favoritePeers.hasActiveObservers()}")
     }
 
 }

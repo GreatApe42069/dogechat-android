@@ -152,11 +152,17 @@ fun ChatHeaderContent(
     
     when {
         selectedPrivatePeer != null -> {
-            // Private chat header
+            // Private chat header - ensure state synchronization
+            val favoritePeers by viewModel.favoritePeers.observeAsState(emptySet())
+            val fingerprint = viewModel.privateChatManager.getPeerFingerprint(selectedPrivatePeer)
+            val isFavorite = favoritePeers.contains(fingerprint)
+            
+            Log.d("ChatHeader", "Header recomposing: peer=$selectedPrivatePeer, fingerprint=$fingerprint, isFav=$isFavorite")
+            
             PrivateChatHeader(
                 peerID = selectedPrivatePeer,
                 peerNicknames = viewModel.meshService.getPeerNicknames(),
-                isFavorite = viewModel.isFavorite(selectedPrivatePeer),
+                isFavorite = isFavorite,
                 onBackClick = onBackClick,
                 onToggleFavorite = { viewModel.toggleFavorite(selectedPrivatePeer) }
             )

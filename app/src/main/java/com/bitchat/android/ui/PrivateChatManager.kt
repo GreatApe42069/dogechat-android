@@ -109,6 +109,9 @@ class PrivateChatManager(
         val wasFavorite = dataManager.isFavorite(fingerprint)
         Log.d(TAG, "Current favorite status: $wasFavorite")
         
+        val currentFavorites = state.getFavoritePeersValue()
+        Log.d(TAG, "Current UI state favorites: $currentFavorites")
+        
         if (wasFavorite) {
             dataManager.removeFavorite(fingerprint)
             Log.d(TAG, "Removed from favorites: $fingerprint")
@@ -117,10 +120,11 @@ class PrivateChatManager(
             Log.d(TAG, "Added to favorites: $fingerprint")
         }
         
-        // Update state to trigger UI refresh
-        state.setFavoritePeers(dataManager.favoritePeers)
+        // Always update state to trigger UI refresh - create new set to ensure change detection
+        val newFavorites = dataManager.favoritePeers.toSet()
+        state.setFavoritePeers(newFavorites)
         
-        Log.d(TAG, "Updated favorite peers state. New favorites: ${dataManager.favoritePeers}")
+        Log.d(TAG, "Force updated favorite peers state. New favorites: $newFavorites")
         Log.d(TAG, "All peer fingerprints: $peerIDToPublicKeyFingerprint")
     }
     

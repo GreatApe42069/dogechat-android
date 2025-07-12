@@ -264,20 +264,26 @@ fun PeopleSection(
             val privateChats by viewModel.privateChats.observeAsState(emptyMap())
             val favoritePeers by viewModel.favoritePeers.observeAsState(emptySet()) 
  
+            // Pre-calculate all favorite states to ensure proper state synchronization
+            val peerFavoriteStates = remember(favoritePeers, connectedPeers) {
+                connectedPeers.associateWith { peerID ->
+                    val fingerprint = viewModel.privateChatManager.getPeerFingerprint(peerID)
+                    favoritePeers.contains(fingerprint)
+                }
+            }
+            
+            Log.d("SidebarComponents", "Recomposing with ${favoritePeers.size} favorites, peer states: $peerFavoriteStates")
+ 
              // Smart sorting: unread DMs first, then by most recent DM, then favorites, then alphabetical
             val sortedPeers = connectedPeers.sortedWith(
                 compareBy<String> { !hasUnreadPrivateMessages.contains(it) } // Unread DM senders first
                 .thenByDescending { privateChats[it]?.maxByOrNull { msg -> msg.timestamp }?.timestamp?.time ?: 0L } // Most recent DM (convert Date to Long)
-                .thenBy {
-                    val fingerprint = viewModel.privateChatManager.getPeerFingerprint(it)
-                    fingerprint == null || !favoritePeers.contains(fingerprint)
-                } // Favorites
+                .thenBy { !(peerFavoriteStates[it] ?: false) } // Favorites first
                 .thenBy { (if (it == nickname) "You" else (peerNicknames[it] ?: it)).lowercase() } // Alphabetical
             )
             
             sortedPeers.forEach { peerID ->
-                val fingerprint = viewModel.privateChatManager.getPeerFingerprint(peerID)
-                val isFavorite = favoritePeers.contains(fingerprint)
+                val isFavorite = peerFavoriteStates[peerID] ?: false
                 
                 PeerItem(
                     peerID = peerID,
@@ -289,7 +295,7 @@ fun PeopleSection(
                     colorScheme = colorScheme,
                     onItemClick = { onPrivateChatStart(peerID) },
                     onToggleFavorite = { 
-                        Log.d("SidebarComponents", "Sidebar toggle favorite: peerID=$peerID, fingerprint=$fingerprint, currentFavorite=$isFavorite")
+                        Log.d("SidebarComponents", "Sidebar toggle favorite: peerID=$peerID, currentFavorite=$isFavorite")
                         viewModel.toggleFavorite(peerID) 
                     }
                 )
