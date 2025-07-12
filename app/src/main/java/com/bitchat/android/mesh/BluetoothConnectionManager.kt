@@ -410,10 +410,15 @@ class BluetoothConnectionManager(
                 }
                 
                 if (characteristic.uuid == CHARACTERISTIC_UUID) {
+                    Log.d(TAG, "Server: Received packet from ${device.address}, size: ${value.size} bytes")
                     val packet = BitchatPacket.fromBinaryData(value)
                     if (packet != null) {
                         val peerID = String(packet.senderID).replace("\u0000", "")
+                        Log.d(TAG, "Server: Parsed packet type ${packet.type} from $peerID")
                         delegate?.onPacketReceived(packet, peerID, device)
+                    } else {
+                        Log.w(TAG, "Server: Failed to parse packet from ${device.address}, size: ${value.size} bytes")
+                        Log.w(TAG, "Server: Packet data: ${value.joinToString(" ") { "%02x".format(it) }}")
                     }
                     
                     if (responseNeeded) {
@@ -835,10 +840,15 @@ class BluetoothConnectionManager(
             
             override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
                 val value = characteristic.value
+                Log.d(TAG, "Client: Received packet from ${gatt.device.address}, size: ${value.size} bytes")
                 val packet = BitchatPacket.fromBinaryData(value)
                 if (packet != null) {
                     val peerID = String(packet.senderID).replace("\u0000", "")
+                    Log.d(TAG, "Client: Parsed packet type ${packet.type} from $peerID")
                     delegate?.onPacketReceived(packet, peerID, gatt.device)
+                } else {
+                    Log.w(TAG, "Client: Failed to parse packet from ${gatt.device.address}, size: ${value.size} bytes")
+                    Log.w(TAG, "Client: Packet data: ${value.joinToString(" ") { "%02x".format(it) }}")
                 }
             }
         }
