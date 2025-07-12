@@ -124,9 +124,6 @@ class MainActivity : ComponentActivity() {
                     onContinue = {
                         onboardingState = OnboardingState.PERMISSION_REQUESTING
                         onboardingCoordinator.requestPermissions()
-                    },
-                    onCancel = {
-                        finish()
                     }
                 )
             }
