@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved README documentation with updated clone URLs
 - Enhanced logging throughout the application for better debugging
 
+### Known Issues
+- reinstallation via apk does not work in some or all cases, it is advised to uninstall previous version first
 ## [0.5.1] - 2025-07-10
 
 ### Added
