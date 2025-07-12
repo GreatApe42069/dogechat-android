@@ -2,6 +2,7 @@ package com.bitchat.android.ui
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.viewModelScope
@@ -19,12 +20,12 @@ import kotlin.random.Random
  * Refactored ChatViewModel - Main coordinator for bitchat functionality
  * Delegates specific responsibilities to specialized managers while maintaining 100% iOS compatibility
  */
-class ChatViewModel(application: Application) : AndroidViewModel(application), BluetoothMeshDelegate {
+class ChatViewModel(
+    application: Application,
+    val meshService: BluetoothMeshService
+) : AndroidViewModel(application), BluetoothMeshDelegate {
     
     private val context: Context = application.applicationContext
-    
-    // Core services
-    val meshService = BluetoothMeshService(context)
     
     // State management
     private val state = ChatState()
@@ -72,7 +73,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
     val favoritePeers: LiveData<Set<String>> = state.favoritePeers
     
     init {
-        meshService.delegate = this
+        // Note: Mesh service delegate is now set by MainActivity
         loadAndInitialize()
     }
     
@@ -100,8 +101,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
         state.setFavoritePeers(dataManager.favoritePeers)
         dataManager.loadBlockedUsers()
         
-        // Start mesh service
-        meshService.startServices()
+        // Log all favorites at startup
+        dataManager.logAllFavorites()
+        logCurrentFavoriteState()
+        
+        // Note: Mesh service is now started by MainActivity
         
         // Show welcome message if no peers after delay
         viewModelScope.launch {
@@ -120,7 +124,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
     
     override fun onCleared() {
         super.onCleared()
-        meshService.stopServices()
+        // Note: Mesh service lifecycle is now managed by MainActivity
     }
     
     // MARK: - Nickname Management
@@ -250,7 +254,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
     }
     
     fun toggleFavorite(peerID: String) {
+        Log.d("ChatViewModel", "toggleFavorite called for peerID: $peerID")
         privateChatManager.toggleFavorite(peerID)
+        
+        // Log current state after toggle
+        logCurrentFavoriteState()
+    }
+    
+    private fun logCurrentFavoriteState() {
+        Log.i("ChatViewModel", "=== CURRENT FAVORITE STATE ===")
+        Log.i("ChatViewModel", "LiveData favorite peers: ${favoritePeers.value}")
+        Log.i("ChatViewModel", "DataManager favorite peers: ${dataManager.favoritePeers}")
+        Log.i("ChatViewModel", "Peer fingerprints: ${privateChatManager.getAllPeerFingerprints()}")
+        Log.i("ChatViewModel", "==============================")
     }
     
     // MARK: - Debug and Troubleshooting
@@ -259,18 +275,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
         return meshService.getDebugStatus()
     }
     
-    fun restartMeshServices() {
-        viewModelScope.launch {
-            meshService.stopServices()
-            delay(1000)
-            meshService.startServices()
-        }
-    }
+    // Note: Mesh service restart is now handled by MainActivity
+    // This function is no longer needed
     
     fun setAppBackgroundState(inBackground: Boolean) {
-        // Forward to connection manager for power optimization
-        meshService.connectionManager.setAppBackgroundState(inBackground)
-        
         // Forward to notification manager for notification logic
         notificationManager.setAppBackgroundState(inBackground)
     }
@@ -355,13 +363,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
         state.setNickname(newNickname)
         dataManager.saveNickname(newNickname)
         
-        // Disconnect from mesh
-        meshService.stopServices()
-        
-        // Restart services with new identity
-        viewModelScope.launch {
-            delay(500)
-            meshService.startServices()
-        }
+        // Note: Mesh service restart is now handled by MainActivity
+        // This method now only clears data, not mesh service lifecycle
     }
 }
