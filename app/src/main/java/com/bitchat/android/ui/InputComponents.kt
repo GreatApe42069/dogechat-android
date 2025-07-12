@@ -49,8 +49,8 @@ fun MessageInput(
             text = "<@$nickname>",  // No arrow for both private and channel
             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
             color = when {
-                selectedPrivatePeer != null -> Color(0xFFFF8C00) // Orange for private
-                currentChannel != null -> Color(0xFFFF8C00) // Orange for channels too
+                selectedPrivatePeer != null -> Color(0xFFFF9500) // Orange for private
+                currentChannel != null -> Color(0xFFFF9500) // Orange for channels too
                 else -> colorScheme.primary
             },
             fontFamily = FontFamily.Monospace
@@ -85,7 +85,7 @@ fun MessageInput(
                     .background(
                         color = if (selectedPrivatePeer != null || currentChannel != null) {
                             // Orange for both private messages and channels to match nickname color
-                            Color(0xFFFF8C00).copy(alpha = 0.75f)
+                            Color(0xFFFF9500).copy(alpha = 0.75f)
                         } else if (colorScheme.background == Color.Black) {
                             Color(0xFF00FF00).copy(alpha = 0.75f) // Bright green for dark theme
                         } else {

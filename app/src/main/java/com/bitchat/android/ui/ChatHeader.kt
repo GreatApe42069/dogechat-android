@@ -103,7 +103,7 @@ fun PeerCounter(
                 imageVector = Icons.Filled.Email,
                 contentDescription = "Unread private messages",
                 modifier = Modifier.size(16.dp),
-                tint = Color(0xFFFF8C00) // Orange to match private message theme
+                tint = Color(0xFFFF9500) // Orange to match private message theme
             )
             Spacer(modifier = Modifier.width(6.dp))
         }
@@ -241,13 +241,13 @@ private fun PrivateChatHeader(
                 imageVector = Icons.Filled.Lock,
                 contentDescription = "Private chat",
                 modifier = Modifier.size(16.dp),
-                tint = Color(0xFFFF8C00) // Orange to match private message theme
+                tint = Color(0xFFFF9500) // Orange to match private message theme
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = peerNickname,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFFF8C00) // Orange
+                color = Color(0xFFFF9500) // Orange
             )
         }
         
@@ -310,7 +310,7 @@ private fun ChannelHeader(
         Text(
             text = "channel: $channel",
             style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFFFF8C00), // Orange to match input field
+            color = Color(0xFFFF9500), // Orange to match input field
             modifier = Modifier
                 .align(Alignment.Center)
                 .clickable { onSidebarClick() }
