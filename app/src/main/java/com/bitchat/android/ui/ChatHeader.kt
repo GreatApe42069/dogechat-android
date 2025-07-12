@@ -202,25 +202,28 @@ private fun PrivateChatHeader(
     val peerNickname = peerNicknames[peerID] ?: peerID
     
     Box(modifier = Modifier.fillMaxWidth()) {
-        // Back button - positioned on the left
+        // Back button - positioned all the way to the left with minimal margin
         Button(
             onClick = onBackClick,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
                 contentColor = colorScheme.primary
             ),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-            modifier = Modifier.align(Alignment.CenterStart)
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp), // Reduced horizontal padding
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .offset(x = (-8).dp) // Move even further left to minimize margin
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBackIos,
+                    imageVector = Icons.Filled.ArrowBack,
                     contentDescription = "Back",
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(16.dp),
                     tint = colorScheme.primary
                 )
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "back",
                     style = MaterialTheme.typography.bodyMedium,
@@ -273,24 +276,28 @@ private fun ChannelHeader(
     val colorScheme = MaterialTheme.colorScheme
     
     Box(modifier = Modifier.fillMaxWidth()) {
-        // Back button - positioned on the left
+        // Back button - positioned all the way to the left with minimal margin
         Button(
             onClick = onBackClick,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
                 contentColor = colorScheme.primary
             ),
-            modifier = Modifier.align(Alignment.CenterStart)
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp), // Reduced horizontal padding
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .offset(x = (-8).dp) // Move even further left to minimize margin
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBackIos,
+                    imageVector = Icons.Filled.ArrowBack,
                     contentDescription = "Back",
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(16.dp),
                     tint = colorScheme.primary
-                )       
+                )
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "back",
                     style = MaterialTheme.typography.bodyMedium,
