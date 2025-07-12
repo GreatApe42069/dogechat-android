@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Monochrome/themed launcher icon for Android 12+ dynamic theming support
 - Unit tests package with initial testing infrastructure
 - Production build optimization with code minification and shrinking
+- Native back gesture/button handling for all app views
 
 ### Fixed
 - Favorite peer functionality completely restored and improved
