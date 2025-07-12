@@ -193,7 +193,7 @@ fun ChannelsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "#$channel",
+                    text = channel, // Channel already contains the # prefix
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (isSelected) colorScheme.primary else colorScheme.onSurface,
                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
@@ -320,7 +320,7 @@ private fun PeerItem(
                 imageVector = Icons.Filled.Email,
                 contentDescription = "Unread messages",
                 modifier = Modifier.size(16.dp),
-                tint = Color(0xFFFF8C00) // Orange to match private message theme
+                tint = Color(0xFFFF9500) // Orange to match private message theme
             )
         } else {
             // Signal strength indicators
