@@ -5,10 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6]
+
+### Added
+- Channel password management with `/pass` command for channel owners
+- Monochrome/themed launcher icon for Android 12+ dynamic theming support
+- Unit tests package with initial testing infrastructure
+- Production build optimization with code minification and shrinking
 
 ### Fixed
+- Favorite peer functionality completely restored and improved
+  - Enhanced favorite system with fallback mechanism for peers without key exchange
+  - Fixed UI state updates for favorite stars in both header and sidebar
+  - Improved favorite persistence across app sessions
 - `/w` command now displays user nicknames instead of peer IDs
+- Button styling and layout improvements across the app
+  - Enhanced back button positioning and styling
+  - Improved private chat and channel header button layouts
+  - Fixed button padding and alignment issues
+- Color scheme consistency updates
+  - Updated orange color throughout the app to match iOS version
+  - Consistent color usage for private messages and UI elements
+- App startup reliability improvements
+  - Better initialization sequence handling
+  - Fixed null pointer exceptions during startup
+  - Enhanced error handling and logging
+- Input field styling and behavior improvements
+- Sidebar user interaction enhancements
+- Permission explanation screen layout fixes with proper vertical padding
+
+### Changed
+- Updated GitHub organization references in project files
+- Improved README documentation with updated clone URLs
+- Enhanced logging throughout the application for better debugging
 
 ## [0.5.1] - 2025-07-10
 
