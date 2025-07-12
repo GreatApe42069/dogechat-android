@@ -190,14 +190,14 @@ private fun PermissionCategoryCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = getPermissionEmoji(category.name),
+                    text = getPermissionEmoji(category.type),
                     style = MaterialTheme.typography.titleLarge,
-                    color = getPermissionIconColor(category.name),
+                    color = getPermissionIconColor(category.type),
                     modifier = Modifier.size(24.dp)
                 )
                 
                 Text(
-                    text = category.name,
+                    text = category.type.nameValue,
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurface
@@ -214,7 +214,7 @@ private fun PermissionCategoryCard(
                 )
             )
 
-            if (category.name == "Precise Location") {
+            if (category.type == PermissionType.PRECISE_LOCATION) {
                 // Extra emphasis for location permission
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -239,20 +239,20 @@ private fun PermissionCategoryCard(
     }
 }
 
-private fun getPermissionEmoji(categoryName: String): String {
-    return when (categoryName) {
-        "Nearby Devices" -> "📱"
-        "Precise Location" -> "📍"
-        "Notifications" -> "🔔"
-        else -> "🔧"
+private fun getPermissionEmoji(permissionType: PermissionType): String {
+    return when (permissionType) {
+        PermissionType.NEARBY_DEVICES -> "📱"
+        PermissionType.PRECISE_LOCATION -> "📍"
+        PermissionType.NOTIFICATIONS -> "🔔"
+        PermissionType.OTHER -> "🔧"
     }
 }
 
-private fun getPermissionIconColor(categoryName: String): Color {
-    return when (categoryName) {
-        "Nearby Devices" -> Color(0xFF2196F3) // Blue
-        "Precise Location" -> Color(0xFFFF9800) // Orange
-        "Notifications" -> Color(0xFF4CAF50) // Green
-        else -> Color(0xFF9C27B0) // Purple
+private fun getPermissionIconColor(permissionType: PermissionType): Color {
+    return when (permissionType) {
+        PermissionType.NEARBY_DEVICES -> Color(0xFF2196F3) // Blue
+        PermissionType.PRECISE_LOCATION -> Color(0xFFFF9800) // Orange
+        PermissionType.NOTIFICATIONS -> Color(0xFF4CAF50) // Green
+        PermissionType.OTHER -> Color(0xFF9C27B0) // Purple
     }
 }
