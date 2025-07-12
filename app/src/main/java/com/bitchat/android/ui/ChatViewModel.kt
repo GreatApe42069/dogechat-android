@@ -253,10 +253,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
         privateChatManager.toggleFavorite(peerID)
     }
     
-    fun registerPeerPublicKey(peerID: String, publicKeyData: ByteArray) {
-        privateChatManager.registerPeerPublicKey(peerID, publicKeyData)
-    }
-    
     // MARK: - Debug and Troubleshooting
     
     fun getDebugStatus(): String {
@@ -339,6 +335,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application), B
     
     override fun isFavorite(peerID: String): Boolean {
         return meshDelegateHandler.isFavorite(peerID)
+    }
+    
+    override fun registerPeerPublicKey(peerID: String, publicKeyData: ByteArray) {
+        privateChatManager.registerPeerPublicKey(peerID, publicKeyData)
     }
     
     // MARK: - Emergency Clear
