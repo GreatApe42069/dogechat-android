@@ -69,10 +69,10 @@ class BluetoothMeshService(private val context: Context) {
             while (isActive) {
                 try {
                     delay(10000) // 10 seconds
-                    val debugInfo = getDebugStatus()
-                    Log.d(TAG, "=== PERIODIC DEBUG STATUS ===")
-                    Log.d(TAG, debugInfo)
-                    Log.d(TAG, "=== END DEBUG STATUS ===")
+                    if (isActive) { // Double-check before logging
+                        val debugInfo = getDebugStatus()
+                        Log.d(TAG, "=== PERIODIC DEBUG STATUS ===\n$debugInfo\n=== END DEBUG STATUS ===")
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in periodic debug logging: ${e.message}")
                 }
@@ -282,7 +282,7 @@ class BluetoothMeshService(private val context: Context) {
      * Start the mesh service
      */
     fun startServices() {
-        // Prevent double starts
+        // Prevent double starts (defensive programming)
         if (isActive) {
             Log.w(TAG, "Mesh service already active, ignoring duplicate start request")
             return
@@ -297,9 +297,7 @@ class BluetoothMeshService(private val context: Context) {
             // Send initial announcements after services are ready
             serviceScope.launch {
                 delay(1000)
-                if (isActive) { // Check if still active
-                    sendBroadcastAnnounce()
-                }
+                sendBroadcastAnnounce()
             }
         } else {
             Log.e(TAG, "Failed to start Bluetooth services")

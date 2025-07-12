@@ -129,16 +129,16 @@ class BluetoothConnectionManager(
         try {
             isActive = true
             
+            // Setup GATT server first
+            setupGattServer()
+            
             // Start power manager and services
             connectionScope.launch {
                 powerManager.start()
-                
-                // Setup GATT server after power manager is ready
-                setupGattServer()
-                delay(500) // Ensure GATT server is ready
+                delay(300) // Brief delay to ensure GATT server is ready
                 
                 startAdvertising()
-                delay(200)
+                delay(100)
                 
                 if (powerManager.shouldUseDutyCycle()) {
                     Log.i(TAG, "Using power-aware duty cycling")
@@ -458,48 +458,47 @@ class BluetoothConnectionManager(
         // Proper cleanup sequencing to prevent race conditions
         gattServer?.let { server ->
             Log.d(TAG, "Cleaning up existing GATT server")
-            connectionScope.launch {
-                // Give time for pending callbacks to complete
-                delay(100)
+            try {
                 server.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error closing existing GATT server: ${e.message}")
             }
         }
         
-        // Create new server after cleanup delay
-        connectionScope.launch {
-            delay(200) // Allow previous server to fully close
-            
-            if (!isActive) {
-                Log.d(TAG, "Service inactive, skipping GATT server creation")
-                return@launch
-            }
-            
-            gattServer = bluetoothManager.openGattServer(context, serverCallback)
-            
-            // Create characteristic with notification support
-            characteristic = BluetoothGattCharacteristic(
-                CHARACTERISTIC_UUID,
-                BluetoothGattCharacteristic.PROPERTY_READ or 
-                BluetoothGattCharacteristic.PROPERTY_WRITE or 
-                BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE or
-                BluetoothGattCharacteristic.PROPERTY_NOTIFY,
-                BluetoothGattCharacteristic.PERMISSION_READ or 
-                BluetoothGattCharacteristic.PERMISSION_WRITE
-            )
-            
-            val descriptor = BluetoothGattDescriptor(
-                UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"),
-                BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
-            )
-            characteristic?.addDescriptor(descriptor)
-            
-            val service = BluetoothGattService(SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY)
-            service.addCharacteristic(characteristic)
-            
-            gattServer?.addService(service)
-            
-            Log.i(TAG, "GATT server setup complete")
+        // Small delay to ensure cleanup is complete
+        Thread.sleep(100)
+        
+        if (!isActive) {
+            Log.d(TAG, "Service inactive, skipping GATT server creation")
+            return
         }
+        
+        // Create new server
+        gattServer = bluetoothManager.openGattServer(context, serverCallback)
+        
+        // Create characteristic with notification support
+        characteristic = BluetoothGattCharacteristic(
+            CHARACTERISTIC_UUID,
+            BluetoothGattCharacteristic.PROPERTY_READ or 
+            BluetoothGattCharacteristic.PROPERTY_WRITE or 
+            BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE or
+            BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+            BluetoothGattCharacteristic.PERMISSION_READ or 
+            BluetoothGattCharacteristic.PERMISSION_WRITE
+        )
+        
+        val descriptor = BluetoothGattDescriptor(
+            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"),
+            BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
+        )
+        characteristic?.addDescriptor(descriptor)
+        
+        val service = BluetoothGattService(SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY)
+        service.addCharacteristic(characteristic)
+        
+        gattServer?.addService(service)
+        
+        Log.i(TAG, "GATT server setup complete")
     }
     
     @Suppress("DEPRECATION")
