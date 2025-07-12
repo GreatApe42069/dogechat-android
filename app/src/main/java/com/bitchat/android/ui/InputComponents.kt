@@ -53,7 +53,8 @@ fun MessageInput(
                 currentChannel != null -> Color(0xFFFF9500) // Orange for channels too
                 else -> colorScheme.primary
             },
-            fontFamily = FontFamily.Monospace
+            fontFamily = FontFamily.Monospace,
+            fontSize = 14.sp
         )
         
         Spacer(modifier = Modifier.width(8.dp))
@@ -96,7 +97,7 @@ fun MessageInput(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Filled.KeyboardArrowUp,
+                    imageVector = Icons.Filled.KeyboardArrowRight,
                     contentDescription = "Send message",
                     modifier = Modifier.size(20.dp),
                     tint = if (selectedPrivatePeer != null || currentChannel != null) {
