@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.addCallback
 import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.onboarding.*
 import com.bitchat.android.ui.ChatScreen
@@ -138,6 +140,24 @@ class MainActivity : ComponentActivity() {
             }
             
             OnboardingState.COMPLETE -> {
+                // Set up back navigation handling for the chat screen
+                val backCallback = object : OnBackPressedCallback(true) {
+                    override fun handleOnBackPressed() {
+                        // Let ChatViewModel handle navigation state
+                        val handled = chatViewModel.handleBackPressed()
+                        if (!handled) {
+                            // If ChatViewModel doesn't handle it, disable this callback 
+                            // and let the system handle it (which will exit the app)
+                            this.isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                            this.isEnabled = true
+                        }
+                    }
+                }
+                
+                // Add the callback - this will be automatically removed when the activity is destroyed
+                onBackPressedDispatcher.addCallback(this, backCallback)
+                
                 ChatScreen(viewModel = chatViewModel)
             }
             
