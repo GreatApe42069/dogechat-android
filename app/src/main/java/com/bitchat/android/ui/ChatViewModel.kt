@@ -71,6 +71,7 @@ class ChatViewModel(
     val showCommandSuggestions: LiveData<Boolean> = state.showCommandSuggestions
     val commandSuggestions: LiveData<List<CommandSuggestion>> = state.commandSuggestions
     val favoritePeers: LiveData<Set<String>> = state.favoritePeers
+    val showAppInfo: LiveData<Boolean> = state.showAppInfo
     
     init {
         // Note: Mesh service delegate is now set by MainActivity
@@ -365,5 +366,60 @@ class ChatViewModel(
         
         // Note: Mesh service restart is now handled by MainActivity
         // This method now only clears data, not mesh service lifecycle
+    }
+    
+    // MARK: - Navigation Management
+    
+    fun showAppInfo() {
+        state.setShowAppInfo(true)
+    }
+    
+    fun hideAppInfo() {
+        state.setShowAppInfo(false)
+    }
+    
+    fun showSidebar() {
+        state.setShowSidebar(true)
+    }
+    
+    fun hideSidebar() {
+        state.setShowSidebar(false)
+    }
+    
+    /**
+     * Handle Android back navigation
+     * Returns true if the back press was handled, false if it should be passed to the system
+     */
+    fun handleBackPressed(): Boolean {
+        return when {
+            // Close app info dialog
+            state.getShowAppInfoValue() -> {
+                hideAppInfo()
+                true
+            }
+            // Close sidebar
+            state.getShowSidebarValue() -> {
+                hideSidebar()
+                true
+            }
+            // Close password dialog
+            state.getShowPasswordPromptValue() -> {
+                state.setShowPasswordPrompt(false)
+                state.setPasswordPromptChannel(null)
+                true
+            }
+            // Exit private chat
+            state.getSelectedPrivateChatPeerValue() != null -> {
+                endPrivateChat()
+                true
+            }
+            // Exit channel view
+            state.getCurrentChannelValue() != null -> {
+                switchToChannel(null)
+                true
+            }
+            // No special navigation state - let system handle (usually exits app)
+            else -> false
+        }
     }
 }

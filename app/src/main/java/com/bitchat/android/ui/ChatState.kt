@@ -85,6 +85,10 @@ class ChatState {
     
     val peerIDToPublicKeyFingerprint = mutableMapOf<String, String>()
     
+    // Navigation state
+    private val _showAppInfo = MutableLiveData<Boolean>(false)
+    val showAppInfo: LiveData<Boolean> = _showAppInfo
+    
     // Unread state computed properties
     val hasUnreadChannels: MediatorLiveData<Boolean> = MediatorLiveData<Boolean>()
     val hasUnreadPrivateMessages: MediatorLiveData<Boolean> = MediatorLiveData<Boolean>()
@@ -118,6 +122,7 @@ class ChatState {
     fun getShowCommandSuggestionsValue() = _showCommandSuggestions.value ?: false
     fun getCommandSuggestionsValue() = _commandSuggestions.value ?: emptyList()
     fun getFavoritePeersValue() = _favoritePeers.value ?: emptySet()
+    fun getShowAppInfoValue() = _showAppInfo.value ?: false
     
     // Setters for state updates
     fun setMessages(messages: List<BitchatMessage>) {
@@ -200,6 +205,10 @@ class ChatState {
         
         Log.d("ChatState", "LiveData value after set: ${_favoritePeers.value}")
         Log.d("ChatState", "LiveData has active observers: ${_favoritePeers.hasActiveObservers()}")
+    }
+    
+    fun setShowAppInfo(show: Boolean) {
+        _showAppInfo.value = show
     }
 
 }
