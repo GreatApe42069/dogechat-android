@@ -46,7 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced logging throughout the application for better debugging
 
 ### Known Issues
-- reinstallation via apk does not work in some or all cases, it is advised to uninstall previous version first
+- reinstallation via apk does not work in all cases, it is advised to uninstall previous version first. root cause: https://github.com/permissionlesstech/bitchat-android/issues/92#issuecomment-3066035548
+  
 ## [0.5.1] - 2025-07-10
 
 ### Added
