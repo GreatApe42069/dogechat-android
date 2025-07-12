@@ -116,7 +116,7 @@ class PermissionManager(private val context: Context) {
         categories.add(
             PermissionCategory(
                 type = PermissionType.NEARBY_DEVICES,
-                description = "Required to discover and connect to other bitchat users via Bluetooth",
+                description = "Required to discover bitchat users via Bluetooth",
                 permissions = bluetoothPermissions,
                 isGranted = bluetoothPermissions.all { isPermissionGranted(it) },
                 systemDescription = "Allow bitchat to connect to nearby devices"
@@ -132,10 +132,10 @@ class PermissionManager(private val context: Context) {
         categories.add(
             PermissionCategory(
                 type = PermissionType.PRECISE_LOCATION,
-                description = "Required by Android for Bluetooth scanning.",
+                description = "Required by Android to discover nearby bitchat users via Bluetooth",
                 permissions = locationPermissions,
                 isGranted = locationPermissions.all { isPermissionGranted(it) },
-                systemDescription = "Allow bitchat to access this device's location"
+                systemDescription = "bitchat needs this to scan for nearby devices"
             )
         )
 
@@ -144,7 +144,7 @@ class PermissionManager(private val context: Context) {
             categories.add(
                 PermissionCategory(
                     type = PermissionType.NOTIFICATIONS,
-                    description = "Show notifications when you receive private messages while the app is in background",
+                    description = "Notifications to keep you updated",
                     permissions = listOf(Manifest.permission.POST_NOTIFICATIONS),
                     isGranted = isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS),
                     systemDescription = "Allow bitchat to send you notifications"

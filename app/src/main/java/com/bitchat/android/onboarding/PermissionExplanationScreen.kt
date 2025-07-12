@@ -21,120 +21,130 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun PermissionExplanationScreen(
     permissionCategories: List<PermissionCategory>,
-    onContinue: () -> Unit,
-    onCancel: () -> Unit
+    onContinue: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val scrollState = rememberScrollState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-            .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
-        // Header
+        // Scrollable content
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 88.dp) // Leave space for the fixed button
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Welcome to bitchat*",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.primary
-                ),
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = "Decentralized mesh messaging over Bluetooth",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = FontFamily.Monospace,
-                    color = colorScheme.onSurface.copy(alpha = 0.7f)
-                ),
-                textAlign = TextAlign.Center
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Privacy assurance section
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
+            Spacer(modifier = Modifier.height(24.dp))
+            // Header
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Text(
+                    text = "Welcome to bitchat*",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary
+                    ),
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Decentralized mesh messaging over Bluetooth",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        color = colorScheme.onSurface.copy(alpha = 0.7f)
+                    ),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Privacy assurance section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🔒",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Your Privacy is Protected",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colorScheme.onSurface
+                            )
+                        )
+                    }
+                    
                     Text(
-                        text = "🔒",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Your Privacy is Protected",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurface
+                        text = "• bitchat doesn't track you or collect personal data\n" +
+                                "• No servers, no internet required, no data logging\n" +
+                                "• Location permission is only used by Android for Bluetooth scanning\n" +
+                                "• Your messages stay on your device and peer devices only",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
                         )
                     )
                 }
-                
-                Text(
-                    text = "• bitchat doesn't track you or collect personal data\n" +
-                            "• No servers, no internet required, no data logging\n" +
-                            "• Location permission is only used by Android for Bluetooth scanning\n" +
-                            "• Your messages stay on your device and peer devices only",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "To work properly, bitchat needs these permissions:",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    color = colorScheme.onSurface
+                )
+            )
+
+            // Permission categories
+            permissionCategories.forEach { category ->
+                PermissionCategoryCard(
+                    category = category,
+                    colorScheme = colorScheme
                 )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "To work properly, bitchat needs these permissions:",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Medium,
-                color = colorScheme.onSurface
-            )
-        )
-
-        // Permission categories
-        permissionCategories.forEach { category ->
-            PermissionCategoryCard(
-                category = category,
-                colorScheme = colorScheme
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Action buttons
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        // Fixed button at bottom
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
+            color = colorScheme.surface,
+            shadowElevation = 8.dp
         ) {
             Button(
                 onClick = onContinue,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colorScheme.primary
                 )
@@ -148,24 +158,7 @@ fun PermissionExplanationScreen(
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
-
-            OutlinedButton(
-                onClick = onCancel,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            ) {
-                Text(
-                    text = "Exit App",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = FontFamily.Monospace
-                    ),
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
         }
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
