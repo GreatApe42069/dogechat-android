@@ -278,7 +278,15 @@ private fun ChannelHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBackClick) {
+        // Use same back button style as DM header (Button instead of IconButton)
+        Button(
+            onClick = onBackClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent,
+                contentColor = colorScheme.primary
+            ),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -299,10 +307,11 @@ private fun ChannelHeader(
         
         Spacer(modifier = Modifier.weight(1f))
         
+        // Centered title with orange color to match DM input field
         Text(
             text = "channel: $channel",
             style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFF0080FF), // Blue
+            color = Color(0xFFFF8C00), // Orange to match input field
             modifier = Modifier.clickable { onSidebarClick() }
         )
         

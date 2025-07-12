@@ -193,7 +193,7 @@ fun ChannelsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "#$channel",
+                    text = channel, // Channel already contains the # prefix
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (isSelected) colorScheme.primary else colorScheme.onSurface,
                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
