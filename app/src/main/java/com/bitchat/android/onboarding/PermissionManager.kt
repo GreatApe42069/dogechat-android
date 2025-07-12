@@ -144,7 +144,7 @@ class PermissionManager(private val context: Context) {
             categories.add(
                 PermissionCategory(
                     type = PermissionType.NOTIFICATIONS,
-                    description = "Notifications to keep you updated",
+                    description = "Receive notifications when you receive private messages",
                     permissions = listOf(Manifest.permission.POST_NOTIFICATIONS),
                     isGranted = isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS),
                     systemDescription = "Allow bitchat to send you notifications"
