@@ -216,12 +216,11 @@ private fun PrivateChatHeader(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.Filled.ArrowBackIos,
                     contentDescription = "Back",
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(14.dp),
                     tint = colorScheme.primary
                 )
-                Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "back",
                     style = MaterialTheme.typography.bodyMedium,
@@ -281,19 +280,17 @@ private fun ChannelHeader(
                 containerColor = Color.Transparent,
                 contentColor = colorScheme.primary
             ),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.Filled.ArrowBackIos,
                     contentDescription = "Back",
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(14.dp),
                     tint = colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
+                )       
                 Text(
                     text = "back",
                     style = MaterialTheme.typography.bodyMedium,
