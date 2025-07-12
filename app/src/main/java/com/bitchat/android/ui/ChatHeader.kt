@@ -201,19 +201,16 @@ private fun PrivateChatHeader(
     val colorScheme = MaterialTheme.colorScheme
     val peerNickname = peerNicknames[peerID] ?: peerID
     
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Fixed: Make back button wider to prevent text cropping
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // Back button - positioned on the left
         Button(
             onClick = onBackClick,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
                 contentColor = colorScheme.primary
             ),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            modifier = Modifier.align(Alignment.CenterStart)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -233,9 +230,11 @@ private fun PrivateChatHeader(
             }
         }
         
-        Spacer(modifier = Modifier.weight(1f))
-        
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Title - perfectly centered regardless of other elements
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.align(Alignment.Center)
+        ) {
             Icon(
                 imageVector = Icons.Filled.Lock,
                 contentDescription = "Private chat",
@@ -250,10 +249,11 @@ private fun PrivateChatHeader(
             )
         }
         
-        Spacer(modifier = Modifier.weight(1f))
-        
-        // Favorite button with proper filled/outlined star
-        IconButton(onClick = onToggleFavorite) {
+        // Favorite button - positioned on the right
+        IconButton(
+            onClick = onToggleFavorite,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
                 contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
@@ -273,19 +273,16 @@ private fun ChannelHeader(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Use same back button style as DM header (Button instead of IconButton)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // Back button - positioned on the left
         Button(
             onClick = onBackClick,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Transparent,
                 contentColor = colorScheme.primary
             ),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            modifier = Modifier.align(Alignment.CenterStart)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -305,19 +302,21 @@ private fun ChannelHeader(
             }
         }
         
-        Spacer(modifier = Modifier.weight(1f))
-        
-        // Centered title with orange color to match DM input field
+        // Title - perfectly centered regardless of other elements
         Text(
             text = "channel: $channel",
             style = MaterialTheme.typography.titleMedium,
             color = Color(0xFFFF8C00), // Orange to match input field
-            modifier = Modifier.clickable { onSidebarClick() }
+            modifier = Modifier
+                .align(Alignment.Center)
+                .clickable { onSidebarClick() }
         )
         
-        Spacer(modifier = Modifier.weight(1f))
-        
-        TextButton(onClick = onLeaveChannel) {
+        // Leave button - positioned on the right
+        TextButton(
+            onClick = onLeaveChannel,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
             Text(
                 text = "leave",
                 style = MaterialTheme.typography.bodySmall,
