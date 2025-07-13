@@ -16,7 +16,8 @@ import kotlinx.coroutines.launch
  */
 class BluetoothPacketBroadcaster(
     private val connectionScope: CoroutineScope,
-    private val connectionTracker: BluetoothConnectionTracker
+    private val connectionTracker: BluetoothConnectionTracker,
+    private val fragmentManager: FragmentManager?
 ) {
     
     companion object {
@@ -38,7 +39,7 @@ class BluetoothPacketBroadcaster(
                 Log.d(TAG, "Fragmenting packet into ${fragments.size} fragments")
                 connectionScope.launch {
                     fragments.forEach { fragment ->
-                        broadcastSinglePacket(fragment, gattServer, characteristic)
+                        broadcastSinglePacket(RoutedPacket(fragment), gattServer, characteristic)
                         // 20ms delay between fragments (matching iOS/Rust)
                         delay(20)
                     }

@@ -36,7 +36,7 @@ class BluetoothConnectionManager(
     // Component managers
     private val permissionManager = BluetoothPermissionManager(context)
     private val connectionTracker = BluetoothConnectionTracker(connectionScope, powerManager)
-    private val packetBroadcaster = BluetoothPacketBroadcaster(connectionScope, connectionTracker)
+    private val packetBroadcaster = BluetoothPacketBroadcaster(connectionScope, connectionTracker, fragmentManager)
     
     // Delegate for component managers to call back to main manager
     private val componentDelegate = object : BluetoothConnectionManagerDelegate {
