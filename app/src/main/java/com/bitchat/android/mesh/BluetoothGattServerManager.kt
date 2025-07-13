@@ -121,7 +121,7 @@ class BluetoothGattServerManager(
                 
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> {
-                        Log.d(TAG, "Server: Device connected ${device.address}")
+                        Log.i(TAG, "Server: Device connected ${device.address}")
                         val deviceConn = BluetoothConnectionTracker.DeviceConnection(
                             device = device,
                             isClient = false
@@ -129,7 +129,7 @@ class BluetoothGattServerManager(
                         connectionTracker.addDeviceConnection(device.address, deviceConn)
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
-                        Log.d(TAG, "Server: Device disconnected ${device.address}")
+                        Log.i(TAG, "Server: Device disconnected ${device.address}")
                         connectionTracker.cleanupDeviceConnection(device.address)
                     }
                 }
@@ -165,7 +165,7 @@ class BluetoothGattServerManager(
                 }
                 
                 if (characteristic.uuid == CHARACTERISTIC_UUID) {
-                    Log.d(TAG, "Server: Received packet from ${device.address}, size: ${value.size} bytes")
+                    Log.i(TAG, "Server: Received packet from ${device.address}, size: ${value.size} bytes")
                     val packet = BitchatPacket.fromBinaryData(value)
                     if (packet != null) {
                         val peerID = String(packet.senderID).replace("\u0000", "")
