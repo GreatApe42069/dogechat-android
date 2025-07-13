@@ -266,7 +266,7 @@ class BluetoothGattClientManager(
         if (!permissionManager.hasBluetoothPermissions()) return
         
         val deviceAddress = device.address
-        Log.d(TAG, "Connecting to bitchat device: $deviceAddress")
+        Log.i(TAG, "Connecting to bitchat device: $deviceAddress")
         
         val gattCallback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
