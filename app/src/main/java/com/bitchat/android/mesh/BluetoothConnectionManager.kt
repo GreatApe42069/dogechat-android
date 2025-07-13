@@ -9,6 +9,8 @@ import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.bitchat.android.protocol.BitchatPacket
+import com.bitchat.android.protocol.SpecialRecipients
+import com.bitchat.android.model.RoutedPacket
 import kotlinx.coroutines.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -54,6 +56,7 @@ class BluetoothConnectionManager(
     // Simplified connection tracking - reduced memory footprint
     private val connectedDevices = ConcurrentHashMap<String, DeviceConnection>()
     private val subscribedDevices = CopyOnWriteArrayList<BluetoothDevice>()
+    public val addressPeerMap = ConcurrentHashMap<String, String>()
     
     // Connection attempt tracking with automatic cleanup
     private val pendingConnections = ConcurrentHashMap<String, ConnectionAttempt>()
@@ -129,15 +132,17 @@ class BluetoothConnectionManager(
         
         try {
             isActive = true
+            
+            // Setup GATT server first
             setupGattServer()
             
             // Start power manager and services
             connectionScope.launch {
                 powerManager.start()
-                delay(500) // Ensure GATT server is ready
+                delay(300) // Brief delay to ensure GATT server is ready
                 
                 startAdvertising()
-                delay(200)
+                delay(100)
                 
                 if (powerManager.shouldUseDutyCycle()) {
                     Log.i(TAG, "Using power-aware duty cycling")
@@ -147,13 +152,14 @@ class BluetoothConnectionManager(
                 
                 startPeriodicCleanup()
                 
-                Log.i(TAG, "Power-optimized Bluetooth services started successfully (CLIENT ONLY)")
+                Log.i(TAG, "Bluetooth services started successfully")
             }
             
             return true
             
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start Bluetooth services: ${e.message}")
+            isActive = false
             return false
         }
     }
@@ -197,11 +203,50 @@ class BluetoothConnectionManager(
         powerManager.setAppBackgroundState(inBackground)
     }
     
+    // Function to send data to a single device (server side)
+    private fun notifyDevice(device: BluetoothDevice, data: ByteArray): Boolean {
+        return try {
+            characteristic?.let { char ->
+                char.value = data
+                val result = gattServer?.notifyCharacteristicChanged(device, char, false) ?: false
+                result
+            } ?: false
+        } catch (e: Exception) {
+            Log.w(TAG, "Error sending to server connection ${device.address}: ${e.message}")
+            connectionScope.launch {
+                delay(CLEANUP_DELAY)
+                subscribedDevices.remove(device)
+                addressPeerMap.remove(device.address)
+            }
+            false
+        }
+    }
+
+    // Function to send data to a single device (client side)
+    private fun writeToDeviceConn(deviceConn: DeviceConnection, data: ByteArray): Boolean {
+        return try {
+            deviceConn.characteristic?.let { char ->
+                char.value = data
+                val result = deviceConn.gatt?.writeCharacteristic(char) ?: false
+                result
+            } ?: false
+        } catch (e: Exception) {
+            Log.w(TAG, "Error sending to client connection ${deviceConn.device.address}: ${e.message}")
+            connectionScope.launch {
+                delay(CLEANUP_DELAY)
+                cleanupDeviceConnection(deviceConn.device.address)
+            }
+            false
+        }
+    }
+
     /**
      * Broadcast packet to connected devices with connection limit enforcement
      * Automatically fragments large packets to fit within BLE MTU limits
      */
-    fun broadcastPacket(packet: BitchatPacket) {
+    fun broadcastPacket(routed: RoutedPacket) {
+        val packet = routed.packet
+
         if (!isActive) return
         
         // Check if we need to fragment
@@ -229,40 +274,61 @@ class BluetoothConnectionManager(
      */
     private fun sendSinglePacket(packet: BitchatPacket) {
         val data = packet.toBinaryData() ?: return
-        
         Log.d(TAG, "Sending packet type ${packet.type} (${data.size} bytes) to ${subscribedDevices.size} server + ${connectedDevices.size} client connections")
-        
+
+        if (packet.recipientID != SpecialRecipients.BROADCAST) {
+            val recipientID = packet.recipientID?.let {
+                String(it).replace("\u0000", "").trim()
+            } ?: ""
+
+            // Try to find the recipient in server connections (subscribedDevices)
+            val targetDevice = subscribedDevices.firstOrNull { addressPeerMap[it.address] == recipientID }
+            // If found, send directly
+            if (targetDevice != null) {
+                Log.d(TAG, "Send packet type ${packet.type} directly to target device for recipient $recipientID: ${targetDevice.address}")
+                if (notifyDevice(targetDevice, data))
+                    return  // Sent, no need to continue
+            }
+
+            // Try to find the recipient in client connections (connectedDevices)
+            val targetDeviceConn = connectedDevices.values.firstOrNull { addressPeerMap[it.device.address] == recipientID }
+            // If found, send directly
+            if (targetDeviceConn != null) {
+                Log.d(TAG, "Send packet type ${packet.type} directly to target client connection for recipient $recipientID: ${targetDeviceConn.device.address}")
+                if (writeToDeviceConn(targetDeviceConn, data))
+                    return  // Sent, no need to continue
+            }
+        }
+
+        // Else, continue with broadcasting to all devices
+        Log.d(TAG, "Broadcasting packet type ${packet.type} to ${subscribedDevices.size} server + ${connectedDevices.size} client connections")
+
+        val senderID = String(packet.senderID).replace("\u0000", "")        
         // Send to server connections (devices connected to our GATT server)
         subscribedDevices.forEach { device ->
-            try {
-                characteristic?.let { char ->
-                    char.value = data
-                    gattServer?.notifyCharacteristicChanged(device, char, false)
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Error sending to server connection ${device.address}: ${e.message}")
-                // Clean up failed connection
-                connectionScope.launch {
-                    delay(CLEANUP_DELAY)
-                    subscribedDevices.remove(device)
-                }
+            if (device.address == routed.relayAddress) {
+                Log.d(TAG, "Skipping broadcast back to relayer: ${device.address}")
+                return@forEach
             }
+            if (addressPeerMap[device.address] == senderID) {
+                Log.d(TAG, "Skipping broadcast back to sender: ${device.address}")
+                return@forEach
+            }
+            notifyDevice(device, data)
         }
         
         // Send to client connections
         connectedDevices.values.forEach { deviceConn ->
             if (deviceConn.isClient && deviceConn.gatt != null && deviceConn.characteristic != null) {
-                try {
-                    deviceConn.characteristic.value = data
-                    deviceConn.gatt.writeCharacteristic(deviceConn.characteristic)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error sending to client connection ${deviceConn.device.address}: ${e.message}")
-                    // Clean up failed connection
-                    connectionScope.launch {
-                        delay(CLEANUP_DELAY)
-                        cleanupDeviceConnection(deviceConn.device.address)
-                    }
+                if (deviceConn.device.address == routed.relayAddress) {
+                    Log.d(TAG, "Skipping broadcast back to relayer: ${deviceConn.device.address}")
+                    return@forEach
                 }
+                if (addressPeerMap[deviceConn.device.address] == senderID) {
+                    Log.d(TAG, "Skipping broadcast back to sender: ${deviceConn.device.address}")
+                    return@forEach
+                }
+                writeToDeviceConn(deviceConn, data)
             }
         }
     }
@@ -277,7 +343,8 @@ class BluetoothConnectionManager(
      */
     fun getDebugInfo(): String {
         return buildString {
-            appendLine("=== Power-Optimized Bluetooth Connection Manager ===")
+            appendLine("=== Bluetooth Connection Manager ===")
+            appendLine("Bluetooth MAC Address: ${bluetoothAdapter?.address}")
             appendLine("Active: $isActive")
             appendLine("Bluetooth Enabled: ${bluetoothAdapter?.isEnabled}")
             appendLine("Has Permissions: ${hasBluetoothPermissions()}")
@@ -381,6 +448,12 @@ class BluetoothConnectionManager(
         
         val serverCallback = object : BluetoothGattServerCallback() {
             override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
+                // Guard against callbacks after service shutdown
+                if (!isActive) {
+                    Log.d(TAG, "Server: Ignoring connection state change after shutdown")
+                    return
+                }
+                
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> {
                         Log.d(TAG, "Server: Device connected ${device.address}")
@@ -397,6 +470,20 @@ class BluetoothConnectionManager(
                 }
             }
             
+            override fun onServiceAdded(status: Int, service: BluetoothGattService) {
+                // Guard against callbacks after service shutdown
+                if (!isActive) {
+                    Log.d(TAG, "Server: Ignoring service added callback after shutdown")
+                    return
+                }
+                
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.d(TAG, "Server: Service added successfully: ${service.uuid}")
+                } else {
+                    Log.e(TAG, "Server: Failed to add service: ${service.uuid}, status: $status")
+                }
+            }
+            
             override fun onCharacteristicWriteRequest(
                 device: BluetoothDevice,
                 requestId: Int,
@@ -406,11 +493,22 @@ class BluetoothConnectionManager(
                 offset: Int,
                 value: ByteArray
             ) {
+                // Guard against callbacks after service shutdown
+                if (!isActive) {
+                    Log.d(TAG, "Server: Ignoring characteristic write after shutdown")
+                    return
+                }
+                
                 if (characteristic.uuid == CHARACTERISTIC_UUID) {
+                    Log.d(TAG, "Server: Received packet from ${device.address}, size: ${value.size} bytes")
                     val packet = BitchatPacket.fromBinaryData(value)
                     if (packet != null) {
                         val peerID = String(packet.senderID).replace("\u0000", "")
+                        Log.d(TAG, "Server: Parsed packet type ${packet.type} from $peerID")
                         delegate?.onPacketReceived(packet, peerID, device)
+                    } else {
+                        Log.w(TAG, "Server: Failed to parse packet from ${device.address}, size: ${value.size} bytes")
+                        Log.w(TAG, "Server: Packet data: ${value.joinToString(" ") { "%02x".format(it) }}")
                     }
                     
                     if (responseNeeded) {
@@ -428,13 +526,21 @@ class BluetoothConnectionManager(
                 offset: Int,
                 value: ByteArray
             ) {
+                // Guard against callbacks after service shutdown
+                if (!isActive) {
+                    Log.d(TAG, "Server: Ignoring descriptor write after shutdown")
+                    return
+                }
+                
                 if (BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE.contentEquals(value)) {
                     Log.d(TAG, "Device ${device.address} subscribed to notifications")
                     subscribedDevices.add(device)
                     
                     connectionScope.launch {
                         delay(100)
-                        delegate?.onDeviceConnected(device)
+                        if (isActive) { // Check if still active
+                            delegate?.onDeviceConnected(device)
+                        }
                     }
                 }
                 
@@ -444,9 +550,25 @@ class BluetoothConnectionManager(
             }
         }
         
-        // Clean up existing server
-        gattServer?.close()
+        // Proper cleanup sequencing to prevent race conditions
+        gattServer?.let { server ->
+            Log.d(TAG, "Cleaning up existing GATT server")
+            try {
+                server.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error closing existing GATT server: ${e.message}")
+            }
+        }
         
+        // Small delay to ensure cleanup is complete
+        Thread.sleep(100)
+        
+        if (!isActive) {
+            Log.d(TAG, "Service inactive, skipping GATT server creation")
+            return
+        }
+        
+        // Create new server
         gattServer = bluetoothManager.openGattServer(context, serverCallback)
         
         // Create characteristic with notification support
@@ -554,8 +676,7 @@ class BluetoothConnectionManager(
                 // DEBUG: Log ALL scan results first
                 val device = result.device
                 val rssi = result.rssi
-                val scanRecord = result.scanRecord
-                Log.d(TAG, "Scan result: device: ${device.address}, Name: '${device.name}', RSSI: $rssi")
+                // Log.d(TAG, "Scan result: device: ${device.address}, Name: '${device.name}', RSSI: $rssi")
                 handleScanResult(result)
             }
             
@@ -642,9 +763,7 @@ class BluetoothConnectionManager(
         } else {
             null
         }
-        
-        Log.d(TAG, "Processing bitchat device: $deviceAddress, name: '$deviceName', peerID: $extractedPeerID, RSSI: $rssi")
-        
+                
         // Power-aware RSSI filtering
         if (rssi < powerManager.getRSSIThreshold()) {
             Log.d(TAG, "Skipping device $deviceAddress due to weak signal: $rssi < ${powerManager.getRSSIThreshold()}")
@@ -654,7 +773,7 @@ class BluetoothConnectionManager(
         // CRITICAL FIX: Prevent multiple simultaneous connections to same device
         // Check if already connected OR already attempting to connect
         if (connectedDevices.containsKey(deviceAddress)) {
-            Log.d(TAG, "Device $deviceAddress already connected, skipping")
+            // Log.d(TAG, "Device $deviceAddress already connected, skipping")
             return
         }
         
@@ -685,12 +804,6 @@ class BluetoothConnectionManager(
             val attempts = (currentAttempt?.attempts ?: 0) + 1
             pendingConnections[deviceAddress] = ConnectionAttempt(attempts)
             
-            if (extractedPeerID != null) {
-                Log.i(TAG, "Initiating connection to peer $extractedPeerID at $deviceAddress (RSSI: $rssi, attempt: $attempts)")
-            } else {
-                Log.i(TAG, "Initiating connection to device with bitchat service at $deviceAddress (RSSI: $rssi, attempt: $attempts)")
-            }
-            
             // Start connection immediately while holding lock
             connectToDevice(device, rssi)
         }
@@ -701,6 +814,7 @@ class BluetoothConnectionManager(
         if (!hasBluetoothPermissions()) return
         
         val deviceAddress = device.address
+        Log.d(TAG, "Connecting to bitchat device: $deviceAddress")
         
                 val gattCallback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -763,9 +877,7 @@ class BluetoothConnectionManager(
                 }
             }
 
-            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-                Log.d(TAG, "Client: Service discovery completed for $deviceAddress with status: $status")
-                
+            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {                
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     val service = gatt.getService(SERVICE_UUID)
                     if (service != null) {
@@ -808,25 +920,30 @@ class BluetoothConnectionManager(
             
             override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
                 val value = characteristic.value
+                Log.d(TAG, "Client: Received packet from ${gatt.device.address}, size: ${value.size} bytes")
                 val packet = BitchatPacket.fromBinaryData(value)
                 if (packet != null) {
                     val peerID = String(packet.senderID).replace("\u0000", "")
+                    Log.d(TAG, "Client: Parsed packet type ${packet.type} from $peerID")
                     delegate?.onPacketReceived(packet, peerID, gatt.device)
+                } else {
+                    Log.w(TAG, "Client: Failed to parse packet from ${gatt.device.address}, size: ${value.size} bytes")
+                    Log.w(TAG, "Client: Packet data: ${value.joinToString(" ") { "%02x".format(it) }}")
                 }
             }
         }
         
         try {
-            Log.d(TAG, "Attempting GATT connection to $deviceAddress with autoConnect=false")
+            Log.d(TAG, "Client: Attempting GATT connection to $deviceAddress with autoConnect=false")
             val gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
             if (gatt == null) {
                 Log.e(TAG, "connectGatt returned null for $deviceAddress")
                 pendingConnections.remove(deviceAddress)
             } else {
-                Log.d(TAG, "GATT connection initiated successfully for $deviceAddress")
+                Log.d(TAG, "Client: GATT connection initiated successfully for $deviceAddress")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception connecting to $deviceAddress: ${e.message}")
+            Log.e(TAG, "Client: Exception connecting to $deviceAddress: ${e.message}")
             pendingConnections.remove(deviceAddress)
         }
     }
@@ -879,6 +996,7 @@ class BluetoothConnectionManager(
     private fun cleanupDeviceConnection(deviceAddress: String) {
         connectedDevices.remove(deviceAddress)?.let { deviceConn ->
             subscribedDevices.removeAll { it.address == deviceAddress }
+            addressPeerMap.remove(deviceAddress)
         }
         // CRITICAL FIX: Always remove from pending connections when cleaning up
         // This prevents failed connections from blocking future attempts
@@ -907,6 +1025,7 @@ class BluetoothConnectionManager(
     private fun clearAllConnections() {
         connectedDevices.clear()
         subscribedDevices.clear()
+        addressPeerMap.clear()
         pendingConnections.clear()
     }
 }
