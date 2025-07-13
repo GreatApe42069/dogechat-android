@@ -36,11 +36,23 @@ class BluetoothConnectionManager(
     private val permissionManager = BluetoothPermissionManager(context)
     private val connectionTracker = BluetoothConnectionTracker(connectionScope, powerManager)
     private val packetBroadcaster = BluetoothPacketBroadcaster(connectionScope, connectionTracker)
+    
+    // Delegate for component managers to call back to main manager
+    private val componentDelegate = object : BluetoothConnectionManagerDelegate {
+        override fun onPacketReceived(packet: BitchatPacket, peerID: String, device: BluetoothDevice?) {
+            delegate?.onPacketReceived(packet, peerID, device)
+        }
+        
+        override fun onDeviceConnected(device: BluetoothDevice) {
+            delegate?.onDeviceConnected(device)
+        }
+    }
+    
     private val serverManager = BluetoothGattServerManager(
-        context, connectionScope, connectionTracker, permissionManager, powerManager, null
+        context, connectionScope, connectionTracker, permissionManager, powerManager, componentDelegate
     )
     private val clientManager = BluetoothGattClientManager(
-        context, connectionScope, connectionTracker, permissionManager, powerManager, null
+        context, connectionScope, connectionTracker, permissionManager, powerManager, componentDelegate
     )
     
     // Service state
