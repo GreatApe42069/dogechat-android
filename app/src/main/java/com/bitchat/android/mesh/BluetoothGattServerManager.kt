@@ -69,7 +69,7 @@ class BluetoothGattServerManager(
         isActive = true
         
         connectionScope.launch {
-            // setupGattServer()
+            setupGattServer()
             delay(300) // Brief delay to ensure GATT server is ready
             startAdvertising()
         }
