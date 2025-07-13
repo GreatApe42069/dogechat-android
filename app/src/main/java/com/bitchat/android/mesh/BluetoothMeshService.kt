@@ -522,6 +522,27 @@ class BluetoothMeshService(private val context: Context) {
     fun getPeerRSSI(): Map<String, Int> = peerManager.getAllPeerRSSI()
     
     /**
+     * Get device address for a specific peer ID
+     */
+    fun getDeviceAddressForPeer(peerID: String): String? {
+        return connectionManager.addressPeerMap.entries.find { it.value == peerID }?.key
+    }
+    
+    /**
+     * Get all device addresses mapped to their peer IDs
+     */
+    fun getDeviceAddressToPeerMapping(): Map<String, String> {
+        return connectionManager.addressPeerMap.toMap()
+    }
+    
+    /**
+     * Print device addresses for all connected peers
+     */
+    fun printDeviceAddressesForPeers(): String {
+        return peerManager.getDebugInfoWithDeviceAddresses(connectionManager.addressPeerMap)
+    }
+
+    /**
      * Get debug status information
      */
     fun getDebugStatus(): String {
@@ -531,7 +552,7 @@ class BluetoothMeshService(private val context: Context) {
             appendLine()
             appendLine(connectionManager.getDebugInfo())
             appendLine()
-            appendLine(peerManager.getDebugInfo())
+            appendLine(peerManager.getDebugInfo(connectionManager.addressPeerMap))
             appendLine()
             appendLine(fragmentManager.getDebugInfo())
             appendLine()
