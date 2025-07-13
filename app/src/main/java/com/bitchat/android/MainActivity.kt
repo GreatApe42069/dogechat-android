@@ -189,7 +189,7 @@ class MainActivity : ComponentActivity() {
      * Check Bluetooth status and proceed with onboarding flow
      */
     private fun checkBluetoothAndProceed() {
-        android.util.Log.d("MainActivity", "Checking Bluetooth status")
+        // android.util.Log.d("MainActivity", "Checking Bluetooth status")
         
         // For first-time users, skip Bluetooth check and go straight to permissions
         // We'll check Bluetooth after permissions are granted
