@@ -299,7 +299,7 @@ fun PeopleSection(
                 PeerItem(
                     peerID = peerID,
                     displayName = if (peerID == nickname) "You" else (peerNicknames[peerID] ?: peerID),
-                    signalStrength = peerRSSI[peerID] ?: 0,
+                    signalStrength = convertRSSIToSignalStrength(peerRSSI[peerID]),
                     isSelected = peerID == selectedPrivatePeer,
                     isFavorite = isFavorite,
                     hasUnreadDM = hasUnreadPrivateMessages.contains(peerID),
@@ -435,5 +435,27 @@ private fun UnreadBadge(
                 color = Color.Black // Black text on yellow background
             )
         }
+    }
+}
+
+/**
+ * Convert RSSI value (dBm) to signal strength percentage (0-100)
+ * RSSI typically ranges from -30 (excellent) to -100 (very poor)
+ * Maps to 0-100 scale where:
+ * - 0-32: No signal (0 bars)
+ * - 33-65: Weak (1 bar) 
+ * - 66-98: Good (2 bars)
+ * - 99-100: Excellent (3 bars)
+ */
+private fun convertRSSIToSignalStrength(rssi: Int?): Int {
+    if (rssi == null) return 0
+    
+    return when {
+        rssi >= -40 -> 100  // Excellent signal
+        rssi >= -55 -> 85   // Very good signal  
+        rssi >= -70 -> 70   // Good signal
+        rssi >= -85 -> 50   // Fair signal
+        rssi >= -100 -> 25  // Poor signal
+        else -> 0           // Very poor or no signal
     }
 }

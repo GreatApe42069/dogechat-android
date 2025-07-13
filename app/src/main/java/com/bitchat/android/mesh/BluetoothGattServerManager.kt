@@ -69,7 +69,7 @@ class BluetoothGattServerManager(
         isActive = true
         
         connectionScope.launch {
-            setupGattServer()
+            // setupGattServer()
             delay(300) // Brief delay to ensure GATT server is ready
             startAdvertising()
         }
@@ -122,8 +122,13 @@ class BluetoothGattServerManager(
                 when (newState) {
                     BluetoothProfile.STATE_CONNECTED -> {
                         Log.i(TAG, "Server: Device connected ${device.address}")
+                        
+                        // Get best available RSSI (scan RSSI for server connections)
+                        val rssi = connectionTracker.getBestRSSI(device.address) ?: Int.MIN_VALUE
+                        
                         val deviceConn = BluetoothConnectionTracker.DeviceConnection(
                             device = device,
+                            rssi = rssi,
                             isClient = false
                         )
                         connectionTracker.addDeviceConnection(device.address, deviceConn)
