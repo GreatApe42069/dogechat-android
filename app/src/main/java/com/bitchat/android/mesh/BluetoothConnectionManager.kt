@@ -649,7 +649,7 @@ class BluetoothConnectionManager(
                 // DEBUG: Log ALL scan results first
                 val device = result.device
                 val rssi = result.rssi
-                Log.d(TAG, "Scan result: device: ${device.address}, Name: '${device.name}', RSSI: $rssi")
+                // Log.d(TAG, "Scan result: device: ${device.address}, Name: '${device.name}', RSSI: $rssi")
                 handleScanResult(result)
             }
             
@@ -736,9 +736,7 @@ class BluetoothConnectionManager(
         } else {
             null
         }
-        
-        // Log.d(TAG, "Processing bitchat device: $deviceAddress, name: '$deviceName', peerID: $extractedPeerID, RSSI: $rssi")
-        
+                
         // Power-aware RSSI filtering
         if (rssi < powerManager.getRSSIThreshold()) {
             Log.d(TAG, "Skipping device $deviceAddress due to weak signal: $rssi < ${powerManager.getRSSIThreshold()}")
@@ -789,7 +787,7 @@ class BluetoothConnectionManager(
         if (!hasBluetoothPermissions()) return
         
         val deviceAddress = device.address
-        Log.d(TAG, "Connecting to device: $deviceAddress")
+        Log.d(TAG, "Connecting to bitchat device: $deviceAddress")
         
                 val gattCallback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
