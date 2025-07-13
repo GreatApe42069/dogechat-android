@@ -296,9 +296,7 @@ class BluetoothMeshService(private val context: Context) {
         Log.i(TAG, "Starting Bluetooth mesh service with peer ID: $myPeerID")
         
         if (connectionManager.startServices()) {
-            isActive = true
-            Log.i(TAG, "Bluetooth services started successfully")
-            
+            isActive = true            
             // Send initial announcements after services are ready
             serviceScope.launch {
                 delay(1000)

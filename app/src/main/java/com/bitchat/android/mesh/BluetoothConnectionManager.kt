@@ -151,7 +151,7 @@ class BluetoothConnectionManager(
                 
                 startPeriodicCleanup()
                 
-                Log.i(TAG, "Power-optimized Bluetooth services started successfully")
+                Log.i(TAG, "Bluetooth services started successfully")
             }
             
             return true
@@ -316,7 +316,8 @@ class BluetoothConnectionManager(
      */
     fun getDebugInfo(): String {
         return buildString {
-            appendLine("=== Power-Optimized Bluetooth Connection Manager ===")
+            appendLine("=== Bluetooth Connection Manager ===")
+            appendLine("Bluetooth MAC Address: ${bluetoothAdapter?.address}")
             appendLine("Active: $isActive")
             appendLine("Bluetooth Enabled: ${bluetoothAdapter?.isEnabled}")
             appendLine("Has Permissions: ${hasBluetoothPermissions()}")
@@ -648,8 +649,7 @@ class BluetoothConnectionManager(
                 // DEBUG: Log ALL scan results first
                 val device = result.device
                 val rssi = result.rssi
-                val scanRecord = result.scanRecord
-                Log.d(TAG, "Scan result: device: ${device.address}, Name: '${device.name}', RSSI: $rssi")
+                // Log.d(TAG, "Scan result: device: ${device.address}, Name: '${device.name}', RSSI: $rssi")
                 handleScanResult(result)
             }
             
@@ -736,9 +736,7 @@ class BluetoothConnectionManager(
         } else {
             null
         }
-        
-        Log.d(TAG, "Processing bitchat device: $deviceAddress, name: '$deviceName', peerID: $extractedPeerID, RSSI: $rssi")
-        
+                
         // Power-aware RSSI filtering
         if (rssi < powerManager.getRSSIThreshold()) {
             Log.d(TAG, "Skipping device $deviceAddress due to weak signal: $rssi < ${powerManager.getRSSIThreshold()}")
@@ -748,7 +746,7 @@ class BluetoothConnectionManager(
         // CRITICAL FIX: Prevent multiple simultaneous connections to same device
         // Check if already connected OR already attempting to connect
         if (connectedDevices.containsKey(deviceAddress)) {
-            Log.d(TAG, "Device $deviceAddress already connected, skipping")
+            // Log.d(TAG, "Device $deviceAddress already connected, skipping")
             return
         }
         
@@ -779,12 +777,6 @@ class BluetoothConnectionManager(
             val attempts = (currentAttempt?.attempts ?: 0) + 1
             pendingConnections[deviceAddress] = ConnectionAttempt(attempts)
             
-            if (extractedPeerID != null) {
-                Log.i(TAG, "Initiating connection to peer $extractedPeerID at $deviceAddress (RSSI: $rssi, attempt: $attempts)")
-            } else {
-                Log.i(TAG, "Initiating connection to device with bitchat service at $deviceAddress (RSSI: $rssi, attempt: $attempts)")
-            }
-            
             // Start connection immediately while holding lock
             connectToDevice(device, rssi)
         }
@@ -795,6 +787,7 @@ class BluetoothConnectionManager(
         if (!hasBluetoothPermissions()) return
         
         val deviceAddress = device.address
+        Log.d(TAG, "Connecting to bitchat device: $deviceAddress")
         
                 val gattCallback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -857,9 +850,7 @@ class BluetoothConnectionManager(
                 }
             }
 
-            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-                Log.d(TAG, "Client: Service discovery completed for $deviceAddress with status: $status")
-                
+            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {                
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     val service = gatt.getService(SERVICE_UUID)
                     if (service != null) {
@@ -916,16 +907,16 @@ class BluetoothConnectionManager(
         }
         
         try {
-            Log.d(TAG, "Attempting GATT connection to $deviceAddress with autoConnect=false")
+            Log.d(TAG, "Client: Attempting GATT connection to $deviceAddress with autoConnect=false")
             val gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
             if (gatt == null) {
                 Log.e(TAG, "connectGatt returned null for $deviceAddress")
                 pendingConnections.remove(deviceAddress)
             } else {
-                Log.d(TAG, "GATT connection initiated successfully for $deviceAddress")
+                Log.d(TAG, "Client: GATT connection initiated successfully for $deviceAddress")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception connecting to $deviceAddress: ${e.message}")
+            Log.e(TAG, "Client: Exception connecting to $deviceAddress: ${e.message}")
             pendingConnections.remove(deviceAddress)
         }
     }
