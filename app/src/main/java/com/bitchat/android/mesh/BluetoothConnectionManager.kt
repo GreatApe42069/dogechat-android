@@ -14,7 +14,8 @@ import kotlinx.coroutines.*
  */
 class BluetoothConnectionManager(
     private val context: Context, 
-    private val myPeerID: String
+    private val myPeerID: String,
+    private val fragmentManager: FragmentManager? = null
 ) : PowerManagerDelegate {
     
     companion object {
@@ -35,7 +36,7 @@ class BluetoothConnectionManager(
     // Component managers
     private val permissionManager = BluetoothPermissionManager(context)
     private val connectionTracker = BluetoothConnectionTracker(connectionScope, powerManager)
-    private val packetBroadcaster = BluetoothPacketBroadcaster(connectionScope, connectionTracker)
+    private val packetBroadcaster = BluetoothPacketBroadcaster(connectionScope, connectionTracker, fragmentManager)
     
     // Delegate for component managers to call back to main manager
     private val componentDelegate = object : BluetoothConnectionManagerDelegate {
@@ -156,6 +157,7 @@ class BluetoothConnectionManager(
 
     /**
      * Broadcast packet to connected devices with connection limit enforcement
+     * Automatically fragments large packets to fit within BLE MTU limits
      */
     fun broadcastPacket(routed: RoutedPacket) {
         if (!isActive) return

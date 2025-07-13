@@ -16,7 +16,8 @@ import kotlinx.coroutines.launch
  */
 class BluetoothPacketBroadcaster(
     private val connectionScope: CoroutineScope,
-    private val connectionTracker: BluetoothConnectionTracker
+    private val connectionTracker: BluetoothConnectionTracker,
+    private val fragmentManager: FragmentManager?
 ) {
     
     companion object {
@@ -24,10 +25,38 @@ class BluetoothPacketBroadcaster(
         private const val CLEANUP_DELAY = 500L
     }
     
-    /**
-     * Broadcast packet to connected devices with connection limit enforcement
-     */
     fun broadcastPacket(
+        routed: RoutedPacket,
+        gattServer: BluetoothGattServer?,
+        characteristic: BluetoothGattCharacteristic?
+    ) {
+        val packet = routed.packet
+        val data = packet.toBinaryData() ?: return
+            // Check if we need to fragment
+        if (fragmentManager != null) {
+            val fragments = fragmentManager.createFragments(packet)
+            if (fragments.size > 1) {
+                Log.d(TAG, "Fragmenting packet into ${fragments.size} fragments")
+                connectionScope.launch {
+                    fragments.forEach { fragment ->
+                        broadcastSinglePacket(RoutedPacket(fragment), gattServer, characteristic)
+                        // 20ms delay between fragments (matching iOS/Rust)
+                        delay(20)
+                    }
+                }
+                return
+            }
+        }
+        
+        // Send single packet if no fragmentation needed
+        broadcastSinglePacket(routed, gattServer, characteristic)
+    }
+
+    
+    /**
+     * Broadcast single packet to connected devices with connection limit enforcement
+     */
+    fun broadcastSinglePacket(
         routed: RoutedPacket,
         gattServer: BluetoothGattServer?,
         characteristic: BluetoothGattCharacteristic?
