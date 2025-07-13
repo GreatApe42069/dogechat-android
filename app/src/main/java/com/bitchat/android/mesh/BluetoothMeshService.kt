@@ -493,7 +493,7 @@ class BluetoothMeshService(private val context: Context) {
         )
         
         connectionManager.broadcastPacket(RoutedPacket(packet))
-        Log.d(TAG, "Sent key exchange to device: ${device.address}")
+        Log.d(TAG, "Sent key exchange")
     }
     
     /**
