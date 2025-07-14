@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var onboardingCoordinator: OnboardingCoordinator
     private lateinit var bluetoothStatusManager: BluetoothStatusManager
     private lateinit var locationStatusManager: LocationStatusManager
+    private lateinit var batteryOptimizationManager: BatteryOptimizationManager
     
     // Core mesh service - managed at app level
     private lateinit var meshService: BluetoothMeshService
@@ -50,20 +51,25 @@ class MainActivity : ComponentActivity() {
     private var onboardingState by mutableStateOf(OnboardingState.CHECKING)
     private var bluetoothStatus by mutableStateOf(BluetoothStatus.ENABLED)
     private var locationStatus by mutableStateOf(LocationStatus.ENABLED)
+    private var batteryOptimizationStatus by mutableStateOf(BatteryOptimizationStatus.DISABLED)
     private var errorMessage by mutableStateOf("")
     private var isBluetoothLoading by mutableStateOf(false)
     private var isLocationLoading by mutableStateOf(false)
+    private var isBatteryOptimizationLoading by mutableStateOf(false)
     
     enum class OnboardingState {
         CHECKING,
         BLUETOOTH_CHECK,
         LOCATION_CHECK,
+        BATTERY_OPTIMIZATION_CHECK,
         PERMISSION_EXPLANATION,
         PERMISSION_REQUESTING,
         INITIALIZING,
         COMPLETE,
         ERROR
     }
+    
+    
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,6 +90,12 @@ class MainActivity : ComponentActivity() {
             context = this,
             onLocationEnabled = ::handleLocationEnabled,
             onLocationDisabled = ::handleLocationDisabled
+        )
+        batteryOptimizationManager = BatteryOptimizationManager(
+            activity = this,
+            context = this,
+            onBatteryOptimizationDisabled = ::handleBatteryOptimizationDisabled,
+            onBatteryOptimizationFailed = ::handleBatteryOptimizationFailed
         )
         onboardingCoordinator = OnboardingCoordinator(
             activity = this,
@@ -139,6 +151,24 @@ class MainActivity : ComponentActivity() {
                         checkLocationAndProceed()
                     },
                     isLoading = isLocationLoading
+                )
+            }
+            
+            OnboardingState.BATTERY_OPTIMIZATION_CHECK -> {
+                BatteryOptimizationScreen(
+                    status = batteryOptimizationStatus,
+                    onDisableBatteryOptimization = {
+                        isBatteryOptimizationLoading = true
+                        batteryOptimizationManager.requestDisableBatteryOptimization()
+                    },
+                    onRetry = {
+                        checkBatteryOptimizationAndProceed()
+                    },
+                    onSkip = {
+                        // Skip battery optimization and proceed
+                        proceedWithPermissionCheck()
+                    },
+                    isLoading = isBatteryOptimizationLoading
                 )
             }
             
@@ -300,8 +330,8 @@ class MainActivity : ComponentActivity() {
         
         when (locationStatus) {
             LocationStatus.ENABLED -> {
-                // Location services enabled, proceed with permission/onboarding check
-                proceedWithPermissionCheck()
+                // Location services enabled, check battery optimization next
+                checkBatteryOptimizationAndProceed()
             }
             LocationStatus.DISABLED -> {
                 // Show location enable screen (should have permissions as existing user)
@@ -325,6 +355,65 @@ class MainActivity : ComponentActivity() {
         android.util.Log.d("MainActivity", "Location services enabled by user")
         isLocationLoading = false
         locationStatus = LocationStatus.ENABLED
+        checkBatteryOptimizationAndProceed()
+    }
+
+    /**
+     * Check Battery Optimization status and proceed with onboarding flow
+     */
+    private fun checkBatteryOptimizationAndProceed() {
+        android.util.Log.d("MainActivity", "Checking battery optimization status")
+        
+        // For first-time users, skip battery optimization check and go straight to permissions
+        // We'll check battery optimization after permissions are granted
+        if (permissionManager.isFirstTimeLaunch()) {
+            android.util.Log.d("MainActivity", "First-time launch, skipping battery optimization check - will check after permissions")
+            proceedWithPermissionCheck()
+            return
+        }
+        
+        // For existing users, check battery optimization status
+        batteryOptimizationManager.logBatteryOptimizationStatus()
+        
+        batteryOptimizationStatus = when {
+            !batteryOptimizationManager.isBatteryOptimizationSupported() -> BatteryOptimizationStatus.NOT_SUPPORTED
+            batteryOptimizationManager.isBatteryOptimizationDisabled() -> BatteryOptimizationStatus.DISABLED
+            else -> BatteryOptimizationStatus.ENABLED
+        }
+        
+        when (batteryOptimizationStatus) {
+            BatteryOptimizationStatus.DISABLED, BatteryOptimizationStatus.NOT_SUPPORTED -> {
+                // Battery optimization is disabled or not supported, proceed with permission check
+                proceedWithPermissionCheck()
+            }
+            BatteryOptimizationStatus.ENABLED -> {
+                // Show battery optimization disable screen
+                android.util.Log.d("MainActivity", "Battery optimization enabled, showing disable screen")
+                onboardingState = OnboardingState.BATTERY_OPTIMIZATION_CHECK
+                isBatteryOptimizationLoading = false
+            }
+        }
+    }
+
+    /**
+     * Handle Battery Optimization disabled callback
+     */
+    private fun handleBatteryOptimizationDisabled() {
+        android.util.Log.d("MainActivity", "Battery optimization disabled by user")
+        isBatteryOptimizationLoading = false
+        batteryOptimizationStatus = BatteryOptimizationStatus.DISABLED
+        proceedWithPermissionCheck()
+    }
+
+    /**
+     * Handle Battery Optimization failed callback
+     */
+    private fun handleBatteryOptimizationFailed(message: String) {
+        android.util.Log.w("MainActivity", "Battery optimization disable failed: $message")
+        isBatteryOptimizationLoading = false
+        
+        // Don't treat this as a fatal error - proceed with onboarding
+        // User can always change this setting later
         proceedWithPermissionCheck()
     }
 
@@ -382,11 +471,16 @@ class MainActivity : ComponentActivity() {
     }
     
     private fun handleOnboardingComplete() {
-        android.util.Log.d("MainActivity", "Onboarding completed, checking Bluetooth and Location before initializing app")
+        android.util.Log.d("MainActivity", "Onboarding completed, checking Bluetooth, Location, and Battery Optimization before initializing app")
         
-        // After permissions are granted, re-check both Bluetooth and Location status
+        // After permissions are granted, re-check Bluetooth, Location, and Battery Optimization status
         val currentBluetoothStatus = bluetoothStatusManager.checkBluetoothStatus()
         val currentLocationStatus = locationStatusManager.checkLocationStatus()
+        val currentBatteryOptimizationStatus = when {
+            !batteryOptimizationManager.isBatteryOptimizationSupported() -> BatteryOptimizationStatus.NOT_SUPPORTED
+            batteryOptimizationManager.isBatteryOptimizationDisabled() -> BatteryOptimizationStatus.DISABLED
+            else -> BatteryOptimizationStatus.ENABLED
+        }
         
         when {
             currentBluetoothStatus != BluetoothStatus.ENABLED -> {
@@ -403,9 +497,19 @@ class MainActivity : ComponentActivity() {
                 onboardingState = OnboardingState.LOCATION_CHECK
                 isLocationLoading = false
             }
+            currentBatteryOptimizationStatus == BatteryOptimizationStatus.ENABLED -> {
+                // Battery optimization is still enabled, show disable screen
+                android.util.Log.d("MainActivity", "Permissions granted, but Battery optimization still enabled. Showing Battery optimization disable screen.")
+                batteryOptimizationStatus = currentBatteryOptimizationStatus
+                onboardingState = OnboardingState.BATTERY_OPTIMIZATION_CHECK
+                isBatteryOptimizationLoading = false
+            }
             else -> {
-                // Both are enabled, proceed to app initialization
-                android.util.Log.d("MainActivity", "Both Bluetooth and Location services are enabled, proceeding to initialization")
+                // Bluetooth, Location, and Battery Optimization are all properly configured, proceed to app initialization
+                android.util.Log.d("MainActivity", "Bluetooth, Location, and Battery Optimization all properly configured, proceeding to initialization")
+                bluetoothStatus = currentBluetoothStatus
+                locationStatus = currentLocationStatus
+                batteryOptimizationStatus = currentBatteryOptimizationStatus
                 onboardingState = OnboardingState.INITIALIZING
                 initializeApp()
             }
