@@ -1,52 +1,55 @@
 package com.bitchat.android
 
-import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import com.bitchat.android.onboarding.BluetoothStatus
 import com.bitchat.android.onboarding.LocationStatus
+import com.bitchat.android.onboarding.OnboardingState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class MainViewModel : ViewModel() {
-    
-    private var _onboardingState by mutableStateOf(OnboardingState.CHECKING)
-    val onboardingState: OnboardingState get() = _onboardingState
-    
-    private var _bluetoothStatus by mutableStateOf(BluetoothStatus.ENABLED)
-    val bluetoothStatus: BluetoothStatus get() = _bluetoothStatus
-    
-    private var _locationStatus by mutableStateOf(LocationStatus.ENABLED)
-    val locationStatus: LocationStatus get() = _locationStatus
-    
-    private var _errorMessage by mutableStateOf("")
-    val errorMessage: String get() = _errorMessage
-    
-    private var _isBluetoothLoading by mutableStateOf(false)
-    val isBluetoothLoading: Boolean get() = _isBluetoothLoading
-    
-    private var _isLocationLoading by mutableStateOf(false)
-    val isLocationLoading: Boolean get() = _isLocationLoading
-    
+
+    private val _onboardingState = MutableStateFlow(OnboardingState.CHECKING)
+    val onboardingState: StateFlow<OnboardingState> = _onboardingState.asStateFlow()
+
+    private val _bluetoothStatus = MutableStateFlow(BluetoothStatus.ENABLED)
+    val bluetoothStatus: StateFlow<BluetoothStatus> = _bluetoothStatus.asStateFlow()
+
+    private val _locationStatus = MutableStateFlow(LocationStatus.ENABLED)
+    val locationStatus: StateFlow<LocationStatus> = _locationStatus.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow("")
+    val errorMessage: StateFlow<String> = _errorMessage.asStateFlow()
+
+    private val _isBluetoothLoading = MutableStateFlow(false)
+    val isBluetoothLoading: StateFlow<Boolean> = _isBluetoothLoading.asStateFlow()
+
+    private val _isLocationLoading = MutableStateFlow(false)
+    val isLocationLoading: StateFlow<Boolean> = _isLocationLoading.asStateFlow()
+
     // Public update functions for MainActivity
     fun updateOnboardingState(state: OnboardingState) {
-        _onboardingState = state
+        _onboardingState.value = state
     }
-    
+
     fun updateBluetoothStatus(status: BluetoothStatus) {
-        _bluetoothStatus = status
+        _bluetoothStatus.value = status
     }
-    
+
     fun updateLocationStatus(status: LocationStatus) {
-        _locationStatus = status
+        _locationStatus.value = status
     }
-    
+
     fun updateErrorMessage(message: String) {
-        _errorMessage = message
+        _errorMessage.value = message
     }
-    
+
     fun updateBluetoothLoading(loading: Boolean) {
-        _isBluetoothLoading = loading
+        _isBluetoothLoading.value = loading
     }
-    
+
     fun updateLocationLoading(loading: Boolean) {
-        _isLocationLoading = loading
+        _isLocationLoading.value = loading
     }
 }

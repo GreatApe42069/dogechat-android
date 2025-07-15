@@ -10,9 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
 import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.onboarding.BluetoothCheckScreen
 import com.bitchat.android.onboarding.BluetoothStatus
@@ -23,6 +27,7 @@ import com.bitchat.android.onboarding.LocationCheckScreen
 import com.bitchat.android.onboarding.LocationStatus
 import com.bitchat.android.onboarding.LocationStatusManager
 import com.bitchat.android.onboarding.OnboardingCoordinator
+import com.bitchat.android.onboarding.OnboardingState
 import com.bitchat.android.onboarding.PermissionExplanationScreen
 import com.bitchat.android.onboarding.PermissionManager
 import com.bitchat.android.ui.ChatScreen
@@ -88,23 +93,39 @@ class MainActivity : ComponentActivity() {
             }
         }
         
+        // Collect state changes in a lifecycle-aware manner
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                mainViewModel.onboardingState.collect { state ->
+                    handleOnboardingStateChange(state)
+                }
+            }
+        }
+        
         // Only start onboarding process if we're in the initial CHECKING state
         // This prevents restarting onboarding on configuration changes
-        if (mainViewModel.onboardingState == OnboardingState.CHECKING) {
+        if (mainViewModel.onboardingState.value == OnboardingState.CHECKING) {
             checkOnboardingStatus()
         }
     }
     
     @Composable
     private fun OnboardingFlowScreen() {
-        when (mainViewModel.onboardingState) {
+        val onboardingState by mainViewModel.onboardingState.collectAsState()
+        val bluetoothStatus by mainViewModel.bluetoothStatus.collectAsState()
+        val locationStatus by mainViewModel.locationStatus.collectAsState()
+        val errorMessage by mainViewModel.errorMessage.collectAsState()
+        val isBluetoothLoading by mainViewModel.isBluetoothLoading.collectAsState()
+        val isLocationLoading by mainViewModel.isLocationLoading.collectAsState()
+        
+        when (onboardingState) {
             OnboardingState.CHECKING -> {
                 InitializingScreen()
             }
             
             OnboardingState.BLUETOOTH_CHECK -> {
                 BluetoothCheckScreen(
-                    status = mainViewModel.bluetoothStatus,
+                    status = bluetoothStatus,
                     onEnableBluetooth = {
                         mainViewModel.updateBluetoothLoading(true)
                         bluetoothStatusManager.requestEnableBluetooth()
@@ -112,13 +133,13 @@ class MainActivity : ComponentActivity() {
                     onRetry = {
                         checkBluetoothAndProceed()
                     },
-                    isLoading = mainViewModel.isBluetoothLoading
+                    isLoading = isBluetoothLoading
                 )
             }
             
             OnboardingState.LOCATION_CHECK -> {
                 LocationCheckScreen(
-                    status = mainViewModel.locationStatus,
+                    status = locationStatus,
                     onEnableLocation = {
                         mainViewModel.updateLocationLoading(true)
                         locationStatusManager.requestEnableLocation()
@@ -126,7 +147,7 @@ class MainActivity : ComponentActivity() {
                     onRetry = {
                         checkLocationAndProceed()
                     },
-                    isLoading = mainViewModel.isLocationLoading
+                    isLoading = isLocationLoading
                 )
             }
             
@@ -172,7 +193,7 @@ class MainActivity : ComponentActivity() {
             
             OnboardingState.ERROR -> {
                 InitializationErrorScreen(
-                    errorMessage = mainViewModel.errorMessage,
+                    errorMessage = errorMessage,
                     onRetry = {
                         mainViewModel.updateOnboardingState(OnboardingState.CHECKING)
                         checkOnboardingStatus()
@@ -182,6 +203,20 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
+        }
+    }
+    
+    private fun handleOnboardingStateChange(state: OnboardingState) {
+
+        when (state) {
+            OnboardingState.COMPLETE -> {
+                // App is fully initialized, mesh service is running
+                android.util.Log.d("MainActivity", "Onboarding completed - app ready")
+            }
+            OnboardingState.ERROR -> {
+                android.util.Log.e("MainActivity", "Onboarding error state reached")
+            }
+            else -> {}
         }
     }
     
@@ -215,7 +250,7 @@ class MainActivity : ComponentActivity() {
         bluetoothStatusManager.logBluetoothStatus()
         mainViewModel.updateBluetoothStatus(bluetoothStatusManager.checkBluetoothStatus())
         
-        when (mainViewModel.bluetoothStatus) {
+        when (mainViewModel.bluetoothStatus.value) {
             BluetoothStatus.ENABLED -> {
                 // Bluetooth is enabled, check location services next
                 checkLocationAndProceed()
@@ -286,7 +321,7 @@ class MainActivity : ComponentActivity() {
         locationStatusManager.logLocationStatus()
         mainViewModel.updateLocationStatus(locationStatusManager.checkLocationStatus())
         
-        when (mainViewModel.locationStatus) {
+        when (mainViewModel.locationStatus.value) {
             LocationStatus.ENABLED -> {
                 // Location services enabled, proceed with permission/onboarding check
                 proceedWithPermissionCheck()
@@ -325,7 +360,7 @@ class MainActivity : ComponentActivity() {
         mainViewModel.updateLocationStatus(locationStatusManager.checkLocationStatus())
         
         when {
-            mainViewModel.locationStatus == LocationStatus.NOT_AVAILABLE -> {
+            mainViewModel.locationStatus.value == LocationStatus.NOT_AVAILABLE -> {
                 // Show permanent error for devices without location services
                 mainViewModel.updateErrorMessage(message)
                 mainViewModel.updateOnboardingState(OnboardingState.ERROR)
@@ -346,7 +381,7 @@ class MainActivity : ComponentActivity() {
         mainViewModel.updateBluetoothStatus(bluetoothStatusManager.checkBluetoothStatus())
         
         when {
-            mainViewModel.bluetoothStatus == BluetoothStatus.NOT_SUPPORTED -> {
+            mainViewModel.bluetoothStatus.value == BluetoothStatus.NOT_SUPPORTED -> {
                 // Show permanent error for unsupported devices
                 mainViewModel.updateErrorMessage(message)
                 mainViewModel.updateOnboardingState(OnboardingState.ERROR)
@@ -450,7 +485,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Handle notification intents when app is already running
-        if (mainViewModel.onboardingState == OnboardingState.COMPLETE) {
+        if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
             handleNotificationIntent(intent)
         }
     }
@@ -458,7 +493,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // Check Bluetooth and Location status on resume and handle accordingly
-        if (mainViewModel.onboardingState == OnboardingState.COMPLETE) {
+        if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
             // Set app foreground state
             meshService.connectionManager.setAppBackgroundState(false)
             chatViewModel.setAppBackgroundState(false)
@@ -487,7 +522,7 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         // Only set background state if app is fully initialized
-        if (mainViewModel.onboardingState == OnboardingState.COMPLETE) {
+        if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
             // Set app background state
             meshService.connectionManager.setAppBackgroundState(true)
             chatViewModel.setAppBackgroundState(true)
@@ -523,7 +558,7 @@ class MainActivity : ComponentActivity() {
      * Restart mesh services (for debugging/troubleshooting)
      */
     fun restartMeshServices() {
-        if (mainViewModel.onboardingState == OnboardingState.COMPLETE) {
+        if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
             lifecycleScope.launch {
                 try {
                     android.util.Log.d("MainActivity", "Restarting mesh services")
@@ -550,7 +585,7 @@ class MainActivity : ComponentActivity() {
         }
         
         // Stop mesh services if app was fully initialized
-        if (mainViewModel.onboardingState == OnboardingState.COMPLETE) {
+        if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
             try {
                 meshService.stopServices()
                 android.util.Log.d("MainActivity", "Mesh services stopped successfully")
