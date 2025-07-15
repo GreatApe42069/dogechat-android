@@ -149,8 +149,7 @@ fun ChatHeaderContent(
     onShowAppInfo: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    var tripleClickCount by remember { mutableStateOf(0) }
-    
+
     when {
         selectedPrivatePeer != null -> {
             // Private chat header - ensure state synchronization
