@@ -45,7 +45,7 @@ fun MessagesList(
     SelectionContainer(modifier = modifier) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             items(messages) { message ->
