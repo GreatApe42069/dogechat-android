@@ -210,7 +210,7 @@ private fun ChatInputSection(
         shadowElevation = 8.dp
     ) {
         Column {
-            Divider(color = colorScheme.outline.copy(alpha = 0.3f))
+            HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.3f))
             
             // Command suggestions box
             if (showCommandSuggestions && commandSuggestions.isNotEmpty()) {
@@ -219,8 +219,8 @@ private fun ChatInputSection(
                     onSuggestionClick = onSuggestionClick,
                     modifier = Modifier.fillMaxWidth()
                 )
-                
-                Divider(color = colorScheme.outline.copy(alpha = 0.2f))
+
+                HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
             }
             
             MessageInput(
@@ -283,12 +283,12 @@ private fun ChatFloatingHeader(
     }
     
     // Divider under header
-    Divider(
-        color = colorScheme.outline.copy(alpha = 0.3f),
+    HorizontalDivider(
         modifier = Modifier
             .fillMaxWidth()
             .offset(y = headerHeight)
-            .zIndex(1f)
+            .zIndex(1f),
+        color = colorScheme.outline.copy(alpha = 0.3f)
     )
 }
 
