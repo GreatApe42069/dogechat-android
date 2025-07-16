@@ -86,7 +86,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
     }
     
     // Use WindowInsets to handle keyboard properly
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
         val headerHeight = 36.dp
         
         // Main content area that responds to keyboard/window insets
