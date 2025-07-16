@@ -100,14 +100,12 @@ fun ChatScreen(viewModel: ChatViewModel) {
             Spacer(modifier = Modifier.height(headerHeight))
             
             // Messages area - takes up available space, will compress when keyboard appears
-            Box(modifier = Modifier.weight(1f)) {
-                MessagesList(
-                    messages = displayMessages,
-                    currentUserNickname = nickname,
-                    meshService = viewModel.meshService,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            MessagesList(
+                messages = displayMessages,
+                currentUserNickname = nickname,
+                meshService = viewModel.meshService,
+                modifier = Modifier.weight(1f)
+            )
             
             // Input area - stays at bottom
             ChatInputSection(
