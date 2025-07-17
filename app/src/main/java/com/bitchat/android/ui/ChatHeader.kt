@@ -354,7 +354,10 @@ private fun MainHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxHeight(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = "bitchat*",
                 style = MaterialTheme.typography.headlineSmall,
