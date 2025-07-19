@@ -77,7 +77,6 @@ private fun BatteryOptimizationEnabledContent(
     colorScheme: ColorScheme,
     isLoading: Boolean
 ) {
-    // -------------- Fix Start for this method(BatteryOptimizationEnabledContent)-----------
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
