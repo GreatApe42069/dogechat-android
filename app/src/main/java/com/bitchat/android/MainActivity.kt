@@ -22,6 +22,9 @@ import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.onboarding.BluetoothCheckScreen
 import com.bitchat.android.onboarding.BluetoothStatus
 import com.bitchat.android.onboarding.BluetoothStatusManager
+import com.bitchat.android.onboarding.BatteryOptimizationManager
+import com.bitchat.android.onboarding.BatteryOptimizationScreen
+import com.bitchat.android.onboarding.BatteryOptimizationStatus
 import com.bitchat.android.onboarding.InitializationErrorScreen
 import com.bitchat.android.onboarding.InitializingScreen
 import com.bitchat.android.onboarding.LocationCheckScreen
@@ -43,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var onboardingCoordinator: OnboardingCoordinator
     private lateinit var bluetoothStatusManager: BluetoothStatusManager
     private lateinit var locationStatusManager: LocationStatusManager
+    private lateinit var batteryOptimizationManager: BatteryOptimizationManager
     
     // Core mesh service - managed at app level
     private lateinit var meshService: BluetoothMeshService
@@ -55,6 +59,8 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    
+
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,6 +81,12 @@ class MainActivity : ComponentActivity() {
             context = this,
             onLocationEnabled = ::handleLocationEnabled,
             onLocationDisabled = ::handleLocationDisabled
+        )
+        batteryOptimizationManager = BatteryOptimizationManager(
+            activity = this,
+            context = this,
+            onBatteryOptimizationDisabled = ::handleBatteryOptimizationDisabled,
+            onBatteryOptimizationFailed = ::handleBatteryOptimizationFailed
         )
         onboardingCoordinator = OnboardingCoordinator(
             activity = this,
@@ -115,9 +127,11 @@ class MainActivity : ComponentActivity() {
         val onboardingState by mainViewModel.onboardingState.collectAsState()
         val bluetoothStatus by mainViewModel.bluetoothStatus.collectAsState()
         val locationStatus by mainViewModel.locationStatus.collectAsState()
+        val batteryOptimizationStatus by mainViewModel.batteryOptimizationStatus.collectAsState()
         val errorMessage by mainViewModel.errorMessage.collectAsState()
         val isBluetoothLoading by mainViewModel.isBluetoothLoading.collectAsState()
         val isLocationLoading by mainViewModel.isLocationLoading.collectAsState()
+        val isBatteryOptimizationLoading by mainViewModel.isBatteryOptimizationLoading.collectAsState()
         
         when (onboardingState) {
             OnboardingState.CHECKING -> {
@@ -149,6 +163,24 @@ class MainActivity : ComponentActivity() {
                         checkLocationAndProceed()
                     },
                     isLoading = isLocationLoading
+                )
+            }
+            
+            OnboardingState.BATTERY_OPTIMIZATION_CHECK -> {
+                BatteryOptimizationScreen(
+                    status = batteryOptimizationStatus,
+                    onDisableBatteryOptimization = {
+                        mainViewModel.updateBatteryOptimizationLoading(true)
+                        batteryOptimizationManager.requestDisableBatteryOptimization()
+                    },
+                    onRetry = {
+                        checkBatteryOptimizationAndProceed()
+                    },
+                    onSkip = {
+                        // Skip battery optimization and proceed
+                        proceedWithPermissionCheck()
+                    },
+                    isLoading = isBatteryOptimizationLoading
                 )
             }
             
@@ -324,8 +356,8 @@ class MainActivity : ComponentActivity() {
         
         when (mainViewModel.locationStatus.value) {
             LocationStatus.ENABLED -> {
-                // Location services enabled, proceed with permission/onboarding check
-                proceedWithPermissionCheck()
+                // Location services enabled, check battery optimization next
+                checkBatteryOptimizationAndProceed()
             }
             LocationStatus.DISABLED -> {
                 // Show location enable screen (should have permissions as existing user)
@@ -349,7 +381,7 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "Location services enabled by user")
         mainViewModel.updateLocationLoading(false)
         mainViewModel.updateLocationStatus(LocationStatus.ENABLED)
-        proceedWithPermissionCheck()
+        checkBatteryOptimizationAndProceed()
     }
 
     /**
@@ -408,9 +440,14 @@ class MainActivity : ComponentActivity() {
     private fun handleOnboardingComplete() {
         Log.d("MainActivity", "Onboarding completed, checking Bluetooth and Location before initializing app")
         
-        // After permissions are granted, re-check both Bluetooth and Location status
+        // After permissions are granted, re-check Bluetooth, Location, and Battery Optimization status
         val currentBluetoothStatus = bluetoothStatusManager.checkBluetoothStatus()
         val currentLocationStatus = locationStatusManager.checkLocationStatus()
+        val currentBatteryOptimizationStatus = when {
+            !batteryOptimizationManager.isBatteryOptimizationSupported() -> BatteryOptimizationStatus.NOT_SUPPORTED
+            batteryOptimizationManager.isBatteryOptimizationDisabled() -> BatteryOptimizationStatus.DISABLED
+            else -> BatteryOptimizationStatus.ENABLED
+        }
         
         when {
             currentBluetoothStatus != BluetoothStatus.ENABLED -> {
@@ -427,6 +464,13 @@ class MainActivity : ComponentActivity() {
                 mainViewModel.updateOnboardingState(OnboardingState.LOCATION_CHECK)
                 mainViewModel.updateLocationLoading(false)
             }
+            currentBatteryOptimizationStatus == BatteryOptimizationStatus.ENABLED -> {
+                // Battery optimization still enabled, show battery optimization screen
+                android.util.Log.d("MainActivity", "Permissions granted, but battery optimization still enabled. Showing battery optimization screen.")
+                mainViewModel.updateBatteryOptimizationStatus(currentBatteryOptimizationStatus)
+                mainViewModel.updateOnboardingState(OnboardingState.BATTERY_OPTIMIZATION_CHECK)
+                mainViewModel.updateBatteryOptimizationLoading(false)
+            }
             else -> {
                 // Both are enabled, proceed to app initialization
                 Log.d("MainActivity", "Both Bluetooth and Location services are enabled, proceeding to initialization")
@@ -440,6 +484,70 @@ class MainActivity : ComponentActivity() {
         Log.e("MainActivity", "Onboarding failed: $message")
         mainViewModel.updateErrorMessage(message)
         mainViewModel.updateOnboardingState(OnboardingState.ERROR)
+    }
+    
+    /**
+     * Check Battery Optimization status and proceed with onboarding flow
+     */
+    private fun checkBatteryOptimizationAndProceed() {
+        android.util.Log.d("MainActivity", "Checking battery optimization status")
+        
+        // For first-time users, skip battery optimization check and go straight to permissions
+        // We'll check battery optimization after permissions are granted
+        if (permissionManager.isFirstTimeLaunch()) {
+            android.util.Log.d("MainActivity", "First-time launch, skipping battery optimization check - will check after permissions")
+            proceedWithPermissionCheck()
+            return
+        }
+        
+        // For existing users, check battery optimization status
+        batteryOptimizationManager.logBatteryOptimizationStatus()
+        val currentBatteryOptimizationStatus = when {
+            !batteryOptimizationManager.isBatteryOptimizationSupported() -> BatteryOptimizationStatus.NOT_SUPPORTED
+            batteryOptimizationManager.isBatteryOptimizationDisabled() -> BatteryOptimizationStatus.DISABLED
+            else -> BatteryOptimizationStatus.ENABLED
+        }
+        mainViewModel.updateBatteryOptimizationStatus(currentBatteryOptimizationStatus)
+        
+        when (currentBatteryOptimizationStatus) {
+            BatteryOptimizationStatus.DISABLED, BatteryOptimizationStatus.NOT_SUPPORTED -> {
+                // Battery optimization is disabled or not supported, proceed with permission check
+                proceedWithPermissionCheck()
+            }
+            BatteryOptimizationStatus.ENABLED -> {
+                // Show battery optimization disable screen
+                android.util.Log.d("MainActivity", "Battery optimization enabled, showing disable screen")
+                mainViewModel.updateOnboardingState(OnboardingState.BATTERY_OPTIMIZATION_CHECK)
+                mainViewModel.updateBatteryOptimizationLoading(false)
+            }
+        }
+    }
+    
+    /**
+     * Handle Battery Optimization disabled callback
+     */
+    private fun handleBatteryOptimizationDisabled() {
+        android.util.Log.d("MainActivity", "Battery optimization disabled by user")
+        mainViewModel.updateBatteryOptimizationLoading(false)
+        mainViewModel.updateBatteryOptimizationStatus(BatteryOptimizationStatus.DISABLED)
+        proceedWithPermissionCheck()
+    }
+    
+    /**
+     * Handle Battery Optimization failed callback
+     */
+    private fun handleBatteryOptimizationFailed(message: String) {
+        android.util.Log.w("MainActivity", "Battery optimization disable failed: $message")
+        mainViewModel.updateBatteryOptimizationLoading(false)
+        val currentStatus = when {
+            !batteryOptimizationManager.isBatteryOptimizationSupported() -> BatteryOptimizationStatus.NOT_SUPPORTED
+            batteryOptimizationManager.isBatteryOptimizationDisabled() -> BatteryOptimizationStatus.DISABLED
+            else -> BatteryOptimizationStatus.ENABLED
+        }
+        mainViewModel.updateBatteryOptimizationStatus(currentStatus)
+        
+        // Stay on battery optimization check screen for retry
+        mainViewModel.updateOnboardingState(OnboardingState.BATTERY_OPTIMIZATION_CHECK)
     }
     
     private fun initializeApp() {
