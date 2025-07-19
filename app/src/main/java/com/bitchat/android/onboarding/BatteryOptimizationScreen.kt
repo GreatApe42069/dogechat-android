@@ -203,7 +203,6 @@ private fun BatteryOptimizationEnabledContent(
             }
         }
     }
-    // -------------- Fix Ended for this method(BatteryOptimizationEnabledContent)-----------
 }
 
 @Composable
