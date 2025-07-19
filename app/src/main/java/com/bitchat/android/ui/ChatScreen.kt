@@ -48,7 +48,6 @@ import java.util.*
  * - DialogComponents: Password prompts and modals
  * - ChatUIUtils: Utility functions for formatting and colors
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     val colorScheme = MaterialTheme.colorScheme
@@ -88,7 +87,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
     }
     
     // Use WindowInsets to handle keyboard properly
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
         val headerHeight = 36.dp
         
         // Main content area that responds to keyboard/window insets
@@ -102,14 +101,12 @@ fun ChatScreen(viewModel: ChatViewModel) {
             Spacer(modifier = Modifier.height(headerHeight))
             
             // Messages area - takes up available space, will compress when keyboard appears
-            Box(modifier = Modifier.weight(1f)) {
-                MessagesList(
-                    messages = displayMessages,
-                    currentUserNickname = nickname,
-                    meshService = viewModel.meshService,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            MessagesList(
+                messages = displayMessages,
+                currentUserNickname = nickname,
+                meshService = viewModel.meshService,
+                modifier = Modifier.weight(1f)
+            )
             
             // Input area - stays at bottom
             ChatInputSection(
@@ -198,7 +195,6 @@ fun ChatScreen(viewModel: ChatViewModel) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatInputSection(
     messageText: TextFieldValue,
@@ -218,7 +214,7 @@ private fun ChatInputSection(
         shadowElevation = 8.dp
     ) {
         Column {
-            Divider(color = colorScheme.outline.copy(alpha = 0.3f))
+            HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.3f))
             
             // Command suggestions box
             if (showCommandSuggestions && commandSuggestions.isNotEmpty()) {
@@ -227,8 +223,8 @@ private fun ChatInputSection(
                     onSuggestionClick = onSuggestionClick,
                     modifier = Modifier.fillMaxWidth()
                 )
-                
-                Divider(color = colorScheme.outline.copy(alpha = 0.2f))
+
+                HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
             }
             
             MessageInput(
@@ -291,12 +287,12 @@ private fun ChatFloatingHeader(
     }
     
     // Divider under header
-    Divider(
-        color = colorScheme.outline.copy(alpha = 0.3f),
+    HorizontalDivider(
         modifier = Modifier
             .fillMaxWidth()
             .offset(y = headerHeight)
-            .zIndex(1f)
+            .zIndex(1f),
+        color = colorScheme.outline.copy(alpha = 0.3f)
     )
 }
 
