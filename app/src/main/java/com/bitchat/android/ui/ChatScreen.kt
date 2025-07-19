@@ -22,9 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
@@ -65,7 +67,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
     val commandSuggestions by viewModel.commandSuggestions.observeAsState(emptyList())
     val showAppInfo by viewModel.showAppInfo.observeAsState(false)
     
-    var messageText by remember { mutableStateOf("") }
+    var messageText by remember { mutableStateOf(TextFieldValue("")) }
     var showPasswordPrompt by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
     var passwordInput by remember { mutableStateOf("") }
@@ -112,20 +114,24 @@ fun ChatScreen(viewModel: ChatViewModel) {
             // Input area - stays at bottom
             ChatInputSection(
                 messageText = messageText,
-                onMessageTextChange = { newText: String ->
+                onMessageTextChange = { newText: TextFieldValue ->
                     messageText = newText
-                    viewModel.updateCommandSuggestions(newText)
+                    viewModel.updateCommandSuggestions(newText.text)
                 },
                 onSend = {
-                    if (messageText.trim().isNotEmpty()) {
-                        viewModel.sendMessage(messageText.trim())
-                        messageText = ""
+                    if (messageText.text.trim().isNotEmpty()) {
+                        viewModel.sendMessage(messageText.text.trim())
+                        messageText = TextFieldValue("")
                     }
                 },
                 showCommandSuggestions = showCommandSuggestions,
                 commandSuggestions = commandSuggestions,
                 onSuggestionClick = { suggestion: CommandSuggestion ->
-                    messageText = viewModel.selectCommandSuggestion(suggestion)
+                    val commandText = viewModel.selectCommandSuggestion(suggestion)
+                    messageText = TextFieldValue(
+                        text = commandText,
+                        selection = TextRange(commandText.length)
+                    )
                 },
                 selectedPrivatePeer = selectedPrivatePeer,
                 currentChannel = currentChannel,
@@ -195,8 +201,8 @@ fun ChatScreen(viewModel: ChatViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatInputSection(
-    messageText: String,
-    onMessageTextChange: (String) -> Unit,
+    messageText: TextFieldValue,
+    onMessageTextChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
     showCommandSuggestions: Boolean,
     commandSuggestions: List<CommandSuggestion>,
