@@ -66,7 +66,7 @@ class BluetoothMeshService(private val context: Context) {
         // Wire up PacketProcessor reference for recursive handling in MessageHandler
         messageHandler.packetProcessor = packetProcessor
         sendPeriodicBroadcastAnnounce()
-        startPeriodicDebugLogging()
+        // startPeriodicDebugLogging()
     }
     
     /**
@@ -89,13 +89,13 @@ class BluetoothMeshService(private val context: Context) {
     }
 
     /**
-     * Send broadcast announcement every 10 seconds
+     * Send broadcast announcement every 30 seconds
      */
     private fun sendPeriodicBroadcastAnnounce() {
         serviceScope.launch {
             while (isActive) {
                 try {
-                    delay(10000) // 10 seconds
+                    delay(30000) // 30 seconds
                     sendBroadcastAnnounce()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in periodic broadcast announce: ${e.message}")
@@ -356,9 +356,9 @@ class BluetoothMeshService(private val context: Context) {
                 return fragmentManager.handleFragment(packet)
             }
             
-            override fun handleDeliveryAck(routed: RoutedPacket) {
-                serviceScope.launch { messageHandler.handleDeliveryAck(routed) }
-            }
+//            override fun handleDeliveryAck(routed: RoutedPacket) {
+//                serviceScope.launch { messageHandler.handleDeliveryAck(routed) }
+//            }
             
             override fun handleReadReceipt(routed: RoutedPacket) {
                 serviceScope.launch { messageHandler.handleReadReceipt(routed) }
@@ -552,7 +552,7 @@ class BluetoothMeshService(private val context: Context) {
             originalMessageID = message.id,
             recipientID = myPeerID,
             recipientNickname = nickname,
-            hopCount = 0u // Will be calculated during relay
+            hopCount = 0u.toUByte() // Will be calculated during relay
         )
         
         try {
@@ -583,6 +583,47 @@ class BluetoothMeshService(private val context: Context) {
             
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send delivery ACK: ${e.message}")
+        }
+    }
+    
+    /**
+     * Send read receipt for a received private message
+     */
+    fun sendReadReceipt(messageID: String, recipientPeerID: String, readerNickname: String) {
+        serviceScope.launch {
+            try {
+                Log.d(TAG, "Sending read receipt for message $messageID to $recipientPeerID")
+                
+                // Create the read receipt
+                val receipt = ReadReceipt(
+                    originalMessageID = messageID,
+                    readerID = myPeerID,
+                    readerNickname = readerNickname
+                )
+                
+                // Encode the receipt
+                val receiptData = receipt.encode()
+                
+                // Create inner read receipt packet
+                val innerPacket = BitchatPacket(
+                    version = 1u,
+                    type = MessageType.READ_RECEIPT.value,
+                    senderID = hexStringToByteArray(myPeerID),
+                    recipientID = hexStringToByteArray(recipientPeerID),
+                    timestamp = System.currentTimeMillis().toULong(),
+                    payload = receiptData,
+                    signature = null,
+                    ttl = 3u
+                )
+                
+                // Encrypt the entire inner packet and send as NOISE_ENCRYPTED
+                encryptAndBroadcastNoisePacket(innerPacket, recipientPeerID)
+                
+                Log.d(TAG, "Sent read receipt for message $messageID to $recipientPeerID")
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send read receipt for message $messageID: ${e.message}")
+            }
         }
     }
     
@@ -644,14 +685,6 @@ class BluetoothMeshService(private val context: Context) {
                 payload = nickname.toByteArray()
             )
             
-            // Send multiple times for reliability
-            delay(Random.nextLong(0, 500))
-            connectionManager.broadcastPacket(RoutedPacket(announcePacket))
-            
-            delay(500 + Random.nextLong(0, 500))
-            connectionManager.broadcastPacket(RoutedPacket(announcePacket))
-            
-            delay(1000 + Random.nextLong(0, 500))
             connectionManager.broadcastPacket(RoutedPacket(announcePacket))
         }
     }
