@@ -80,6 +80,8 @@ class ChatViewModel(
     val showCommandSuggestions: LiveData<Boolean> = state.showCommandSuggestions
     val commandSuggestions: LiveData<List<CommandSuggestion>> = state.commandSuggestions
     val favoritePeers: LiveData<Set<String>> = state.favoritePeers
+    val peerSessionStates: LiveData<Map<String, String>> = state.peerSessionStates
+    val peerFingerprints: LiveData<Map<String, String>> = state.peerFingerprints
     val showAppInfo: LiveData<Boolean> = state.showAppInfo
     
     init {
@@ -114,6 +116,9 @@ class ChatViewModel(
         // Log all favorites at startup
         dataManager.logAllFavorites()
         logCurrentFavoriteState()
+        
+        // Initialize session state monitoring
+        initializeSessionStateMonitoring()
         
         // Note: Mesh service is now started by MainActivity
         
@@ -277,6 +282,35 @@ class ChatViewModel(
         Log.i("ChatViewModel", "DataManager favorite peers: ${dataManager.favoritePeers}")
         Log.i("ChatViewModel", "Peer fingerprints: ${privateChatManager.getAllPeerFingerprints()}")
         Log.i("ChatViewModel", "==============================")
+    }
+    
+    /**
+     * Initialize session state monitoring for reactive UI updates
+     */
+    private fun initializeSessionStateMonitoring() {
+        viewModelScope.launch {
+            while (true) {
+                delay(1000) // Check session states every second
+                updateReactiveStates()
+            }
+        }
+    }
+    
+    /**
+     * Update reactive states for all connected peers (session states and fingerprints)
+     */
+    private fun updateReactiveStates() {
+        val currentPeers = state.getConnectedPeersValue()
+        
+        // Update session states
+        val sessionStates = currentPeers.associateWith { peerID ->
+            meshService.getSessionState(peerID).toString()
+        }
+        state.setPeerSessionStates(sessionStates)
+        
+        // Update fingerprint mappings from centralized manager
+        val fingerprints = privateChatManager.getAllPeerFingerprints()
+        state.setPeerFingerprints(fingerprints)
     }
     
     // MARK: - Debug and Troubleshooting
