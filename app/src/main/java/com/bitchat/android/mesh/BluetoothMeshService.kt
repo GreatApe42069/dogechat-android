@@ -728,7 +728,6 @@ class BluetoothMeshService(private val context: Context) {
                         ttl = MAX_TTL,
                         senderID = myPeerID,
                         payload = announcementData,
-
                     )
                     
                     connectionManager.broadcastPacket(RoutedPacket(packet))
