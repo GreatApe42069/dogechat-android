@@ -3,6 +3,7 @@ package com.bitchat.android.ui
 import com.bitchat.android.R
 import android.util.Log
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,8 @@ fun SidebarOverlay(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val interactionSource = remember { MutableInteractionSource() }
+
     val connectedPeers by viewModel.connectedPeers.observeAsState(emptyList())
     val joinedChannels by viewModel.joinedChannels.observeAsState(emptyList())
     val currentChannel by viewModel.currentChannel.observeAsState()
@@ -45,7 +48,11 @@ fun SidebarOverlay(
     val peerNicknames = viewModel.meshService.getPeerNicknames()
     val peerRSSI = viewModel.meshService.getPeerRSSI()
     
-    Box(modifier = modifier) {
+    Box(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable(indication = null, interactionSource = interactionSource) { onDismiss() }
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxHeight()
