@@ -88,6 +88,8 @@ class ChatViewModel(
     val favoritePeers: LiveData<Set<String>> = state.favoritePeers
     val peerSessionStates: LiveData<Map<String, String>> = state.peerSessionStates
     val peerFingerprints: LiveData<Map<String, String>> = state.peerFingerprints
+    val peerNicknames: LiveData<Map<String, String>> = state.peerNicknames
+    val peerRSSI: LiveData<Map<String, Int>> = state.peerRSSI
     val showAppInfo: LiveData<Boolean> = state.showAppInfo
     
     init {
@@ -303,7 +305,7 @@ class ChatViewModel(
     }
     
     /**
-     * Update reactive states for all connected peers (session states and fingerprints)
+     * Update reactive states for all connected peers (session states, fingerprints, nicknames, RSSI)
      */
     private fun updateReactiveStates() {
         val currentPeers = state.getConnectedPeersValue()
@@ -313,10 +315,15 @@ class ChatViewModel(
             meshService.getSessionState(peerID).toString()
         }
         state.setPeerSessionStates(sessionStates)
-        
         // Update fingerprint mappings from centralized manager
         val fingerprints = privateChatManager.getAllPeerFingerprints()
         state.setPeerFingerprints(fingerprints)
+
+        val nicknames = meshService.getPeerNicknames()
+        state.setPeerNicknames(nicknames)
+
+        val rssiValues = meshService.getPeerRSSI()
+        state.setPeerRSSI(rssiValues)
     }
     
     // MARK: - Debug and Troubleshooting
