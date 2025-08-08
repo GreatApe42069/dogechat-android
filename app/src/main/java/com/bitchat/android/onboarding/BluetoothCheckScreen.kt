@@ -68,12 +68,12 @@ private fun BluetoothDisabledContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Bluetooth icon - using Bluetooth outlined icon in app's green color
+        // Bluetooth icon - using Bluetooth outlined icon in app's yellow color
         Icon(
             imageVector = Icons.Outlined.Bluetooth,
             contentDescription = "Bluetooth",
             modifier = Modifier.size(64.dp),
-            tint = Color(0xFFFFFF00) // App's main green color
+            tint = Color(0xFFFFFF00) // App's main yellow color
         )
 
         Text(
@@ -131,7 +131,7 @@ private fun BluetoothDisabledContent(
                     onClick = onEnableBluetooth,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFFF00) // App's main green color
+                        containerColor = Color(0xFFFFFF00) // App's main yellow color
                     )
                 ) {
                     Text(

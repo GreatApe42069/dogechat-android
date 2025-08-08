@@ -59,7 +59,7 @@ class SlashCommandVisualTransformation : VisualTransformation {
                 // Add the styled slash command
                 withStyle(
                     style = SpanStyle(
-                        color = Color(0xFFFFFF00), // Bright green
+                        color = Color(0xFFFFFF00), // Bright yellow
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Medium,
                         background = Color(0xFF2D2D2D) // Dark gray background
@@ -242,9 +242,9 @@ fun MessageInput(
                                 // Orange for both private messages and channels when enabled
                                 Color(0xFFFF9500).copy(alpha = 0.75f)
                             } else if (colorScheme.background == Color.Black) {
-                                Color(0xFFFFFF00).copy(alpha = 0.75f) // Bright green for dark theme
+                                Color(0xFFFFFF00).copy(alpha = 0.75f) // Bright yellow for dark theme
                             } else {
-                                Color(0xFFFFFF00).copy(alpha = 0.75f) // Dark green for light theme
+                                Color(0xFFFFFF00).copy(alpha = 0.75f) // Dark yellow for light theme
                             },
                             shape = CircleShape
                         ),
@@ -261,9 +261,9 @@ fun MessageInput(
                             // Black arrow on orange for both private and channel modes
                             Color.Black
                         } else if (colorScheme.background == Color.Black) {
-                            Color.Black // Black arrow on bright green in dark theme
+                            Color.Black // Black arrow on bright yellow in dark theme
                         } else {
-                            Color.White // White arrow on dark green in light theme
+                            Color.White // White arrow on dark yellow in light theme
                         }
                     )
                 }

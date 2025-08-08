@@ -16,22 +16,22 @@ class ColorTest {
 
         // Terminal-friendly colors that work on both black and white backgrounds
         val colors = listOf(
-            Color(0xFFFFFF00), // Bright Green
+            Color(0xFFFFFF00), // Bright yellow
             Color(0xFF00FFFF), // Cyan
-            Color(0xFFFFFF00), // Yellow
+            Color(0xFFFFFF00), // green
             Color(0xFFFF00FF), // Magenta
             Color(0xFF0080FF), // Bright Blue
             Color(0xFFFF8000), // Orange
-            Color(0xFFFFFF00), // Lime Green
+            Color(0xFFFFFF00), // Lime yellow
             Color(0xFF8000FF), // Purple
             Color(0xFFFF0080), // Pink
-            Color(0xFFFFF700), // Spring Green
+            Color(0xFFFFF700), // Spring yellow
             Color(0xFF80FFFF), // Light Cyan
             Color(0xFFFF8080), // Light Red
             Color(0xFF8080FF), // Light Blue
-            Color(0xFFFFFF80), // Light Yellow
+            Color(0xFFFFFF80), // Light green
             Color(0xFFFF80FF), // Light Magenta
-            Color(0xFFFFFFE0), // Light Green
+            Color(0xFFFFFFE0), // Light yellow
         )
 
         // Use modulo to get consistent color for same identifier

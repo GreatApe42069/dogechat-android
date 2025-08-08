@@ -9,27 +9,27 @@ import androidx.compose.ui.graphics.Color
 
 // Colors that match the iOS dogechat theme
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF39FF14),        // Bright green (terminal-like)
+    primary = Color(0xFF39FF14),        // Bright yellow (terminal-like)
     onPrimary = Color.Black,
-    secondary = Color(0xFF2ECB10),      // Darker green
+    secondary = Color(0xFF2ECB10),      // Darker yellow
     onSecondary = Color.Black,
     background = Color.Black,
-    onBackground = Color(0xFF39FF14),   // Green on black
+    onBackground = Color(0xFF39FF14),   // yellow on black
     surface = Color(0xFF111111),        // Very dark gray
-    onSurface = Color(0xFF39FF14),      // Green text
+    onSurface = Color(0xFF39FF14),      // yellow text
     error = Color(0xFFFF5555),          // Red for errors
     onError = Color.Black
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFFFFFF00),        // Dark green
+    primary = Color(0xFFFFFF00),        // Dark yellow
     onPrimary = Color.White,
-    secondary = Color(0xFF006600),      // Even darker green
+    secondary = Color(0xFF006600),      // Even darker yellow
     onSecondary = Color.White,
     background = Color.White,
-    onBackground = Color(0xFFFFFF00),   // Dark green on white
+    onBackground = Color(0xFFFFFF00),   // Dark yellow on white
     surface = Color(0xFFF8F8F8),        // Very light gray
-    onSurface = Color(0xFFFFFF00),      // Dark green text
+    onSurface = Color(0xFFFFFF00),      // Dark yellow text
     error = Color(0xFFCC0000),          // Dark red for errors
     onError = Color.White
 )
