@@ -8,9 +8,10 @@ import com.dogechat.android.onboarding.BatteryOptimizationStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.dogecoin.bitcore.wallet.Wallet
+import com.dogechat.android.WalletManager
 
 class MainViewModel : ViewModel() {
-
     private val _onboardingState = MutableStateFlow(OnboardingState.CHECKING)
     val onboardingState: StateFlow<OnboardingState> = _onboardingState.asStateFlow()
 
@@ -34,6 +35,25 @@ class MainViewModel : ViewModel() {
 
     private val _isBatteryOptimizationLoading = MutableStateFlow(false)
     val isBatteryOptimizationLoading: StateFlow<Boolean> = _isBatteryOptimizationLoading.asStateFlow()
+
+    // Dogecoin-related state flows
+    private val _walletStatus = MutableStateFlow(WalletStatus.INITIALIZING)
+    val walletStatus: StateFlow<WalletStatus> = _walletStatus.asStateFlow()
+
+    private val _transactionStatus = MutableStateFlow(TransactionStatus.IDLE)
+    val transactionStatus: StateFlow<TransactionStatus> = _transactionStatus.asStateFlow()
+
+    private val _dogeBalance = MutableStateFlow(0.0)
+    val dogeBalance: StateFlow<Double> = _dogeBalance.asStateFlow()
+
+    // Enum classes for Dogecoin status
+    enum class WalletStatus {
+        INITIALIZING, READY, ERROR
+    }
+
+    enum class TransactionStatus {
+        IDLE, PENDING, SUCCESS, FAILED
+    }
 
     // Public update functions for MainActivity
     fun updateOnboardingState(state: OnboardingState) {
@@ -66,5 +86,18 @@ class MainViewModel : ViewModel() {
 
     fun updateBatteryOptimizationLoading(loading: Boolean) {
         _isBatteryOptimizationLoading.value = loading
+    }
+
+    // Dogecoin-related update functions
+    fun updateWalletStatus(status: WalletStatus) {
+        _walletStatus.value = status
+    }
+
+    fun updateTransactionStatus(status: TransactionStatus) {
+        _transactionStatus.value = status
+    }
+
+    fun updateDogeBalance(balance: Double) {
+        _dogeBalance.value = balance
     }
 }
