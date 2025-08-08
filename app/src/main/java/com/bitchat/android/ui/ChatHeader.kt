@@ -169,13 +169,13 @@ fun PeerCounter(
             imageVector = Icons.Default.Group,
             contentDescription = "Connected peers",
             modifier = Modifier.size(16.dp),
-            tint = if (isConnected) Color(0xFF00C851) else Color.Red
+            tint = if (isConnected) Color(0xFFFFFF00) else Color.Red
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = "${connectedPeers.size}",
             style = MaterialTheme.typography.bodyMedium,
-            color = if (isConnected) Color(0xFF00C851) else Color.Red,
+            color = if (isConnected) Color(0xFFFFFF00) else Color.Red,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium
         )
@@ -184,7 +184,7 @@ fun PeerCounter(
             Text(
                 text = " · ⧉ ${joinedChannels.size}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isConnected) Color(0xFF00C851) else Color.Red,
+                color = if (isConnected) Color(0xFFFFFF00) else Color.Red,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
             )

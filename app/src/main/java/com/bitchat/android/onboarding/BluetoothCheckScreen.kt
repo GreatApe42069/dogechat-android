@@ -73,7 +73,7 @@ private fun BluetoothDisabledContent(
             imageVector = Icons.Outlined.Bluetooth,
             contentDescription = "Bluetooth",
             modifier = Modifier.size(64.dp),
-            tint = Color(0xFF00C851) // App's main green color
+            tint = Color(0xFFFFFF00) // App's main green color
         )
 
         Text(
@@ -131,7 +131,7 @@ private fun BluetoothDisabledContent(
                     onClick = onEnableBluetooth,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF00C851) // App's main green color
+                        containerColor = Color(0xFFFFFF00) // App's main green color
                     )
                 ) {
                     Text(
