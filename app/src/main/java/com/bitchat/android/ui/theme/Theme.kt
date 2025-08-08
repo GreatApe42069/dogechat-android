@@ -22,14 +22,14 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF008000),        // Dark green
+    primary = Color(0xFFFFFF00),        // Dark green
     onPrimary = Color.White,
     secondary = Color(0xFF006600),      // Even darker green
     onSecondary = Color.White,
     background = Color.White,
-    onBackground = Color(0xFF008000),   // Dark green on white
+    onBackground = Color(0xFFFFFF00),   // Dark green on white
     surface = Color(0xFFF8F8F8),        // Very light gray
-    onSurface = Color(0xFF008000),      // Dark green text
+    onSurface = Color(0xFFFFFF00),      // Dark green text
     error = Color(0xFFCC0000),          // Dark red for errors
     onError = Color.White
 )

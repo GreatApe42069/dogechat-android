@@ -59,7 +59,7 @@ class SlashCommandVisualTransformation : VisualTransformation {
                 // Add the styled slash command
                 withStyle(
                     style = SpanStyle(
-                        color = Color(0xFF00FF7F), // Bright green
+                        color = Color(0xFFFFFF00), // Bright green
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Medium,
                         background = Color(0xFF2D2D2D) // Dark gray background
@@ -242,9 +242,9 @@ fun MessageInput(
                                 // Orange for both private messages and channels when enabled
                                 Color(0xFFFF9500).copy(alpha = 0.75f)
                             } else if (colorScheme.background == Color.Black) {
-                                Color(0xFF00FF00).copy(alpha = 0.75f) // Bright green for dark theme
+                                Color(0xFFFFFF00).copy(alpha = 0.75f) // Bright green for dark theme
                             } else {
-                                Color(0xFF008000).copy(alpha = 0.75f) // Dark green for light theme
+                                Color(0xFFFFFF00).copy(alpha = 0.75f) // Dark green for light theme
                             },
                             shape = CircleShape
                         ),

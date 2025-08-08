@@ -1,0 +1,24 @@
+# Query: Dark green
+# ContextLines: 1
+
+5 results - 2 files
+
+app/src/main/java/com/bitchat/android/ui/InputComponents.kt:
+  246                              } else {
+  247:                                 Color(0xFFFFFF00).copy(alpha = 0.75f) // Dark green for light theme
+  248                              },
+
+  265                          } else {
+  266:                             Color.White // White arrow on dark green in light theme
+  267                          }
+
+app/src/main/java/com/bitchat/android/ui/theme/Theme.kt:
+  24  private val LightColorScheme = lightColorScheme(
+  25:     primary = Color(0xFFFFFF00),        // Dark green
+  26      onPrimary = Color.White,
+
+  29      background = Color.White,
+  30:     onBackground = Color(0xFFFFFF00),   // Dark green on white
+  31      surface = Color(0xFFF8F8F8),        // Very light gray
+  32:     onSurface = Color(0xFFFFFF00),      // Dark green text
+  33      error = Color(0xFFCC0000),          // Dark red for errors
