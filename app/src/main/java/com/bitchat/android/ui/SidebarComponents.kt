@@ -1,6 +1,6 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
-import com.bitchat.android.R
+import com.dogechat.android.R
 import android.util.Log
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource

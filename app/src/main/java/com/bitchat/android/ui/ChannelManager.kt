@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import com.bitchat.android.model.BitchatMessage
+import com.dogechat.android.model.dogechatMessage
 import java.util.*
 
 /**
@@ -143,7 +143,7 @@ class ChannelManager(
             password.toCharArray(),
             channelName.toByteArray(),
             100000, // 100,000 iterations (same as iOS)
-            256 // 256-bit key
+            256 // 256-doge key
         )
         val secretKey = factory.generateSecret(spec)
         return SecretKeySpec(secretKey.encoded, "AES")
@@ -203,7 +203,7 @@ class ChannelManager(
                 System.arraycopy(iv, 0, combined, 0, iv.size)
                 System.arraycopy(encryptedData, 0, combined, iv.size, encryptedData.size)
                 
-                val encryptedMessage = BitchatMessage(
+                val encryptedMessage = dogechatMessage(
                     sender = senderNickname ?: myPeerID,
                     content = "",
                     timestamp = Date(),
@@ -229,7 +229,7 @@ class ChannelManager(
     
     // MARK: - Channel Management
     
-    fun addChannelMessage(channel: String, message: BitchatMessage, senderPeerID: String?) {
+    fun addChannelMessage(channel: String, message: dogechatMessage, senderPeerID: String?) {
         messageManager.addChannelMessage(channel, message)
         
         // Track as channel member

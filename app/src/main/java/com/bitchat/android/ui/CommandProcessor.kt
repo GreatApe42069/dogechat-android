@@ -1,6 +1,6 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
-import com.bitchat.android.model.BitchatMessage
+import com.dogechat.android.model.dogechatMessage
 import java.util.*
 
 /**
@@ -43,7 +43,7 @@ class CommandProcessor(
             "/block" -> handleBlockCommand(parts, meshService)
             "/unblock" -> handleUnblockCommand(parts, meshService)
             "/hug" -> handleActionCommand(parts, "gives", "a warm hug 🫂", meshService, myPeerID, onSendMessage)
-            "/slap" -> handleActionCommand(parts, "slaps", "around a bit with a large trout 🐟", meshService, myPeerID, onSendMessage)
+            "/slap" -> handleActionCommand(parts, "slaps", "around a doge with a large trout 🐟", meshService, myPeerID, onSendMessage)
             "/channels" -> handleChannelsCommand()
             else -> handleUnknownCommand(cmd)
         }
@@ -58,7 +58,7 @@ class CommandProcessor(
             val password = if (parts.size > 2) parts[2] else null
             val success = channelManager.joinChannel(channel, password, myPeerID)
             if (success) {
-                val systemMessage = BitchatMessage(
+                val systemMessage = dogechatMessage(
                     sender = "system",
                     content = "joined channel $channel",
                     timestamp = Date(),
@@ -67,7 +67,7 @@ class CommandProcessor(
                 messageManager.addMessage(systemMessage)
             }
         } else {
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "usage: /join <channel>",
                 timestamp = Date(),
@@ -100,7 +100,7 @@ class CommandProcessor(
                             sendPrivateMessageVia(meshService, content, peerIdParam, recipientNicknameParam, messageId)
                         }
                     } else {
-                        val systemMessage = BitchatMessage(
+                        val systemMessage = dogechatMessage(
                             sender = "system",
                             content = "started private chat with $targetName",
                             timestamp = Date(),
@@ -110,7 +110,7 @@ class CommandProcessor(
                     }
                 }
             } else {
-                val systemMessage = BitchatMessage(
+                val systemMessage = dogechatMessage(
                     sender = "system",
                     content = "user '$targetName' not found. they may be offline or using a different nickname.",
                     timestamp = Date(),
@@ -119,7 +119,7 @@ class CommandProcessor(
                 messageManager.addMessage(systemMessage)
             }
         } else {
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "usage: /msg <nickname> [message]",
                 timestamp = Date(),
@@ -136,7 +136,7 @@ class CommandProcessor(
             getPeerNickname(peerID, meshService)
         }
         
-        val systemMessage = BitchatMessage(
+        val systemMessage = dogechatMessage(
             sender = "system",
             content = if (connectedPeers.isEmpty()) {
                 "no one else is online right now."
@@ -172,7 +172,7 @@ class CommandProcessor(
         val currentChannel = state.getCurrentChannelValue()
 
         if (currentChannel == null) {
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "you must be in a channel to set a password.",
                 timestamp = Date(),
@@ -184,7 +184,7 @@ class CommandProcessor(
 
         if (parts.size == 2){
             if(!channelManager.isChannelCreator(channel = currentChannel, peerID = peerID)){
-                val systemMessage = BitchatMessage(
+                val systemMessage = dogechatMessage(
                     sender = "system",
                     content = "you must be the channel creator to set a password.",
                     timestamp = Date(),
@@ -195,7 +195,7 @@ class CommandProcessor(
             }
             val newPassword = parts[1]
             channelManager.setChannelPassword(currentChannel, newPassword)
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "password changed for channel $currentChannel",
                 timestamp = Date(),
@@ -204,7 +204,7 @@ class CommandProcessor(
             channelManager.addChannelMessage(currentChannel,systemMessage,null)
         }
         else{
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "usage: /pass <password>",
                 timestamp = Date(),
@@ -221,7 +221,7 @@ class CommandProcessor(
         } else {
             // List blocked users
             val blockedInfo = privateChatManager.listBlockedUsers()
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = blockedInfo,
                 timestamp = Date(),
@@ -236,7 +236,7 @@ class CommandProcessor(
             val targetName = parts[1].removePrefix("@")
             privateChatManager.unblockPeerByNickname(targetName, meshService)
         } else {
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "usage: /unblock <nickname>",
                 timestamp = Date(),
@@ -271,7 +271,7 @@ class CommandProcessor(
                     sendPrivateMessageVia(meshService, content, peerIdParam, recipientNicknameParam, messageId)
                 }
             } else {
-                val message = BitchatMessage(
+                val message = dogechatMessage(
                     sender = state.getNicknameValue() ?: myPeerID,
                     content = actionMessage,
                     timestamp = Date(),
@@ -289,7 +289,7 @@ class CommandProcessor(
                 }
             }
         } else {
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "usage: /${parts[0].removePrefix("/")} <nickname>",
                 timestamp = Date(),
@@ -307,7 +307,7 @@ class CommandProcessor(
             "joined channels: ${allChannels.joinToString(", ")}"
         }
         
-        val systemMessage = BitchatMessage(
+        val systemMessage = dogechatMessage(
             sender = "system",
             content = channelList,
             timestamp = Date(),
@@ -317,7 +317,7 @@ class CommandProcessor(
     }
     
     private fun handleUnknownCommand(cmd: String) {
-        val systemMessage = BitchatMessage(
+        val systemMessage = dogechatMessage(
             sender = "system",
             content = "unknown command: $cmd. type / to see available commands.",
             timestamp = Date(),

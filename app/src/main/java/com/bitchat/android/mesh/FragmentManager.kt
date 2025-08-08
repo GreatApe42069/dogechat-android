@@ -1,8 +1,8 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.util.Log
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
+import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.MessageType
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -37,14 +37,14 @@ class FragmentManager {
     /**
      * Create fragments from a large packet
      */
-    fun createFragments(packet: BitchatPacket): List<BitchatPacket> {
+    fun createFragments(packet: dogechatPacket): List<dogechatPacket> {
         val data = packet.toBinaryData() ?: return emptyList()
         
         if (data.size <= FRAGMENT_SIZE_THRESHOLD) {
             return listOf(packet) // No fragmentation needed
         }
         
-        val fragments = mutableListOf<BitchatPacket>()
+        val fragments = mutableListOf<dogechatPacket>()
         val fragmentID = generateFragmentID()
         
         // Fragment overhead: 13 bytes (fragment metadata) + 21 bytes (packet header) = 34 bytes total
@@ -72,7 +72,7 @@ class FragmentManager {
                 else -> MessageType.FRAGMENT_CONTINUE
             }
             
-            val fragmentPacket = BitchatPacket(
+            val fragmentPacket = dogechatPacket(
                 type = fragmentType.value,
                 ttl = packet.ttl,
                 senderID = packet.senderID,
@@ -91,7 +91,7 @@ class FragmentManager {
     /**
      * Handle incoming fragment
      */
-    fun handleFragment(packet: BitchatPacket): BitchatPacket? {
+    fun handleFragment(packet: dogechatPacket): dogechatPacket? {
         if (packet.payload.size < 13) {
             Log.w(TAG, "Fragment packet too small: ${packet.payload.size}")
             return null
@@ -130,7 +130,7 @@ class FragmentManager {
                 }
                 
                 // Parse and return reassembled packet
-                val reassembledPacket = BitchatPacket.fromBinaryData(reassembledData.toByteArray())
+                val reassembledPacket = dogechatPacket.fromBinaryData(reassembledData.toByteArray())
                 
                 // Cleanup
                 incomingFragments.remove(fragmentID)
@@ -267,5 +267,5 @@ class FragmentManager {
  * Delegate interface for fragment manager callbacks
  */
 interface FragmentManagerDelegate {
-    fun onPacketReassembled(packet: BitchatPacket)
+    fun onPacketReassembled(packet: dogechatPacket)
 }

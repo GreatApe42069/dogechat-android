@@ -1,8 +1,8 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.model.DeliveryStatus
-import com.bitchat.android.mesh.PeerFingerprintManager
+import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DeliveryStatus
+import com.dogechat.android.mesh.PeerFingerprintManager
 import java.util.*
 import android.util.Log
 
@@ -37,14 +37,14 @@ class PrivateChatManager(
     private val fingerprintManager = PeerFingerprintManager.getInstance()
     
     // Track received private messages that need read receipts
-    private val unreadReceivedMessages = mutableMapOf<String, MutableList<BitchatMessage>>()
+    private val unreadReceivedMessages = mutableMapOf<String, MutableList<dogechatMessage>>()
     
     // MARK: - Private Chat Lifecycle
     
     fun startPrivateChat(peerID: String, meshService: Any): Boolean {
         if (isPeerBlocked(peerID)) {
             val peerNickname = getPeerNickname(peerID, meshService)
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "cannot start chat with $peerNickname: user is blocked.",
                 timestamp = Date(),
@@ -84,7 +84,7 @@ class PrivateChatManager(
         onSendMessage: (String, String, String, String) -> Unit
     ): Boolean {
         if (isPeerBlocked(peerID)) {
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "cannot send message to $recipientNickname: user is blocked.",
                 timestamp = Date(),
@@ -94,7 +94,7 @@ class PrivateChatManager(
             return false
         }
         
-        val message = BitchatMessage(
+        val message = dogechatMessage(
             sender = senderNickname ?: myPeerID,
             content = content,
             timestamp = Date(),
@@ -168,7 +168,7 @@ class PrivateChatManager(
             dataManager.addBlockedUser(fingerprint)
             
             val peerNickname = getPeerNickname(peerID, meshService)
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "blocked user $peerNickname",
                 timestamp = Date(),
@@ -192,7 +192,7 @@ class PrivateChatManager(
             dataManager.removeBlockedUser(fingerprint)
             
             val peerNickname = getPeerNickname(peerID, meshService)
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "unblocked user $peerNickname",
                 timestamp = Date(),
@@ -210,7 +210,7 @@ class PrivateChatManager(
         if (peerID != null) {
             return blockPeer(peerID, meshService)
         } else {
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "user '$targetName' not found",
                 timestamp = Date(),
@@ -229,7 +229,7 @@ class PrivateChatManager(
             if (fingerprint != null && dataManager.isUserBlocked(fingerprint)) {
                 return unblockPeer(peerID, meshService)
             } else {
-                val systemMessage = BitchatMessage(
+                val systemMessage = dogechatMessage(
                     sender = "system",
                     content = "user '$targetName' is not blocked",
                     timestamp = Date(),
@@ -239,7 +239,7 @@ class PrivateChatManager(
                 return false
             }
         } else {
-            val systemMessage = BitchatMessage(
+            val systemMessage = dogechatMessage(
                 sender = "system",
                 content = "user '$targetName' not found",
                 timestamp = Date(),
@@ -261,7 +261,7 @@ class PrivateChatManager(
     
     // MARK: - Message Handling
     
-    fun handleIncomingPrivateMessage(message: BitchatMessage) {
+    fun handleIncomingPrivateMessage(message: dogechatMessage) {
         message.senderPeerID?.let { senderPeerID ->
             if (!isPeerBlocked(senderPeerID)) {
                 // Add to private messages

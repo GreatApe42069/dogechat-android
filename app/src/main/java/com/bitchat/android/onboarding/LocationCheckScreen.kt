@@ -1,4 +1,4 @@
-package com.bitchat.android.onboarding
+package com.dogechat.android.onboarding
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
@@ -119,7 +119,7 @@ private fun LocationDisabledContent(
                 }
                 
                 Text(
-                    text = "bitchat does NOT track your location or use GPS.\n\nLocation services are required by Android for Bluetooth scanning to work properly. This is an Android system requirement.",
+                    text = "dogechat does NOT track your location or use GPS.\n\nLocation services are required by Android for Bluetooth scanning to work properly. This is an Android system requirement.",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -129,7 +129,7 @@ private fun LocationDisabledContent(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "bitchat needs location services for:",
+                    text = "dogechat needs location services for:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface
@@ -226,7 +226,7 @@ private fun LocationNotAvailableContent(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Text(
-                text = "Location services are not available on this device. This is unusual as location services are standard on Android devices.\n\nbitchat needs location services for Bluetooth scanning to work properly (Android requirement). Without this, the app cannot discover nearby users.",
+                text = "Location services are not available on this device. This is unusual as location services are standard on Android devices.\n\ndogechat needs location services for Bluetooth scanning to work properly (Android requirement). Without this, the app cannot discover nearby users.",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     color = colorScheme.onSurface
@@ -247,7 +247,7 @@ private fun LocationCheckingContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "bitchat",
+            text = "dogechat",
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,

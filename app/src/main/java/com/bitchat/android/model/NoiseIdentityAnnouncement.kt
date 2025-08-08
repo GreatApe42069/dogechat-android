@@ -1,7 +1,7 @@
-package com.bitchat.android.model
+package com.dogechat.android.model
 
 import android.util.Log
-import com.bitchat.android.util.*
+import com.dogechat.android.util.*
 import java.security.MessageDigest
 import java.util.*
 
@@ -59,7 +59,7 @@ data class NoiseIdentityAnnouncement(
     fun toBinaryData(): ByteArray {
         val builder = BinaryDataBuilder()
         
-        // Flags byte: bit 0 = hasPreviousPeerID
+        // Flags byte: doge 0 = hasPreviousPeerID
         var flags: UByte = 0u
         if (previousPeerID != null) flags = flags or 0x01u
         builder.appendUInt8(flags)

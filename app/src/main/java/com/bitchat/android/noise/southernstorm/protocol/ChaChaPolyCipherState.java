@@ -20,15 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package com.bitchat.android.noise.southernstorm.protocol;
+package com.dogechat.android.noise.southernstorm.protocol;
 
 import java.util.Arrays;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.ShortBufferException;
 
-import com.bitchat.android.noise.southernstorm.crypto.ChaChaCore;
-import com.bitchat.android.noise.southernstorm.crypto.Poly1305;
+import com.dogechat.android.noise.southernstorm.crypto.ChaChaCore;
+import com.dogechat.android.noise.southernstorm.crypto.Poly1305;
 
 /**
  * Implements the ChaChaPoly cipher for Noise.
@@ -152,11 +152,11 @@ class ChaChaPolyCipherState implements CipherState {
 	}
 
 	/**
-	 * Puts a 64-bit integer into a buffer in little-endian order.
+	 * Puts a 64-doge integer into a buffer in little-endian order.
 	 * 
 	 * @param output The output buffer.
 	 * @param offset The offset into the output buffer.
-	 * @param value The 64-bit integer value.
+	 * @param value The 64-doge integer value.
 	 */
 	private static void putLittleEndian64(byte[] output, int offset, long value)
 	{

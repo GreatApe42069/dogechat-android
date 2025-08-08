@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://private-user-images.githubusercontent.com/153969184/464446519-7abc4ece-f2e5-424f-b54d-6547c58df11e.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTQ2MzkxODQsIm5iZiI6MTc1NDYzODg4NCwicGF0aCI6Ii8xNTM5NjkxODQvNDY0NDQ2NTE5LTdhYmM0ZWNlLWYyZTUtNDI0Zi1iNTRkLTY1NDdjNThkZjExZS5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjUwODA4JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI1MDgwOFQwNzQxMjRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1hNTczNzM1ODc4YTk3NDk3Nzc4NzBlNzQwM2JlYTY3OGIxZGRiMDI3ZWYyZWRjYWU4NTdmODE4ZGE1MDBhNTEzJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.FqUx0Md1V3geq8NPEmLlAYQYgT_IpWtN81h2Kjvh2rc" alt="Bitchat Android Logo" width="480">
+    <img src="https://private-user-images.githubusercontent.com/153969184/464446519-7abc4ece-f2e5-424f-b54d-6547c58df11e.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTQ2MzkxODQsIm5iZiI6MTc1NDYzODg4NCwicGF0aCI6Ii8xNTM5NjkxODQvNDY0NDQ2NTE5LTdhYmM0ZWNlLWYyZTUtNDI0Zi1iNTRkLTY1NDdjNThkZjExZS5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjUwODA4JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI1MDgwOFQwNzQxMjRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1hNTczNzM1ODc4YTk3NDk3Nzc4NzBlNzQwM2JlYTY3OGIxZGRiMDI3ZWYyZWRjYWU4NTdmODE4ZGE1MDBhNTEzJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.FqUx0Md1V3geq8NPEmLlAYQYgT_IpWtN81h2Kjvh2rc" alt="dogechat Android Logo" width="480">
 </p>
 
 > [!WARNING]
@@ -9,7 +9,7 @@
 
 A secure, Đecentralized, peer-to-peer messaging app that works over Bluetooth mesh networks. No internet required, no servers, no phone numbers - just pure encrypted communication.
 
-This is the **Android port** of the original [bitchat iOS app](https://github.com/jackjackbits/bitchat), maintaining 100% protocol compatibility for cross-platform communication.
+This is the **Android port** of the original [dogechat iOS app](https://github.com/jackjackdoges/dogechat), maintaining 100% protocol compatibility for cross-platform communication.
 
 ## Install Đogechat
 
@@ -27,7 +27,7 @@ This project is released into the public domain. See the [LICENSE](LICENSE.md) f
 
 ## Features
 
-- **✅ Cross-Platform Compatible**: Full protocol compatibility with iOS bitchat
+- **✅ Cross-Platform Compatible**: Full protocol compatibility with iOS dogechat
 - **✅ Đecentralized Mesh Network**: Automatic peer discovery and multi-hop message relay over Bluetooth LE
 - **✅ End-to-End Encryption**: X25519 key exchange + AES-256-GCM for private messages
 - **✅ Channel-Based Chats**: Topic-based group messaging with optional password protection
@@ -54,13 +54,13 @@ This project is released into the public domain. See the [LICENSE](LICENSE.md) f
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/greatape42069/dogechat-android.git
-   cd bitchat-android
+   cd dogechat-android
    ```
 
 2. **Open in Android Studio:**
    ```bash
    # Open Android Studio and select "Open an Existing Project"
-   # Navigate to the bitchat-android directory
+   # Navigate to the dogechat-android directory
    ```
 
 3. **BUIĐL the project:**
@@ -126,9 +126,9 @@ The app requires the following permissions (automatically requested):
 
 1. **Install the app** on your Android device (requires Android 8.0+)
 2. **Grant permissions** for Bluetooth and location when prompted
-3. **Launch bitchat** - it will auto-start mesh networking
+3. **Launch dogechat** - it will auto-start mesh networking
 4. **Set your nickname** or use the auto-generated one
-5. **Connect automatically** to nearby iOS and Android bitchat users
+5. **Connect automatically** to nearby iOS and Android dogechat users
 6. **Join a channel** with `/j #general` or start chatting in public
 7. **Messages relay** through the mesh network to reach distant peers
 
@@ -187,7 +187,7 @@ The app requires the following permissions (automatically requested):
 ## Technical Architecture
 
 ### Binary Protocol
-bitchat uses an efficient binary protocol optimized for Bluetooth LE:
+dogechat uses an efficient binary protocol optimized for Bluetooth LE:
 - Compact packet format with 1-byte type field
 - TTL-based message routing (max 7 hops)
 - Automatic fragmentation for large messages
@@ -274,14 +274,14 @@ The Android implementation maintains 100% binary protocol compatibility with iOS
 
 ## Cross-Platform Communication
 
-This Android port enables seamless communication with the original iOS bitchat app:
+This Android port enables seamless communication with the original iOS dogechat app:
 
 - **iPhone ↔ Android**: Full bidirectional messaging
 - **Mixed Groups**: iOS and Android users in same channels
 - **Feature Parity**: All commands and encryption work across platforms
 - **Protocol Sync**: Identical message format and routing behavior
 
-**iOS Version**: For iPhone/iPad users, get the original bitchat at [github.com/jackjackbits/bitchat](https://github.com/greatape42069/dogechat)
+**iOS Version**: For iPhone/iPad users, get the original dogechat at [github.com/jackjackdoges/dogechat](https://github.com/greatape42069/dogechat)
 
 ## Contributing
 
@@ -298,6 +298,6 @@ Contributions are welcome! Key areas for enhancement:
 - **Bug Reports**: [Create an issue](../../issues) with device info and logs
 - **Feature Requests**: [Start a discussion](https://github.com/orgs/greatape42069/discussions)
 - **Security Issues**: Email security concerns privately
-- **iOS Compatibility**: Cross-reference with [original iOS repo](https://github.com/jackjackbits/bitchat)
+- **iOS Compatibility**: Cross-reference with [original iOS repo](https://github.com/jackjackdoges/dogechat)
 
-For iOS-specific issues, please refer to the [original iOS bitchat repository](https://github.com/jackjackbits/bitchat).
+For iOS-specific issues, please refer to the [original iOS dogechat repository](https://github.com/jackjackdoges/dogechat).

@@ -9,4 +9,4 @@
  * Applications that use Noise won't normally use these classes
  * directly.
  */
-package com.bitchat.android.noise.southernstorm.crypto;
+package com.dogechat.android.noise.southernstorm.crypto;

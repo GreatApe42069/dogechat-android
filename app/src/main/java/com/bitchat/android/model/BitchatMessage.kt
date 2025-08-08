@@ -1,4 +1,4 @@
-package com.bitchat.android.model
+package com.dogechat.android.model
 
 import android.os.Parcelable
 import com.google.gson.GsonBuilder
@@ -42,10 +42,10 @@ sealed class DeliveryStatus : Parcelable {
 }
 
 /**
- * BitchatMessage - 100% compatible with iOS version
+ * dogechatMessage - 100% compatible with iOS version
  */
 @Parcelize
-data class BitchatMessage(
+data class dogechatMessage(
     val id: String = UUID.randomUUID().toString().uppercase(),
     val sender: String,
     val content: String,
@@ -70,7 +70,7 @@ data class BitchatMessage(
             val buffer = ByteBuffer.allocate(4096).apply { order(ByteOrder.BIG_ENDIAN) }
             
             // Message format:
-            // - Flags: 1 byte (bit flags for optional fields)
+            // - Flags: 1 byte (doge flags for optional fields)
             // - Timestamp: 8 bytes (milliseconds since epoch, big-endian)
             // - ID length: 1 byte + ID data
             // - Sender length: 1 byte + sender data
@@ -165,7 +165,7 @@ data class BitchatMessage(
         /**
          * Parse message from binary payload - exactly same logic as iOS version
          */
-        fun fromBinaryPayload(data: ByteArray): BitchatMessage? {
+        fun fromBinaryPayload(data: ByteArray): dogechatMessage? {
             try {
                 if (data.size < 13) return null
                 
@@ -274,7 +274,7 @@ data class BitchatMessage(
                     } else null
                 } else null
                 
-                return BitchatMessage(
+                return dogechatMessage(
                     id = id,
                     sender = sender,
                     content = content,
@@ -300,7 +300,7 @@ data class BitchatMessage(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
         
-        other as BitchatMessage
+        other as dogechatMessage
         
         if (id != other.id) return false
         if (sender != other.sender) return false

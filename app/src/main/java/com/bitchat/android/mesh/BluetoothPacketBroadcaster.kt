@@ -1,12 +1,12 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattServer
 import android.util.Log
-import com.bitchat.android.protocol.SpecialRecipients
-import com.bitchat.android.model.RoutedPacket
+import com.dogechat.android.protocol.SpecialRecipients
+import com.dogechat.android.model.RoutedPacket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

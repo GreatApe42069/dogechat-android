@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
@@ -6,8 +6,8 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.mesh.BluetoothMeshService
+import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.mesh.BluetoothMeshService
 import androidx.compose.material3.ColorScheme
 import java.text.SimpleDateFormat
 import java.util.*
@@ -34,7 +34,7 @@ fun getRSSIColor(rssi: Int): Color {
  * Format message as annotated string with proper styling
  */
 fun formatMessageAsAnnotatedString(
-    message: BitchatMessage,
+    message: dogechatMessage,
     currentUserNickname: String,
     meshService: BluetoothMeshService,
     colorScheme: ColorScheme,

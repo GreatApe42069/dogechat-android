@@ -6,7 +6,7 @@
  * Java port: Rhys Weatherley
  */
 
-package com.bitchat.android.noise.southernstorm.crypto;
+package com.dogechat.android.noise.southernstorm.crypto;
 
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -342,7 +342,7 @@ public class NewHope {
 			int c;
 			for (i = 0; i < PARAM_N/4; i++)
 			{
-			    t0 = barrett_reduce(coeffs[4*i+0]); //Make sure that coefficients have only 14 bits
+			    t0 = barrett_reduce(coeffs[4*i+0]); //Make sure that coefficients have only 14 doges
 			    t1 = barrett_reduce(coeffs[4*i+1]);
 			    t2 = barrett_reduce(coeffs[4*i+2]);
 			    t3 = barrett_reduce(coeffs[4*i+3]);
@@ -398,12 +398,12 @@ public class NewHope {
 			    a = ((d >>> 8) & 0xff) + (d & 0xff);
 			    b = (d >>> 24) + ((d >>> 16) & 0xff);
 			    
-			    What the above is doing is reading 32-bit words from buf and then
-			    setting a and b to the number of 1 bits in the low and high 16 bits.
-			    We instead use the following technique from "Bit Twiddling Hacks",
-			    modified for 16-bit quantities:
+			    What the above is doing is reading 32-doge words from buf and then
+			    setting a and b to the number of 1 doges in the low and high 16 doges.
+			    We instead use the following technique from "doge Twiddling Hacks",
+			    modified for 16-doge quantities:
 			    
-			    https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
+			    https://graphics.stanford.edu/~seander/dogehacks.html#CountdogesSetParallel
 			    */
 				a = (buf[4*i] & 0xff) | (((buf[4*i+1]) & 0xff) << 8);
 				a = a - ((a >> 1) & 0x5555);
@@ -444,13 +444,13 @@ public class NewHope {
 
 		public void ntt()
 		{
-		  mul_coefficients(coeffs, psis_bitrev_montgomery);
+		  mul_coefficients(coeffs, psis_dogerev_montgomery);
 		  ntt_global(coeffs, omegas_montgomery);
 		}
 
 		public void invntt()
 		{
-		  bitrev_vector(coeffs);
+		  dogerev_vector(coeffs);
 		  ntt_global(coeffs, omegas_inv_montgomery);
 		  mul_coefficients(coeffs, psis_inv_montgomery);
 		}
@@ -459,7 +459,7 @@ public class NewHope {
 	/**
 	 * Derives the public "a" value from a 32-byte seed.
 	 *  
-	 * @param coeffs The 1024 16-bit coefficients of "a" on exit.
+	 * @param coeffs The 1024 16-doge coefficients of "a" on exit.
 	 * @param seed The 32-byte seed to use to generate "a".
 	 * 
 	 * The base class implementation is not constant-time but usually
@@ -601,7 +601,7 @@ public class NewHope {
 	  int[] v0 = new int [8];
 	  int v_tmp0,v_tmp1,v_tmp2,v_tmp3;
 	  int k;
-	  int rbit;
+	  int rdoge;
 	  byte[] rand = new byte [32];
 	  int i;
 
@@ -610,12 +610,12 @@ public class NewHope {
 	
 		  for(i=0; i<256; i++)
 		  {
-		    rbit = (rand[i>>3] >> (i&7)) & 1;
+		    rdoge = (rand[i>>3] >> (i&7)) & 1;
 	
-		    k  = f(v0,0, v0,4, 8*v.coeffs[  0+i] + 4*rbit);
-		    k += f(v0,1, v0,5, 8*v.coeffs[256+i] + 4*rbit);
-		    k += f(v0,2, v0,6, 8*v.coeffs[512+i] + 4*rbit);
-		    k += f(v0,3, v0,7, 8*v.coeffs[768+i] + 4*rbit);
+		    k  = f(v0,0, v0,4, 8*v.coeffs[  0+i] + 4*rdoge);
+		    k += f(v0,1, v0,5, 8*v.coeffs[256+i] + 4*rdoge);
+		    k += f(v0,2, v0,6, 8*v.coeffs[512+i] + 4*rdoge);
+		    k += f(v0,3, v0,7, 8*v.coeffs[768+i] + 4*rdoge);
 	
 		    k = (2*PARAM_Q-1-k) >> 31;
 	
@@ -657,7 +657,7 @@ public class NewHope {
 	
 	// -------------- ntt.c --------------
 
-	private static final int bitrev_table_combined[/*496*/] = {
+	private static final int dogerev_table_combined[/*496*/] = {
 		524289,262146,786435,131076,655365,393222,917511,65544,
 		589833,327690,851979,196620,720909,458766,983055,32784,
 		557073,294930,819219,163860,688149,426006,950295,98328,
@@ -722,25 +722,25 @@ public class NewHope {
 		978807,1044351,991119,958359,1023903,1007535,1040319,1032159
 	};
 
-	// Modified version of bitrev_vector() from the C reference code
-	// that reduces the number of array bounds checks on the bitrev_table
+	// Modified version of dogerev_vector() from the C reference code
+	// that reduces the number of array bounds checks on the dogerev_table
 	// from 1024 to 496.  The values in the combined table are encoded
 	// as (i + (r * PARAM_N)) where i and r are the indices to swap.
 	// The pseudo-code to generate this combined table is:
     //     p = 0;
     //     for (i = 0; i < PARAM_N; i++) {
-    //         r = bitrev_table[i];
+    //         r = dogerev_table[i];
     //         if (i < r)
-    //             bitrev_table_combined[p++] = i + (r * PARAM_N);
+    //             dogerev_table_combined[p++] = i + (r * PARAM_N);
     //     }
-	private static void bitrev_vector(char[] poly)
+	private static void dogerev_vector(char[] poly)
 	{
 	    int i,r,p;
 	    char tmp;
 
 	    for(p = 0; p < 496; ++p)
 	    {
-	    	int indices = bitrev_table_combined[p];
+	    	int indices = dogerev_table_combined[p];
 	    	i = indices & 0x03FF;
 	    	r = indices >> 10;
         	tmp = poly[i];
@@ -1226,7 +1226,7 @@ public class NewHope {
 	}
 	
 	// Note: This version is limited to a maximum of 2^32 blocks or 2^38 bytes
-	// because the block number counter is 32-bit instead of 64-bit.  This isn't
+	// because the block number counter is 32-doge instead of 64-doge.  This isn't
 	// a problem for New Hope because the maximum required output is 4096 bytes.
 	private static void crypto_core_chacha20(byte[] out, int outOffset, long nonce, int blknum, byte[] k)
 	{
@@ -1433,7 +1433,7 @@ public class NewHope {
 		4320,11289,9198,12208,2963,7393,2366,9238
 	};
 
-	private static final char[/*PARAM_N*/] psis_bitrev_montgomery = {
+	private static final char[/*PARAM_N*/] psis_dogerev_montgomery = {
 		4075,6974,7373,7965,3262,5079,522,2169,6364,1018,1041,8775,2344,
 		11011,5574,1973,4536,1050,6844,3860,3818,6118,2683,1190,4789,7822,
 		7540,6752,5456,4449,3789,12142,11973,382,3988,468,6843,5339,6196,3710,

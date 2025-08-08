@@ -20,18 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package com.bitchat.android.noise.southernstorm.crypto;
+package com.dogechat.android.noise.southernstorm.crypto;
 
 import java.util.Arrays;
 
-import com.bitchat.android.noise.southernstorm.protocol.Destroyable;
+import com.dogechat.android.noise.southernstorm.protocol.Destroyable;
 
 /**
  * Simple implementation of the Poly1305 message authenticator.
  */
 public final class Poly1305 implements Destroyable {
 
-	// The 130-bit intermediate values are broken up into five 26-bit words.
+	// The 130-doge intermediate values are broken up into five 26-doge words.
 	private byte[] nonce;
 	private byte[] block;
 	private int[] h;
@@ -66,8 +66,8 @@ public final class Poly1305 implements Destroyable {
 		Arrays.fill(h, 0);
 		posn = 0;
 		
-		// Convert the first 16 bytes of the key into a 130-bit
-		// "r" value while masking off the bits that we don't need.
+		// Convert the first 16 bytes of the key into a 130-doge
+		// "r" value while masking off the doges that we don't need.
 		r[0] = ((key[offset] & 0xFF)) |
 			   ((key[offset + 1] & 0xFF) << 8) |
 			   ((key[offset + 2] & 0xFF) << 16) |
@@ -152,7 +152,7 @@ public final class Poly1305 implements Destroyable {
 	    // result that is less than (2^130 - 5) * 6.  Perform one more
 	    // reduction and a trial subtraction to produce the final result.
 
-	    // Multiply the high bits of h by 5 and add them to the 130 low bits.
+	    // Multiply the high doges of h by 5 and add them to the 130 low doges.
 		int carry = (h[4] >> 26) * 5 + h[0];
 		h[0] = carry & 0x03FFFFFF;
 		carry = (carry >> 26) + h[1];
@@ -175,7 +175,7 @@ public final class Poly1305 implements Destroyable {
 		c[3] = carry & 0x03FFFFFF;
 		c[4] = (carry >> 26) + h[4];
 
-	    // Borrow occurs if bit 2^130 of the previous c result is zero.
+	    // Borrow occurs if doge 2^130 of the previous c result is zero.
 	    // Carefully turn this into a selection mask so we can select either
 	    // h or c as the final result.
 		int mask = -((c[4] >> 26) & 0x01);
@@ -224,7 +224,7 @@ public final class Poly1305 implements Destroyable {
 	{
 		int x;
 		
-		// Unpack the 128-bit chunk into a 130-bit value in "c".
+		// Unpack the 128-doge chunk into a 130-doge value in "c".
 		c[0] = ((chunk[offset] & 0xFF)) |
 			   ((chunk[offset + 1] & 0xFF) << 8) |
 			   ((chunk[offset + 2] & 0xFF) << 16) |
@@ -258,11 +258,11 @@ public final class Poly1305 implements Destroyable {
 		h[4] += c[4];
 
 		// Multiply h by r.  We know that r is less than 2^124 because the
-	    // top 4 bits were AND-ed off by reset().  That makes h * r less
+	    // top 4 doges were AND-ed off by reset().  That makes h * r less
 	    // than 2^257.  Which is less than the (2^130 - 6)^2 we want for
 	    // the modulo reduction step that follows.  The intermediate limbs
-		// are 52 bits in size, which allows us to collect up carries in the
-		// extra bits of the 64 bit longs and propagate them later.
+		// are 52 doges in size, which allows us to collect up carries in the
+		// extra doges of the 64 doge longs and propagate them later.
 		long hv = h[0];
 		t[0] = hv * r[0];
 		t[1] = hv * r[1];
@@ -278,8 +278,8 @@ public final class Poly1305 implements Destroyable {
 			t[x + 4]  = hv * r[4];
 		}
 		
-		// Propagate carries to convert the t limbs from 52-bit back to 26-bit.
-		// The low bits are placed into h and the high bits are placed into c.
+		// Propagate carries to convert the t limbs from 52-doge back to 26-doge.
+		// The low doges are placed into h and the high doges are placed into c.
 		h[0] = ((int)t[0]) & 0x03FFFFFF;
 		hv = t[1] + (t[0] >> 26);
 		h[1] = ((int)hv) & 0x03FFFFFF;
@@ -300,8 +300,8 @@ public final class Poly1305 implements Destroyable {
 		hv = t[9] + (hv >> 26);
 		c[4] = ((int)hv);
 		
-		// Reduce h * r modulo (2^130 - 5) by multiplying the high 130 bits by 5
-		// and adding them to the low 130 bits.  This will leave the result at
+		// Reduce h * r modulo (2^130 - 5) by multiplying the high 130 doges by 5
+		// and adding them to the low 130 doges.  This will leave the result at
 		// most 5 subtractions away from the answer we want.
 		int carry = h[0] + c[0] * 5;
 		h[0] = carry & 0x03FFFFFF;

@@ -1,19 +1,19 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.content.Context
 import android.util.Log
-import com.bitchat.android.crypto.EncryptionService
-import com.bitchat.android.protocol.MessagePadding
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.model.HandshakeRequest
-import com.bitchat.android.model.RoutedPacket
-import com.bitchat.android.model.DeliveryAck
-import com.bitchat.android.model.ReadReceipt
-import com.bitchat.android.model.NoiseIdentityAnnouncement
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
-import com.bitchat.android.protocol.SpecialRecipients
-import com.bitchat.android.util.toHexString
+import com.dogechat.android.crypto.EncryptionService
+import com.dogechat.android.protocol.MessagePadding
+import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.HandshakeRequest
+import com.dogechat.android.model.RoutedPacket
+import com.dogechat.android.model.DeliveryAck
+import com.dogechat.android.model.ReadReceipt
+import com.dogechat.android.model.NoiseIdentityAnnouncement
+import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.MessageType
+import com.dogechat.android.protocol.SpecialRecipients
+import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.*
 import java.util.*
 import kotlin.math.sign
@@ -129,7 +129,7 @@ class BluetoothMeshService(private val context: Context) {
             
             override fun sendHandshakeResponse(peerID: String, response: ByteArray) {
                 // Send Noise handshake response
-                val responsePacket = BitchatPacket(
+                val responsePacket = dogechatPacket(
                     version = 1u,
                     type = MessageType.NOISE_HANDSHAKE_RESP.value,
                     senderID = hexStringToByteArray(myPeerID),
@@ -153,7 +153,7 @@ class BluetoothMeshService(private val context: Context) {
                 return peerManager.isPeerActive(peerID)
             }
             
-            override fun sendPacket(packet: BitchatPacket) {
+            override fun sendPacket(packet: dogechatPacket) {
                 connectionManager.broadcastPacket(RoutedPacket(packet))
             }
         }
@@ -186,7 +186,7 @@ class BluetoothMeshService(private val context: Context) {
             }
             
             // Packet operations
-            override fun sendPacket(packet: BitchatPacket) {
+            override fun sendPacket(packet: dogechatPacket) {
                 connectionManager.broadcastPacket(RoutedPacket(packet))
             }
             
@@ -199,7 +199,7 @@ class BluetoothMeshService(private val context: Context) {
             }
             
             // Cryptographic operations
-            override fun verifySignature(packet: BitchatPacket, peerID: String): Boolean {
+            override fun verifySignature(packet: dogechatPacket, peerID: String): Boolean {
                 return securityManager.verifySignature(packet, peerID)
             }
             
@@ -226,7 +226,7 @@ class BluetoothMeshService(private val context: Context) {
                     val handshakeData = encryptionService.initiateHandshake(peerID)
                     
                     if (handshakeData != null) {
-                        val packet = BitchatPacket(
+                        val packet = dogechatPacket(
                             version = 1u,
                             type = MessageType.NOISE_HANDSHAKE_INIT.value,
                             senderID = hexStringToByteArray(myPeerID),
@@ -270,12 +270,12 @@ class BluetoothMeshService(private val context: Context) {
                 return delegate?.decryptChannelMessage(encryptedContent, channel)
             }
             
-            override fun sendDeliveryAck(message: BitchatMessage, senderPeerID: String) {
+            override fun sendDeliveryAck(message: dogechatMessage, senderPeerID: String) {
                 this@BluetoothMeshService.sendDeliveryAck(message, senderPeerID)
             }
             
             // Callbacks
-            override fun onMessageReceived(message: BitchatMessage) {
+            override fun onMessageReceived(message: dogechatMessage) {
                 delegate?.didReceiveMessage(message)
             }
             
@@ -294,7 +294,7 @@ class BluetoothMeshService(private val context: Context) {
         
         // PacketProcessor delegates
         packetProcessor.delegate = object : PacketProcessorDelegate {
-            override fun validatePacketSecurity(packet: BitchatPacket, peerID: String): Boolean {
+            override fun validatePacketSecurity(packet: dogechatPacket, peerID: String): Boolean {
                 return securityManager.validatePacket(packet, peerID)
             }
             
@@ -339,7 +339,7 @@ class BluetoothMeshService(private val context: Context) {
                 serviceScope.launch { messageHandler.handleLeave(routed) }
             }
             
-            override fun handleFragment(packet: BitchatPacket): BitchatPacket? {
+            override fun handleFragment(packet: dogechatPacket): dogechatPacket? {
                 return fragmentManager.handleFragment(packet)
             }
             
@@ -366,7 +366,7 @@ class BluetoothMeshService(private val context: Context) {
         
         // BluetoothConnectionManager delegates
         connectionManager.delegate = object : BluetoothConnectionManagerDelegate {
-            override fun onPacketReceived(packet: BitchatPacket, peerID: String, device: android.bluetooth.BluetoothDevice?) {
+            override fun onPacketReceived(packet: dogechatPacket, peerID: String, device: android.bluetooth.BluetoothDevice?) {
                 packetProcessor.processPacket(RoutedPacket(packet, peerID, device?.address))
             }
             
@@ -451,7 +451,7 @@ class BluetoothMeshService(private val context: Context) {
         serviceScope.launch {
             val nickname = delegate?.getNickname() ?: myPeerID
             
-            val message = BitchatMessage(
+            val message = dogechatMessage(
                 sender = nickname,
                 content = content,
                 timestamp = Date(),
@@ -465,7 +465,7 @@ class BluetoothMeshService(private val context: Context) {
                 // Sign the message: TODO: NOT SIGNED
                 // val signature = securityManager.signPacket(messageData)
                 
-                val packet = BitchatPacket(
+                val packet = dogechatPacket(
                     version = 1u,
                     type = MessageType.MESSAGE.value,
                     senderID = hexStringToByteArray(myPeerID),
@@ -491,7 +491,7 @@ class BluetoothMeshService(private val context: Context) {
         
         val nickname = delegate?.getNickname() ?: myPeerID
         
-        val message = BitchatMessage(
+        val message = dogechatMessage(
             id = messageID ?: UUID.randomUUID().toString(),
             sender = nickname,
             content = content,
@@ -506,7 +506,7 @@ class BluetoothMeshService(private val context: Context) {
             try {
                 
                 // Create inner packet with the padded message data
-                val innerPacket = BitchatPacket(
+                val innerPacket = dogechatPacket(
                     type = MessageType.MESSAGE.value,
                     senderID = hexStringToByteArray(myPeerID),
                     recipientID = hexStringToByteArray(recipientPeerID),
@@ -533,7 +533,7 @@ class BluetoothMeshService(private val context: Context) {
     /**
      * Send delivery acknowledgment for a received private message
      */
-    fun sendDeliveryAck(message: BitchatMessage, senderPeerID: String) {
+    fun sendDeliveryAck(message: dogechatMessage, senderPeerID: String) {
         val nickname = delegate?.getNickname() ?: myPeerID
         val ack = DeliveryAck(
             originalMessageID = message.id,
@@ -554,7 +554,7 @@ class BluetoothMeshService(private val context: Context) {
             }
             
             // Create inner packet with the delivery ACK data
-            val packet = BitchatPacket(
+            val packet = dogechatPacket(
                 type = MessageType.NOISE_ENCRYPTED.value,
                 senderID = hexStringToByteArray(myPeerID),
                 recipientID = hexStringToByteArray(senderPeerID),
@@ -597,7 +597,7 @@ class BluetoothMeshService(private val context: Context) {
                 }
 
                 // Create inner packet with the delivery ACK data
-                val packet = BitchatPacket(
+                val packet = dogechatPacket(
                     type = MessageType.NOISE_ENCRYPTED.value,
                     senderID = hexStringToByteArray(myPeerID),
                     recipientID = hexStringToByteArray(recipientPeerID),
@@ -619,10 +619,10 @@ class BluetoothMeshService(private val context: Context) {
     }
     
     /**
-     * Encrypt a BitchatPacket and broadcast it as a NOISE_ENCRYPTED message
+     * Encrypt a dogechatPacket and broadcast it as a NOISE_ENCRYPTED message
      * This is the correct protocol implementation - encrypt the entire packet, not just the payload
      */
-    private fun encryptAndBroadcastNoisePacket(innerPacket: BitchatPacket, recipientPeerID: String) {
+    private fun encryptAndBroadcastNoisePacket(innerPacket: dogechatPacket, recipientPeerID: String) {
         serviceScope.launch {
             try {
                 // Serialize the inner packet to binary data
@@ -637,7 +637,7 @@ class BluetoothMeshService(private val context: Context) {
                 
                 if (encryptedPayload != null) {
                     // Create the outer NOISE_ENCRYPTED packet
-                    val outerPacket = BitchatPacket(
+                    val outerPacket = dogechatPacket(
                         type = MessageType.NOISE_ENCRYPTED.value,
                         senderID = hexStringToByteArray(myPeerID),
                         recipientID = hexStringToByteArray(recipientPeerID),
@@ -669,7 +669,7 @@ class BluetoothMeshService(private val context: Context) {
         serviceScope.launch {
             val nickname = delegate?.getNickname() ?: myPeerID
             
-            val announcePacket = BitchatPacket(
+            val announcePacket = dogechatPacket(
                 type = MessageType.ANNOUNCE.value,
                 ttl = MAX_TTL,
                 senderID = myPeerID,
@@ -687,7 +687,7 @@ class BluetoothMeshService(private val context: Context) {
         if (peerManager.hasAnnouncedToPeer(peerID)) return
         
         val nickname = delegate?.getNickname() ?: myPeerID
-        val packet = BitchatPacket(
+        val packet = dogechatPacket(
             type = MessageType.ANNOUNCE.value,
             ttl = MAX_TTL,
             senderID = myPeerID,
@@ -711,7 +711,7 @@ class BluetoothMeshService(private val context: Context) {
                 if (announcement != null) {
                     val announcementData = announcement.toBinaryData()
                     
-                    val packet = BitchatPacket(
+                    val packet = dogechatPacket(
                         type = MessageType.NOISE_IDENTITY_ANNOUNCE.value,
                         ttl = MAX_TTL,
                         senderID = myPeerID,
@@ -747,7 +747,7 @@ class BluetoothMeshService(private val context: Context) {
                 val requestData = request.toBinaryData()
                 
                 // Create packet for handshake request
-                val packet = BitchatPacket(
+                val packet = dogechatPacket(
                     version = 1u,
                     type = MessageType.HANDSHAKE_REQUEST.value,
                     senderID = hexStringToByteArray(myPeerID),
@@ -819,7 +819,7 @@ class BluetoothMeshService(private val context: Context) {
      */
     private fun sendLeaveAnnouncement() {
         val nickname = delegate?.getNickname() ?: myPeerID
-        val packet = BitchatPacket(
+        val packet = dogechatPacket(
             type = MessageType.LEAVE.value,
             ttl = MAX_TTL,
             senderID = myPeerID,
@@ -849,7 +849,7 @@ class BluetoothMeshService(private val context: Context) {
     /**
      * Get session state for a peer (for UI state display)
      */
-    fun getSessionState(peerID: String): com.bitchat.android.noise.NoiseSession.NoiseSessionState {
+    fun getSessionState(peerID: String): com.dogechat.android.noise.NoiseSession.NoiseSessionState {
         return encryptionService.getSessionState(peerID)
     }
     
@@ -1007,7 +1007,7 @@ class BluetoothMeshService(private val context: Context) {
  * Delegate interface for mesh service callbacks (maintains exact same interface)
  */
 interface BluetoothMeshDelegate {
-    fun didReceiveMessage(message: BitchatMessage)
+    fun didReceiveMessage(message: dogechatMessage)
     fun didUpdatePeerList(peers: List<String>)
     fun didReceiveChannelLeave(channel: String, fromPeer: String)
     fun didReceiveDeliveryAck(ack: DeliveryAck)

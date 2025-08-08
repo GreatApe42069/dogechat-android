@@ -1,4 +1,4 @@
-package com.bitchat.android
+package com.dogechat.android
 
 import android.content.Intent
 import android.os.Bundle
@@ -20,25 +20,25 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
-import com.bitchat.android.mesh.BluetoothMeshService
-import com.bitchat.android.onboarding.BluetoothCheckScreen
-import com.bitchat.android.onboarding.BluetoothStatus
-import com.bitchat.android.onboarding.BluetoothStatusManager
-import com.bitchat.android.onboarding.BatteryOptimizationManager
-import com.bitchat.android.onboarding.BatteryOptimizationScreen
-import com.bitchat.android.onboarding.BatteryOptimizationStatus
-import com.bitchat.android.onboarding.InitializationErrorScreen
-import com.bitchat.android.onboarding.InitializingScreen
-import com.bitchat.android.onboarding.LocationCheckScreen
-import com.bitchat.android.onboarding.LocationStatus
-import com.bitchat.android.onboarding.LocationStatusManager
-import com.bitchat.android.onboarding.OnboardingCoordinator
-import com.bitchat.android.onboarding.OnboardingState
-import com.bitchat.android.onboarding.PermissionExplanationScreen
-import com.bitchat.android.onboarding.PermissionManager
-import com.bitchat.android.ui.ChatScreen
-import com.bitchat.android.ui.ChatViewModel
-import com.bitchat.android.ui.theme.BitchatTheme
+import com.dogechat.android.mesh.BluetoothMeshService
+import com.dogechat.android.onboarding.BluetoothCheckScreen
+import com.dogechat.android.onboarding.BluetoothStatus
+import com.dogechat.android.onboarding.BluetoothStatusManager
+import com.dogechat.android.onboarding.BatteryOptimizationManager
+import com.dogechat.android.onboarding.BatteryOptimizationScreen
+import com.dogechat.android.onboarding.BatteryOptimizationStatus
+import com.dogechat.android.onboarding.InitializationErrorScreen
+import com.dogechat.android.onboarding.InitializingScreen
+import com.dogechat.android.onboarding.LocationCheckScreen
+import com.dogechat.android.onboarding.LocationStatus
+import com.dogechat.android.onboarding.LocationStatusManager
+import com.dogechat.android.onboarding.OnboardingCoordinator
+import com.dogechat.android.onboarding.OnboardingState
+import com.dogechat.android.onboarding.PermissionExplanationScreen
+import com.dogechat.android.onboarding.PermissionManager
+import com.dogechat.android.ui.ChatScreen
+import com.dogechat.android.ui.ChatViewModel
+import com.dogechat.android.ui.theme.dogechatTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
         )
         
         setContent {
-            BitchatTheme {
+            dogechatTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -662,13 +662,13 @@ class MainActivity : ComponentActivity() {
      */
     private fun handleNotificationIntent(intent: Intent) {
         val shouldOpenPrivateChat = intent.getBooleanExtra(
-            com.bitchat.android.ui.NotificationManager.EXTRA_OPEN_PRIVATE_CHAT, 
+            com.dogechat.android.ui.NotificationManager.EXTRA_OPEN_PRIVATE_CHAT, 
             false
         )
         
         if (shouldOpenPrivateChat) {
-            val peerID = intent.getStringExtra(com.bitchat.android.ui.NotificationManager.EXTRA_PEER_ID)
-            val senderNickname = intent.getStringExtra(com.bitchat.android.ui.NotificationManager.EXTRA_SENDER_NICKNAME)
+            val peerID = intent.getStringExtra(com.dogechat.android.ui.NotificationManager.EXTRA_PEER_ID)
+            val senderNickname = intent.getStringExtra(com.dogechat.android.ui.NotificationManager.EXTRA_SENDER_NICKNAME)
             
             if (peerID != null) {
                 Log.d("MainActivity", "Opening private chat with $senderNickname (peerID: $peerID) from notification")

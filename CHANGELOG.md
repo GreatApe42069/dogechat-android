@@ -141,7 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2] - 2025-07-09
 
 ### Added
-- Initial Android implementation of bitchat protocol
+- Initial Android implementation of dogechat protocol
 - Bluetooth Low Energy mesh networking
 - End-to-end encryption for private messages
 - Channel-based messaging with password protection
@@ -157,15 +157,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1] - 2025-07-08
 
 ### Added
-- Initial release of bitchat Android client
+- Initial release of dogechat Android client
 - Basic mesh networking functionality
 - Core messaging features
-- Protocol compatibility with iOS bitchat client
+- Protocol compatibility with iOS dogechat client
 
-[Unreleased]: https://github.com/permissionlesstech/bitchat-android/compare/0.5.1...HEAD
-[0.5.1]: https://github.com/permissionlesstech/bitchat-android/compare/0.5...0.5.1
-[0.5]: https://github.com/permissionlesstech/bitchat-android/compare/0.4...0.5
-[0.4]: https://github.com/permissionlesstech/bitchat-android/compare/0.3...0.4
-[0.3]: https://github.com/permissionlesstech/bitchat-android/compare/0.2...0.3
-[0.2]: https://github.com/permissionlesstech/bitchat-android/compare/0.1...0.2
-[0.1]: https://github.com/permissionlesstech/bitchat-android/releases/tag/0.1
+[Unreleased]: https://github.com/permissionlesstech/dogechat-android/compare/0.5.1...HEAD
+[0.5.1]: https://github.com/permissionlesstech/dogechat-android/compare/0.5...0.5.1
+[0.5]: https://github.com/permissionlesstech/dogechat-android/compare/0.4...0.5
+[0.4]: https://github.com/permissionlesstech/dogechat-android/compare/0.3...0.4
+[0.3]: https://github.com/permissionlesstech/dogechat-android/compare/0.2...0.3
+[0.2]: https://github.com/permissionlesstech/dogechat-android/compare/0.1...0.2
+[0.1]: https://github.com/permissionlesstech/dogechat-android/releases/tag/0.1

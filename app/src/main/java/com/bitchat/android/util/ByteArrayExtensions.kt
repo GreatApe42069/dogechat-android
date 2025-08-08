@@ -1,4 +1,4 @@
-package com.bitchat.android.util
+package com.dogechat.android.util
 
 /**
  * Extension function to convert a ByteArray to a hexadecimal string.

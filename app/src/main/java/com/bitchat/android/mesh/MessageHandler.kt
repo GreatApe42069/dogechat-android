@@ -1,14 +1,14 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.util.Log
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.model.DeliveryAck
-import com.bitchat.android.model.NoiseIdentityAnnouncement
-import com.bitchat.android.model.ReadReceipt
-import com.bitchat.android.model.RoutedPacket
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
-import com.bitchat.android.util.toHexString
+import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DeliveryAck
+import com.dogechat.android.model.NoiseIdentityAnnouncement
+import com.dogechat.android.model.ReadReceipt
+import com.dogechat.android.model.RoutedPacket
+import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.MessageType
+import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.*
 import java.util.*
 import kotlin.random.Random
@@ -75,7 +75,7 @@ class MessageHandler(private val myPeerID: String) {
             }
             
             // Try to parse as a full inner packet (for compatibility with other message types)
-            val innerPacket = BitchatPacket.fromBinaryData(decryptedData)
+            val innerPacket = dogechatPacket.fromBinaryData(decryptedData)
             if (innerPacket != null) {
                 Log.d(TAG, "Decrypted inner packet type ${innerPacket.type} from $peerID")
                 
@@ -215,7 +215,7 @@ class MessageHandler(private val myPeerID: String) {
         val peerID = routed.peerID ?: "unknown"
         try {
             // Parse message
-            val message = BitchatMessage.fromBinaryPayload(packet.payload)
+            val message = dogechatMessage.fromBinaryPayload(packet.payload)
             if (message != null) {
                 // Check for cover traffic (dummy messages)
                 if (message.content.startsWith("☂DUMMY☂")) {
@@ -253,7 +253,7 @@ class MessageHandler(private val myPeerID: String) {
     /**
      * Handle (decrypted) private message addressed to us
      */
-    private suspend fun handlePrivateMessage(packet: BitchatPacket, peerID: String) {
+    private suspend fun handlePrivateMessage(packet: dogechatPacket, peerID: String) {
         try {
             // Verify signature if present
             if (packet.signature != null && !delegate?.verifySignature(packet, peerID)!!) {
@@ -262,7 +262,7 @@ class MessageHandler(private val myPeerID: String) {
             }
 
             // Parse message
-            val message = BitchatMessage.fromBinaryPayload(packet.payload)
+            val message = dogechatMessage.fromBinaryPayload(packet.payload)
             if (message != null) {
                 // Check for cover traffic (dummy messages)
                 if (message.content.startsWith("☂DUMMY☂")) {
@@ -379,12 +379,12 @@ interface MessageHandlerDelegate {
     fun getMyNickname(): String?
     
     // Packet operations
-    fun sendPacket(packet: BitchatPacket)
+    fun sendPacket(packet: dogechatPacket)
     fun relayPacket(routed: RoutedPacket)
     fun getBroadcastRecipient(): ByteArray
     
     // Cryptographic operations
-    fun verifySignature(packet: BitchatPacket, peerID: String): Boolean
+    fun verifySignature(packet: dogechatPacket, peerID: String): Boolean
     fun encryptForPeer(data: ByteArray, recipientPeerID: String): ByteArray?
     fun decryptFromPeer(encryptedData: ByteArray, senderPeerID: String): ByteArray?
     fun verifyEd25519Signature(signature: ByteArray, data: ByteArray, publicKey: ByteArray): Boolean
@@ -397,10 +397,10 @@ interface MessageHandlerDelegate {
     
     // Message operations
     fun decryptChannelMessage(encryptedContent: ByteArray, channel: String): String?
-    fun sendDeliveryAck(message: BitchatMessage, senderPeerID: String)
+    fun sendDeliveryAck(message: dogechatMessage, senderPeerID: String)
     
     // Callbacks
-    fun onMessageReceived(message: BitchatMessage)
+    fun onMessageReceived(message: dogechatMessage)
     fun onChannelLeave(channel: String, fromPeer: String)
     fun onDeliveryAckReceived(ack: DeliveryAck)
     fun onReadReceiptReceived(receipt: ReadReceipt)

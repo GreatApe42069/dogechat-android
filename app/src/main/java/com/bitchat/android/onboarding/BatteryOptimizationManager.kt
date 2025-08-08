@@ -1,4 +1,4 @@
-package com.bitchat.android.onboarding
+package com.dogechat.android.onboarding
 
 import android.content.Context
 import android.content.Intent

@@ -1,4 +1,4 @@
-package com.bitchat.android.onboarding
+package com.dogechat.android.onboarding
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
@@ -61,7 +61,7 @@ fun InitializingScreen() {
         ) {
             // App title
             Text(
-                text = "bitchat",
+                text = "dogechat",
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,

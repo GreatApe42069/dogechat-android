@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package com.bitchat.android.noise.southernstorm.protocol;
+package com.dogechat.android.noise.southernstorm.protocol;
 
 /**
  * Interface for objects that implement destroying.

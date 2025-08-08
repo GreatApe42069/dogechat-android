@@ -1,4 +1,4 @@
-package com.bitchat.android.identity
+package com.dogechat.android.identity
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -21,7 +21,7 @@ class SecureIdentityStateManager(private val context: Context) {
     
     companion object {
         private const val TAG = "SecureIdentityStateManager"
-        private const val PREFS_NAME = "bitchat_identity"
+        private const val PREFS_NAME = "dogechat_identity"
         private const val KEY_STATIC_PRIVATE_KEY = "static_private_key"
         private const val KEY_STATIC_PUBLIC_KEY = "static_public_key"
         private const val KEY_LAST_ROTATION = "last_rotation"
@@ -223,7 +223,7 @@ class SecureIdentityStateManager(private val context: Context) {
         // Check for all-zero key
         if (privateKey.all { it == 0.toByte() }) return false
         
-        // Check that clamping bits are correct for Curve25519
+        // Check that clamping doges are correct for Curve25519
         val clampedKey = privateKey.clone()
         clampedKey[0] = (clampedKey[0].toInt() and 248).toByte()
         clampedKey[31] = (clampedKey[31].toInt() and 127).toByte()

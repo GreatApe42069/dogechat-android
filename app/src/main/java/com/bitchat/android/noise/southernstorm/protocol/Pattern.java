@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package com.bitchat.android.noise.southernstorm.protocol;
+package com.dogechat.android.noise.southernstorm.protocol;
 
 /**
  * Information about all supported handshake patterns.
@@ -40,7 +40,7 @@ class Pattern {
 	public static final short FF = 8;
 	public static final short FLIP_DIR = 255;
 	
-	// Pattern flag bits.
+	// Pattern flag doges.
 	public static final short FLAG_LOCAL_STATIC = 0x0001;
 	public static final short FLAG_LOCAL_EPHEMERAL = 0x0002;
 	public static final short FLAG_LOCAL_REQUIRED = 0x0004;

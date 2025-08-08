@@ -1,7 +1,7 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.model.DeliveryStatus
+import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DeliveryStatus
 import java.util.*
 import java.util.Collections
 
@@ -18,7 +18,7 @@ class MessageManager(private val state: ChatState) {
     
     // MARK: - Public Message Management
     
-    fun addMessage(message: BitchatMessage) {
+    fun addMessage(message: dogechatMessage) {
         val currentMessages = state.getMessagesValue().toMutableList()
         currentMessages.add(message)
         currentMessages.sortBy { it.timestamp }
@@ -31,7 +31,7 @@ class MessageManager(private val state: ChatState) {
     
     // MARK: - Channel Message Management
     
-    fun addChannelMessage(channel: String, message: BitchatMessage) {
+    fun addChannelMessage(channel: String, message: dogechatMessage) {
         val currentChannelMessages = state.getChannelMessagesValue().toMutableMap()
         if (!currentChannelMessages.containsKey(channel)) {
             currentChannelMessages[channel] = mutableListOf()
@@ -75,7 +75,7 @@ class MessageManager(private val state: ChatState) {
     
     // MARK: - Private Message Management
     
-    fun addPrivateMessage(peerID: String, message: BitchatMessage) {
+    fun addPrivateMessage(peerID: String, message: dogechatMessage) {
         val currentPrivateChats = state.getPrivateChatsValue().toMutableMap()
         if (!currentPrivateChats.containsKey(peerID)) {
             currentPrivateChats[peerID] = mutableListOf()
@@ -120,7 +120,7 @@ class MessageManager(private val state: ChatState) {
     /**
      * Generate a unique key for message deduplication
      */
-    fun generateMessageKey(message: BitchatMessage): String {
+    fun generateMessageKey(message: dogechatMessage): String {
         val senderKey = message.senderPeerID ?: message.sender
         val contentHash = message.content.hashCode()
         return "$senderKey-${message.timestamp.time}-$contentHash"

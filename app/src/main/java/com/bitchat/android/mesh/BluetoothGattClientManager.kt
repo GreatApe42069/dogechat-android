@@ -1,4 +1,4 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.bluetooth.*
 import android.bluetooth.le.BluetoothLeScanner
@@ -8,7 +8,7 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.os.ParcelUuid
 import android.util.Log
-import com.bitchat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.dogechatPacket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -319,7 +319,7 @@ class BluetoothGattClientManager(
         if (!permissionManager.hasBluetoothPermissions()) return
 
         val deviceAddress = device.address
-        Log.i(TAG, "Connecting to bitchat device: $deviceAddress")
+        Log.i(TAG, "Connecting to dogechat device: $deviceAddress")
         
         val gattCallback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -423,7 +423,7 @@ class BluetoothGattClientManager(
             override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
                 val value = characteristic.value
                 Log.i(TAG, "Client: Received packet from ${gatt.device.address}, size: ${value.size} bytes")
-                val packet = BitchatPacket.fromBinaryData(value)
+                val packet = dogechatPacket.fromBinaryData(value)
                 if (packet != null) {
                     val peerID = packet.senderID.take(8).toByteArray().joinToString("") { "%02x".format(it) }
                     Log.d(TAG, "Client: Parsed packet type ${packet.type} from $peerID")

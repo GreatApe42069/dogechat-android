@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">bitchat</string>
+    <string name="app_name">dogechat</string>
     <string name="permission_bluetooth_rationale">Bluetooth permission is required for peer-to-peer messaging without internet.</string>
     <string name="permission_location_rationale">Location permission is required to discover nearby devices via Bluetooth.</string>
     <string name="permission_notification_rationale">Notification permission is required to alert you of new messages.</string>
@@ -25,12 +25,12 @@
     <string name="battery_optimization_not_required">Battery Optimization Not Required</string>
     <string name="battery_optimization_checking">Checking Battery Optimization</string>
     <string name="battery_optimization_why_disable">Why disable battery optimization?</string>
-    <string name="battery_optimization_explanation">bitchat runs in the background to maintain mesh network connections with nearby devices. Battery optimization can interrupt these connections, causing messages to be delayed or missed.\n\nDisabling battery optimization ensures reliable peer-to-peer messaging.</string>
+    <string name="battery_optimization_explanation">dogechat runs in the background to maintain mesh network connections with nearby devices. Battery optimization can interrupt these connections, causing messages to be delayed or missed.\n\nDisabling battery optimization ensures reliable peer-to-peer messaging.</string>
     <string name="battery_optimization_disable_button">Disable Battery Optimization</string>
-    <string name="battery_optimization_note">Note: You can change this setting later in Android Settings > Apps > bitchat > Battery</string>
-    <string name="battery_optimization_not_supported_explanation">Your device doesn\'t require battery optimization settings. bitchat will run normally.</string>
-    <string name="battery_optimization_not_supported_message">Your device doesn\'t require battery optimization settings. bitchat will run normally.</string>
-    <string name="battery_optimization_success_message">bitchat can run reliably in the background</string>
+    <string name="battery_optimization_note">Note: You can change this setting later in Android Settings > Apps > dogechat > Battery</string>
+    <string name="battery_optimization_not_supported_explanation">Your device doesn\'t require battery optimization settings. dogechat will run normally.</string>
+    <string name="battery_optimization_not_supported_message">Your device doesn\'t require battery optimization settings. dogechat will run normally.</string>
+    <string name="battery_optimization_success_message">dogechat can run reliably in the background</string>
     <string name="battery_optimization_benefits">• Ensures reliable message delivery\n• Maintains mesh network connectivity\n• Allows background message relay\n• Prevents connection drops</string>
     <string name="battery_optimization_check_again">Check Again</string>
     <string name="battery_optimization_skip">Skip for Now</string>

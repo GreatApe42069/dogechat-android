@@ -48,7 +48,7 @@ jobs:
 
       - name: Rename APK
         run: |
-          mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/bitchat.apk
+          mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/dogechat.apk
       
       - name: DEBUG
         run: |
@@ -75,7 +75,7 @@ jobs:
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bitchat-release-apk-${{ github.ref_name }}
+          name: dogechat-release-apk-${{ github.ref_name }}
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
           if-no-files-found: error
@@ -88,13 +88,13 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: bitchat-release-apk-${{ github.ref_name }}
+          name: dogechat-release-apk-${{ github.ref_name }}
           path: .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: bitchat.apk
+          files: dogechat.apk
           name: Release ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
