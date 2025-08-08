@@ -30,12 +30,12 @@ app/src/main/java/com/bitchat/android/onboarding/LocationCheckScreen.kt:
   166                      )
 
   292                  .rotate(rotationAngle),
-  293:             color = Color(0xFFFFFF00), // Location yellow
+  293:             color = Color(0xFF00FF00), // Location green
   294              strokeWidth = 3.dp
 
 app/src/main/java/com/bitchat/android/onboarding/PermissionExplanationScreen.kt:
   248          PermissionType.PRECISE_LOCATION -> Color(0xFFFF9800) // Orange
-  249:         PermissionType.NOTIFICATIONS -> Color(0xFFFFFF00) // yellow
+  249:         PermissionType.NOTIFICATIONS -> Color(0xFFFFE900) // yellow-green
   250          PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
 
 app/src/main/java/com/bitchat/android/ui/ChatUIUtils.kt:
