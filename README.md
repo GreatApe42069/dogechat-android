@@ -1,6 +1,5 @@
-<p align="center">
-    <img src="https://private-user-images.githubusercontent.com/153969184/464446519-7abc4ece-f2e5-424f-b54d-6547c58df11e.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTQ2MzkxODQsIm5iZiI6MTc1NDYzODg4NCwicGF0aCI6Ii8xNTM5NjkxODQvNDY0NDQ2NTE5LTdhYmM0ZWNlLWYyZTUtNDI0Zi1iNTRkLTY1NDdjNThkZjExZS5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjUwODA4JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI1MDgwOFQwNzQxMjRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1hNTczNzM1ODc4YTk3NDk3Nzc4NzBlNzQwM2JlYTY3OGIxZGRiMDI3ZWYyZWRjYWU4NTdmODE4ZGE1MDBhNTEzJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.FqUx0Md1V3geq8NPEmLlAYQYgT_IpWtN81h2Kjvh2rc" alt="dogechat Android Logo" width="480">
-</p>
+<img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/7afe4707-c27c-4e30-8cb0-d86b5571f623" />
+
 
 > [!WARNING]
 > This software has not received external security review and may contain vulnerabilities and may not necessarily meet its stated security goals. Do not use it for sensitive use cases, and do not rely on its security until it has been reviewed. Work in progress.
