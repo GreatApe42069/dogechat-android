@@ -30,7 +30,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.bitchat.android.noise.southernstorm.crypto;
+package com.dogechat.android.noise.southernstorm.crypto;
 
 import java.util.Arrays;
 
@@ -79,7 +79,7 @@ public class RijndaelAES {
 	 *
 	 * @return      the number of rounds for the given cipher key size.
 	 */
-	public int setupEnc(byte[] cipherKey, int offset, int keyBits) {
+	public int setupEnc(byte[] cipherKey, int offset, int keydoges) {
         int i = 0;
         int temp;
 
@@ -88,7 +88,7 @@ public class RijndaelAES {
         rk[2] = GETU32(cipherKey, offset +  8);
         rk[3] = GETU32(cipherKey, offset + 12);
         int rkoffset = 0;
-        if (keyBits == 128) {
+        if (keydoges == 128) {
                 for (;;) {
                         temp  = rk[rkoffset + 3];
                         rk[rkoffset + 4] = rk[rkoffset] ^
@@ -109,7 +109,7 @@ public class RijndaelAES {
         }
         rk[rkoffset + 4] = GETU32(cipherKey, offset + 16);
         rk[rkoffset + 5] = GETU32(cipherKey, offset + 20);
-        if (keyBits == 192) {
+        if (keydoges == 192) {
             for (;;) {
                     temp = rk[rkoffset + 5];
                     rk[rkoffset + 6] = rk[rkoffset] ^
@@ -132,7 +132,7 @@ public class RijndaelAES {
         }
         rk[rkoffset + 6] = GETU32(cipherKey, offset + 24);
         rk[rkoffset + 7] = GETU32(cipherKey, offset + 28);
-        if (keyBits == 256) {
+        if (keydoges == 256) {
         	for (;;) {
                 temp = rk[rkoffset + 7];
                 rk[rkoffset + 8] = rk[rkoffset + 0] ^
@@ -169,12 +169,12 @@ public class RijndaelAES {
 	 *
 	 * @return      the number of rounds for the given cipher key size.
 	 */
-	public int setupDec(byte[] cipherKey, int offset, int keyBits) {
+	public int setupDec(byte[] cipherKey, int offset, int keydoges) {
 	        int Nr, i, j;
 	        int temp;
 
 	        /* expand the cipher key: */
-	        Nr = setupEnc(cipherKey, offset, keyBits);
+	        Nr = setupEnc(cipherKey, offset, keydoges);
 	        /* invert the order of the round keys: */
 	        for (i = 0, j = 4*Nr; i < j; i += 4, j -= 4) {
 	                temp = rk[i    ]; rk[i    ] = rk[j    ]; rk[j    ] = temp;
@@ -1094,6 +1094,6 @@ public class RijndaelAES {
 	private static final int[] rcon = {
 		0x01000000, 0x02000000, 0x04000000, 0x08000000,
 		0x10000000, 0x20000000, 0x40000000, 0x80000000,
-		0x1B000000, 0x36000000, /* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
+		0x1B000000, 0x36000000, /* for 128-doge blocks, Rijndael never uses more than 10 rcon values */
 	};
 }

@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import android.util.Log
 import androidx.compose.foundation.clickable
@@ -22,7 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bitchat.android.core.ui.utils.singleOrTripleClickable
+import com.dogechat.android.core.ui.utils.singleOrTripleClickable
 
 /**
  * Header components for ChatScreen
@@ -136,7 +136,7 @@ fun PeerCounter(
     
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.clickable { onClick() }.padding(end = 8.dp) // Added right margin to match "bitchat" logo spacing
+        modifier = modifier.clickable { onClick() }.padding(end = 8.dp) // Added right margin to match "dogechat" logo spacing
     ) {
         if (hasUnreadChannels.values.any { it > 0 }) {
             // Channel icon in a Box to ensure consistent size with other icons
@@ -427,7 +427,7 @@ private fun MainHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "bitchat/",
+                text = "dogechat/",
                 style = MaterialTheme.typography.headlineSmall,
                 color = colorScheme.primary,
                 modifier = Modifier.singleOrTripleClickable(

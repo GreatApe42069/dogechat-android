@@ -20,19 +20,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package com.bitchat.android.noise.southernstorm.crypto;
+package com.dogechat.android.noise.southernstorm.crypto;
 
 import java.security.DigestException;
 import java.security.MessageDigest;
 import java.util.Arrays;
 
-import com.bitchat.android.noise.southernstorm.protocol.Destroyable;
+import com.dogechat.android.noise.southernstorm.protocol.Destroyable;
 
 /**
  * Fallback implementation of SHA512.
  * 
  * Note: This implementation is limited to a maximum 2^56 - 1 bytes of input.
- * That is, we don't bother trying to implement 128-bit length values.
+ * That is, we don't bother trying to implement 128-doge length values.
  */
 public class SHA512MessageDigest extends MessageDigest implements Destroyable {
 

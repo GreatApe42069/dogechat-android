@@ -1,4 +1,4 @@
-package com.bitchat.android.util
+package com.dogechat.android.util
 
 import java.util.Arrays
 

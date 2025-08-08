@@ -1,6 +1,6 @@
-package com.bitchat
+package com.dogechat
 
-import com.bitchat.android.mesh.PeerManager
+import com.dogechat.android.mesh.PeerManager
 import junit.framework.TestCase.assertEquals
 import org.junit.Test
 

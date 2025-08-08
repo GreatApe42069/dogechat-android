@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import android.app.Application
 import android.content.Context
@@ -6,18 +6,18 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.viewModelScope
-import com.bitchat.android.mesh.BluetoothMeshDelegate
-import com.bitchat.android.mesh.BluetoothMeshService
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.model.DeliveryAck
-import com.bitchat.android.model.ReadReceipt
+import com.dogechat.android.mesh.BluetoothMeshDelegate
+import com.dogechat.android.mesh.BluetoothMeshService
+import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DeliveryAck
+import com.dogechat.android.model.ReadReceipt
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.util.*
 import kotlin.random.Random
 
 /**
- * Refactored ChatViewModel - Main coordinator for bitchat functionality
+ * Refactored ChatViewModel - Main coordinator for dogechat functionality
  * Delegates specific responsibilities to specialized managers while maintaining 100% iOS compatibility
  */
 class ChatViewModel(
@@ -64,16 +64,16 @@ class ChatViewModel(
     )
     
     // Expose state through LiveData (maintaining the same interface)
-    val messages: LiveData<List<BitchatMessage>> = state.messages
+    val messages: LiveData<List<dogechatMessage>> = state.messages
     val connectedPeers: LiveData<List<String>> = state.connectedPeers
     val nickname: LiveData<String> = state.nickname
     val isConnected: LiveData<Boolean> = state.isConnected
-    val privateChats: LiveData<Map<String, List<BitchatMessage>>> = state.privateChats
+    val privateChats: LiveData<Map<String, List<dogechatMessage>>> = state.privateChats
     val selectedPrivateChatPeer: LiveData<String?> = state.selectedPrivateChatPeer
     val unreadPrivateMessages: LiveData<Set<String>> = state.unreadPrivateMessages
     val joinedChannels: LiveData<Set<String>> = state.joinedChannels
     val currentChannel: LiveData<String?> = state.currentChannel
-    val channelMessages: LiveData<Map<String, List<BitchatMessage>>> = state.channelMessages
+    val channelMessages: LiveData<Map<String, List<dogechatMessage>>> = state.channelMessages
     val unreadChannelMessages: LiveData<Map<String, Int>> = state.unreadChannelMessages
     val passwordProtectedChannels: LiveData<Set<String>> = state.passwordProtectedChannels
     val showPasswordPrompt: LiveData<Boolean> = state.showPasswordPrompt
@@ -134,9 +134,9 @@ class ChatViewModel(
         viewModelScope.launch {
             delay(10000)
             if (state.getConnectedPeersValue().isEmpty() && state.getMessagesValue().isEmpty()) {
-                val welcomeMessage = BitchatMessage(
+                val welcomeMessage = dogechatMessage(
                     sender = "system",
-                    content = "get people around you to download bitchat and chat with them here!",
+                    content = "get people around you to download dogechat and chat with them here!",
                     timestamp = Date(),
                     isRelay = false
                 )
@@ -231,7 +231,7 @@ class ChatViewModel(
             }
         } else {
             // Send public/channel message
-            val message = BitchatMessage(
+            val message = dogechatMessage(
                 sender = state.getNicknameValue() ?: meshService.myPeerID,
                 content = content,
                 timestamp = Date(),
@@ -372,7 +372,7 @@ class ChatViewModel(
     
     // MARK: - BluetoothMeshDelegate Implementation (delegated)
     
-    override fun didReceiveMessage(message: BitchatMessage) {
+    override fun didReceiveMessage(message: dogechatMessage) {
         meshDelegateHandler.didReceiveMessage(message)
     }
     
@@ -461,7 +461,7 @@ class ChatViewModel(
             
             // Clear secure identity state (if used)
             try {
-                val identityManager = com.bitchat.android.identity.SecureIdentityStateManager(getApplication())
+                val identityManager = com.dogechat.android.identity.SecureIdentityStateManager(getApplication())
                 identityManager.clearIdentityData()
                 Log.d(TAG, "✅ Cleared secure identity state")
             } catch (e: Exception) {

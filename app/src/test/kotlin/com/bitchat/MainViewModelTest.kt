@@ -1,9 +1,9 @@
-package com.bitchat
+package com.dogechat
 
-import com.bitchat.android.MainViewModel
-import com.bitchat.android.onboarding.BatteryOptimizationStatus
-import com.bitchat.android.onboarding.LocationStatus
-import com.bitchat.android.onboarding.OnboardingState
+import com.dogechat.android.MainViewModel
+import com.dogechat.android.onboarding.BatteryOptimizationStatus
+import com.dogechat.android.onboarding.LocationStatus
+import com.dogechat.android.onboarding.OnboardingState
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

@@ -1,11 +1,11 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.util.Log
-import com.bitchat.android.crypto.EncryptionService
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
-import com.bitchat.android.model.RoutedPacket
-import com.bitchat.android.util.toHexString
+import com.dogechat.android.crypto.EncryptionService
+import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.MessageType
+import com.dogechat.android.model.RoutedPacket
+import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.*
 import java.util.*
 import kotlin.collections.mutableSetOf
@@ -43,7 +43,7 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
     /**
      * Validate packet security (timestamp, replay attacks, duplicates)
      */
-    fun validatePacket(packet: BitchatPacket, peerID: String): Boolean {
+    fun validatePacket(packet: dogechatPacket, peerID: String): Boolean {
         // Skip validation for our own packets
         if (peerID == myPeerID) {
             Log.d(TAG, "Skipping validation for our own packet")
@@ -149,7 +149,7 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
     /**
      * Verify packet signature
      */
-    fun verifySignature(packet: BitchatPacket, peerID: String): Boolean {
+    fun verifySignature(packet: dogechatPacket, peerID: String): Boolean {
         return packet.signature?.let { signature ->
             try {
                 val isValid = encryptionService.verify(signature, packet.payload, peerID)
@@ -210,7 +210,7 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
     /**
      * Generate message ID for duplicate detection
      */
-    private fun generateMessageID(packet: BitchatPacket, peerID: String): String {
+    private fun generateMessageID(packet: dogechatPacket, peerID: String): String {
         return when (MessageType.fromValue(packet.type)) {
             MessageType.FRAGMENT_START, MessageType.FRAGMENT_CONTINUE, MessageType.FRAGMENT_END -> {
                 // For fragments, include the payload hash to distinguish different fragments

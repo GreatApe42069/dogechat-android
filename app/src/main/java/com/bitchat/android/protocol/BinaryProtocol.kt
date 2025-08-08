@@ -1,4 +1,4 @@
-package com.bitchat.android.protocol
+package com.dogechat.android.protocol
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
@@ -60,7 +60,7 @@ object SpecialRecipients {
  * - Type: 1 byte  
  * - TTL: 1 byte
  * - Timestamp: 8 bytes (UInt64, big-endian)
- * - Flags: 1 byte (bit 0: hasRecipient, bit 1: hasSignature, bit 2: isCompressed)
+ * - Flags: 1 byte (doge 0: hasRecipient, doge 1: hasSignature, doge 2: isCompressed)
  * - PayloadLength: 2 bytes (UInt16, big-endian)
  *
  * Variable sections:
@@ -70,7 +70,7 @@ object SpecialRecipients {
  * - Signature: 64 bytes (if hasSignature flag set)
  */
 @Parcelize
-data class BitchatPacket(
+data class dogechatPacket(
     val version: UByte = 1u,
     val type: UByte,
     val senderID: ByteArray,
@@ -102,7 +102,7 @@ data class BitchatPacket(
     }
 
     companion object {
-        fun fromBinaryData(data: ByteArray): BitchatPacket? {
+        fun fromBinaryData(data: ByteArray): dogechatPacket? {
             return BinaryProtocol.decode(data)
         }
         
@@ -132,7 +132,7 @@ data class BitchatPacket(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as BitchatPacket
+        other as dogechatPacket
 
         if (version != other.version) return false
         if (type != other.type) return false
@@ -180,7 +180,7 @@ object BinaryProtocol {
         const val IS_COMPRESSED: UByte = 0x04u
     }
     
-    fun encode(packet: BitchatPacket): ByteArray? {
+    fun encode(packet: dogechatPacket): ByteArray? {
         try {
             // Try to compress payload if beneficial
             var payload = packet.payload
@@ -268,7 +268,7 @@ object BinaryProtocol {
         }
     }
     
-    fun decode(data: ByteArray): BitchatPacket? {
+    fun decode(data: ByteArray): dogechatPacket? {
         try {
             // Remove padding first - exactly same as iOS
             val unpaddedData = MessagePadding.unpad(data)
@@ -339,7 +339,7 @@ object BinaryProtocol {
                 signatureBytes
             } else null
             
-            return BitchatPacket(
+            return dogechatPacket(
                 version = version,
                 type = type,
                 senderID = senderID,

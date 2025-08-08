@@ -1,4 +1,4 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.bluetooth.*
 import android.bluetooth.le.AdvertiseCallback
@@ -8,7 +8,7 @@ import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
 import android.os.ParcelUuid
 import android.util.Log
-import com.bitchat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.dogechatPacket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -179,7 +179,7 @@ class BluetoothGattServerManager(
                 
                 if (characteristic.uuid == CHARACTERISTIC_UUID) {
                     Log.i(TAG, "Server: Received packet from ${device.address}, size: ${value.size} bytes")
-                    val packet = BitchatPacket.fromBinaryData(value)
+                    val packet = dogechatPacket.fromBinaryData(value)
                     if (packet != null) {
                         val peerID = packet.senderID.take(8).toByteArray().joinToString("") { "%02x".format(it) }
                         Log.d(TAG, "Server: Parsed packet type ${packet.type} from $peerID")

@@ -1,8 +1,8 @@
-package com.bitchat.android.crypto
+package com.dogechat.android.crypto
 
 import android.content.Context
 import android.util.Log
-import com.bitchat.android.noise.NoiseEncryptionService
+import com.dogechat.android.noise.NoiseEncryptionService
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters
@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Encryption service that now uses NoiseEncryptionService internally
  * Maintains the same public API for backward compatibility
  * 
- * This is the main interface for all encryption/decryption operations in bitchat.
+ * This is the main interface for all encryption/decryption operations in dogechat.
  * It now uses the Noise protocol for secure transport encryption with proper session management.
  */
 class EncryptionService(private val context: Context) {
@@ -135,7 +135,7 @@ class EncryptionService(private val context: Context) {
         
         // Clear Ed25519 signing key from preferences
         try {
-            val prefs = context.getSharedPreferences("bitchat_crypto", Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences("dogechat_crypto", Context.MODE_PRIVATE)
             prefs.edit().remove(ED25519_PRIVATE_KEY_PREF).apply()
             Log.d(TAG, "🗑️ Cleared Ed25519 signing keys from preferences")
         } catch (e: Exception) {
@@ -201,7 +201,7 @@ class EncryptionService(private val context: Context) {
     /**
      * Get session state for a peer (for UI state display)
      */
-    fun getSessionState(peerID: String): com.bitchat.android.noise.NoiseSession.NoiseSessionState {
+    fun getSessionState(peerID: String): com.dogechat.android.noise.NoiseSession.NoiseSessionState {
         return noiseService.getSessionState(peerID)
     }
     
@@ -378,7 +378,7 @@ class EncryptionService(private val context: Context) {
      */
     private fun loadOrCreateEd25519KeyPair(): AsymmetricCipherKeyPair {
         try {
-            val prefs = context.getSharedPreferences("bitchat_crypto", Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences("dogechat_crypto", Context.MODE_PRIVATE)
             val storedKey = prefs.getString(ED25519_PRIVATE_KEY_PREF, null)
             
             if (storedKey != null) {
@@ -404,7 +404,7 @@ class EncryptionService(private val context: Context) {
             val privateKeyBytes = privateKey.encoded
             val encodedKey = android.util.Base64.encodeToString(privateKeyBytes, android.util.Base64.DEFAULT)
             
-            val prefs = context.getSharedPreferences("bitchat_crypto", Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences("dogechat_crypto", Context.MODE_PRIVATE)
             prefs.edit().putString(ED25519_PRIVATE_KEY_PREF, encodedKey).apply()
             Log.d(TAG, "✅ Created and stored new Ed25519 signing key pair")
         } catch (e: Exception) {

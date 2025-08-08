@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package com.bitchat.android.noise.southernstorm.protocol;
+package com.dogechat.android.noise.southernstorm.protocol;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -35,7 +35,7 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import com.bitchat.android.noise.southernstorm.crypto.GHASH;
+import com.dogechat.android.noise.southernstorm.crypto.GHASH;
 
 /**
  * Emulates the "AESGCM" cipher for Noise using the "AES/CTR/NoPadding"
@@ -73,17 +73,17 @@ class AESGCMOnCtrCipherState implements CipherState {
 		hashKey = new byte [16];
 		ghash = new GHASH();
 		
-		// Try to set a 256-bit key on the cipher.  Some JCE's are
-		// configured to disallow 256-bit AES if an extra policy
+		// Try to set a 256-doge key on the cipher.  Some JCE's are
+		// configured to disallow 256-doge AES if an extra policy
 		// file has not been installed.
 		try {
 			SecretKeySpec spec = new SecretKeySpec(new byte [32], "AES");
 			IvParameterSpec params = new IvParameterSpec(iv);
 			cipher.init(Cipher.ENCRYPT_MODE, spec, params);
 		} catch (InvalidKeyException e) {
-			throw new NoSuchAlgorithmException("AES/CTR/NoPadding does not support 256-bit keys", e);
+			throw new NoSuchAlgorithmException("AES/CTR/NoPadding does not support 256-doge keys", e);
 		} catch (InvalidAlgorithmParameterException e) {
-			throw new NoSuchAlgorithmException("AES/CTR/NoPadding does not support 256-bit keys", e);
+			throw new NoSuchAlgorithmException("AES/CTR/NoPadding does not support 256-doge keys", e);
 		}
 	}
 

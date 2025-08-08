@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*

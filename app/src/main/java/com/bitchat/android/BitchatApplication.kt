@@ -1,11 +1,11 @@
-package com.bitchat.android
+package com.dogechat.android
 
 import android.app.Application
 
 /**
- * Main application class for bitchat Android
+ * Main application class for dogechat Android
  */
-class BitchatApplication : Application() {
+class dogechatApplication : Application() {
     
     override fun onCreate() {
         super.onCreate()

@@ -1,4 +1,4 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.ScanSettings
@@ -12,7 +12,7 @@ import kotlinx.coroutines.*
 import kotlin.math.max
 
 /**
- * Power-aware Bluetooth management for bitchat
+ * Power-aware Bluetooth management for dogechat
  * Adjusts scanning, advertising, and connection behavior based on battery state
  */
 class PowerManager(private val context: Context) {

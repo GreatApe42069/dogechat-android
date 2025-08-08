@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <exclude domain="sharedpref" path="bitchat_prefs.xml"/>
-        <exclude domain="sharedpref" path="bitchat_crypto.xml"/>
+        <exclude domain="sharedpref" path="dogechat_prefs.xml"/>
+        <exclude domain="sharedpref" path="dogechat_crypto.xml"/>
     </cloud-backup>
     <device-transfer>
-        <exclude domain="sharedpref" path="bitchat_prefs.xml"/>
-        <exclude domain="sharedpref" path="bitchat_crypto.xml"/>
+        <exclude domain="sharedpref" path="dogechat_prefs.xml"/>
+        <exclude domain="sharedpref" path="dogechat_crypto.xml"/>
     </device-transfer>
 </data-extraction-rules>

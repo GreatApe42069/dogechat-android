@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -93,7 +93,7 @@ fun AppInfoDialog(
             onDismissRequest = onDismiss,
             title = {
                 Text(
-                    text = "About bitchat",
+                    text = "About dogechat",
                     style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface
                 )

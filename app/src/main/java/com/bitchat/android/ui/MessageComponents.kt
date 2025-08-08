@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,9 +15,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.model.DeliveryStatus
-import com.bitchat.android.mesh.BluetoothMeshService
+import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DeliveryStatus
+import com.dogechat.android.mesh.BluetoothMeshService
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -28,7 +28,7 @@ import java.util.*
 
 @Composable
 fun MessagesList(
-    messages: List<BitchatMessage>,
+    messages: List<dogechatMessage>,
     currentUserNickname: String,
     meshService: BluetoothMeshService,
     modifier: Modifier = Modifier
@@ -61,7 +61,7 @@ fun MessagesList(
 
 @Composable
 fun MessageItem(
-    message: BitchatMessage,
+    message: dogechatMessage,
     currentUserNickname: String,
     meshService: BluetoothMeshService
 ) {

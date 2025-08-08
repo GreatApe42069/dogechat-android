@@ -1,9 +1,9 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.util.Log
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
-import com.bitchat.android.protocol.SpecialRecipients
+import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.MessageType
+import com.dogechat.android.protocol.SpecialRecipients
 import kotlinx.coroutines.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -26,7 +26,7 @@ class StoreForwardManager {
      * Data class for stored messages
      */
     private data class StoredMessage(
-        val packet: BitchatPacket,
+        val packet: dogechatPacket,
         val timestamp: Long,
         val messageID: String,
         val isForFavorite: Boolean
@@ -51,7 +51,7 @@ class StoreForwardManager {
     /**
      * Cache message for offline delivery
      */
-    fun cacheMessage(packet: BitchatPacket, messageID: String) {
+    fun cacheMessage(packet: dogechatPacket, messageID: String) {
         // Skip certain message types (same as iOS)
         if (packet.type == MessageType.NOISE_HANDSHAKE_INIT.value ||
             packet.type == MessageType.NOISE_HANDSHAKE_RESP.value ||
@@ -314,5 +314,5 @@ class StoreForwardManager {
 interface StoreForwardManagerDelegate {
     fun isFavorite(peerID: String): Boolean
     fun isPeerOnline(peerID: String): Boolean
-    fun sendPacket(packet: BitchatPacket)
+    fun sendPacket(packet: dogechatPacket)
 }

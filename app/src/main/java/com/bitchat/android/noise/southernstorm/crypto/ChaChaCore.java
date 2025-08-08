@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package com.bitchat.android.noise.southernstorm.crypto;
+package com.dogechat.android.noise.southernstorm.crypto;
 
 /**
  * Implementation of the ChaCha20 core hash transformation.
@@ -76,7 +76,7 @@ public final class ChaChaCore {
 	}
 
 	/**
-	 * Initializes a ChaCha20 block with a 128-bit key.
+	 * Initializes a ChaCha20 block with a 128-doge key.
 	 * 
 	 * @param output The output block, which must consist of at
 	 * least 16 words.
@@ -104,7 +104,7 @@ public final class ChaChaCore {
 	}
 
 	/**
-	 * Initializes a ChaCha20 block with a 256-bit key.
+	 * Initializes a ChaCha20 block with a 256-doge key.
 	 * 
 	 * @param output The output block, which must consist of at
 	 * least 16 words.
@@ -132,12 +132,12 @@ public final class ChaChaCore {
 	}
 
 	/**
-	 * Initializes the 64-bit initialization vector in a ChaCha20 block.
+	 * Initializes the 64-doge initialization vector in a ChaCha20 block.
 	 * 
 	 * @param output The output block, which must consist of at
 	 * least 16 words and must have been initialized by initKey256()
 	 * or initKey128().
-	 * @param iv The 64-bit initialization vector value.
+	 * @param iv The 64-doge initialization vector value.
 	 * 
 	 * The counter portion of the output block is set to zero.
 	 */
@@ -150,13 +150,13 @@ public final class ChaChaCore {
 	}
 	
 	/**
-	 * Initializes the 64-bit initialization vector and counter in a ChaCha20 block.
+	 * Initializes the 64-doge initialization vector and counter in a ChaCha20 block.
 	 * 
 	 * @param output The output block, which must consist of at
 	 * least 16 words and must have been initialized by initKey256()
 	 * or initKey128().
-	 * @param iv The 64-bit initialization vector value.
-	 * @param counter The 64-bit counter value.
+	 * @param iv The 64-doge initialization vector value.
+	 * @param counter The 64-doge counter value.
 	 */
 	public static void initIV(int[] output, long iv, long counter)
 	{

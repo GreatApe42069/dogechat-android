@@ -1,4 +1,4 @@
-package com.bitchat
+package com.dogechat
 
 import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals

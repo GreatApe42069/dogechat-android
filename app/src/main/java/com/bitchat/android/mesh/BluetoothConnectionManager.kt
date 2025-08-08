@@ -1,10 +1,10 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.bluetooth.*
 import android.content.Context
 import android.util.Log
-import com.bitchat.android.model.RoutedPacket
-import com.bitchat.android.protocol.BitchatPacket
+import com.dogechat.android.model.RoutedPacket
+import com.dogechat.android.protocol.dogechatPacket
 import kotlinx.coroutines.*
 
 /**
@@ -40,7 +40,7 @@ class BluetoothConnectionManager(
     
     // Delegate for component managers to call back to main manager
     private val componentDelegate = object : BluetoothConnectionManagerDelegate {
-        override fun onPacketReceived(packet: BitchatPacket, peerID: String, device: BluetoothDevice?) {
+        override fun onPacketReceived(packet: dogechatPacket, peerID: String, device: BluetoothDevice?) {
             Log.d(TAG, "onPacketReceived: Packet received from ${device?.address} ($peerID)")
             device?.let { bluetoothDevice ->
                 // if connection does not have a peerID yet, we assume that the first package
@@ -260,7 +260,7 @@ class BluetoothConnectionManager(
  * Delegate interface for Bluetooth connection manager callbacks
  */
 interface BluetoothConnectionManagerDelegate {
-    fun onPacketReceived(packet: BitchatPacket, peerID: String, device: BluetoothDevice?)
+    fun onPacketReceived(packet: dogechatPacket, peerID: String, device: BluetoothDevice?)
     fun onDeviceConnected(device: BluetoothDevice)
     fun onRSSIUpdated(deviceAddress: String, rssi: Int)
 }

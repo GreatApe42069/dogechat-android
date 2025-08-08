@@ -1,4 +1,4 @@
-package com.bitchat.android.protocol
+package com.dogechat.android.protocol
 
 import java.io.ByteArrayOutputStream
 import java.util.zip.Deflater

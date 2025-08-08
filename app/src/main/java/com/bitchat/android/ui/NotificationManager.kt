@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,8 +10,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 import androidx.core.app.NotificationManagerCompat
-import com.bitchat.android.MainActivity
-import com.bitchat.android.R
+import com.dogechat.android.MainActivity
+import com.dogechat.android.R
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -25,8 +25,8 @@ class NotificationManager(private val context: Context) {
 
     companion object {
         private const val TAG = "NotificationManager"
-        private const val CHANNEL_ID = "bitchat_dm_notifications"
-        private const val GROUP_KEY_DM = "bitchat_dm_group"
+        private const val CHANNEL_ID = "dogechat_dm_notifications"
+        private const val GROUP_KEY_DM = "dogechat_dm_group"
         private const val NOTIFICATION_REQUEST_CODE = 1000
         private const val SUMMARY_NOTIFICATION_ID = 999
         
@@ -231,7 +231,7 @@ class NotificationManager(private val context: Context) {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("bitchat")
+            .setContentTitle("dogechat")
             .setContentText("$totalMessages messages from $senderCount people")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

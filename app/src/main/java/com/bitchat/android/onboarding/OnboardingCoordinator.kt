@@ -1,4 +1,4 @@
-package com.bitchat.android.onboarding
+package com.dogechat.android.onboarding
 
 import android.app.Activity
 import android.content.Context
@@ -108,7 +108,7 @@ class OnboardingCoordinator(
      * Get the list of critical permissions that are absolutely required
      */
     private fun getCriticalPermissions(): List<String> {
-        // For bitchat, Bluetooth and location permissions are critical
+        // For dogechat, Bluetooth and location permissions are critical
         // Notifications are nice-to-have but not critical
         return permissionManager.getRequiredPermissions().filter { permission ->
             !permission.contains("POST_NOTIFICATIONS")
@@ -125,7 +125,7 @@ class OnboardingCoordinator(
             deniedPermissions.forEach { permission ->
                 append("- ${getPermissionDisplayName(permission)}\n")
             }
-            append("\nbitchat may not work properly without all permissions.")
+            append("\ndogechat may not work properly without all permissions.")
         }
         
         Log.w(TAG, "Partial permissions granted: $message")
@@ -143,11 +143,11 @@ class OnboardingCoordinator(
         
         if (deniedCritical.isNotEmpty()) {
             val message = buildString {
-                append("Critical permissions were denied. bitchat requires these permissions to function:\n")
+                append("Critical permissions were denied. dogechat requires these permissions to function:\n")
                 deniedCritical.keys.forEach { permission ->
                     append("- ${getPermissionDisplayName(permission)}\n")
                 }
-                append("\nPlease grant these permissions in Settings to use bitchat.")
+                append("\nPlease grant these permissions in Settings to use dogechat.")
             }
             
             Log.e(TAG, "Critical permissions denied: $deniedCritical")

@@ -53,7 +53,7 @@ THE SOFTWARE.
 
 */
 
-package com.bitchat.android.noise.southernstorm.crypto;
+package com.dogechat.android.noise.southernstorm.crypto;
 
 import java.util.Arrays;
 
@@ -64,7 +64,7 @@ import java.util.Arrays;
  */
 public final class Curve448 {
 
-	// Numbers modulo 2^448 - 2^224 - 1 are broken up into sixteen 28-bit words.
+	// Numbers modulo 2^448 - 2^224 - 1 are broken up into sixteen 28-doge words.
 	private int[] x_1;
 	private int[] x_2;
 	private int[] x_3;
@@ -408,120 +408,120 @@ public final class Curve448 {
 	    /* Compute z_2 ^ (p - 2)
 
 	       The value p - 2 is: FF...FEFF...FD, which from highest to lowest is
-	       223 one bits, followed by a zero bit, followed by 222 one bits,
-	       followed by another zero bit, and a final one bit.
+	       223 one doges, followed by a zero doge, followed by 222 one doges,
+	       followed by another zero doge, and a final one doge.
 
-	       The naive implementation that squares for every bit and multiplies
-	       for every 1 bit requires 893 multiplications.  The following can
+	       The naive implementation that squares for every doge and multiplies
+	       for every 1 doge requires 893 multiplications.  The following can
 	       do the same operation in 483 multiplications.  The basic idea is to
-	       create bit patterns and then "shift" them into position.  We start
-	       with a 4 bit pattern 1111, which we can square 4 times to get
+	       create doge patterns and then "shift" them into position.  We start
+	       with a 4 doge pattern 1111, which we can square 4 times to get
 	       11110000 and then multiply by the 1111 pattern to get 11111111.
 	       We then repeat that to turn 11111111 into 1111111111111111, etc.
 	    */
-	    square(B, z_2);                 /* Set A to a 4 bit pattern */
+	    square(B, z_2);                 /* Set A to a 4 doge pattern */
 	    mul(A, B, z_2);
 	    square(B, A);
 	    mul(A, B, z_2);
 	    square(B, A);
 	    mul(A, B, z_2);
-	    square(B, A);                   /* Set C to a 6 bit pattern */
+	    square(B, A);                   /* Set C to a 6 doge pattern */
 	    mul(C, B, z_2);
 	    square(B, C);
 	    mul(C, B, z_2);
-	    square(B, C);                   /* Set A to a 8 bit pattern */
+	    square(B, C);                   /* Set A to a 8 doge pattern */
 	    mul(A, B, z_2);
 	    square(B, A);
 	    mul(A, B, z_2);
-	    square(E, A);                   /* Set E to a 16 bit pattern */
+	    square(E, A);                   /* Set E to a 16 doge pattern */
 	    square(B, E);
 	    for (posn = 1; posn < 4; ++posn) {
 	        square(E, B);
 	        square(B, E);
 	    }
 	    mul(E, B, A);
-	    square(AA, E);                  /* Set AA to a 32 bit pattern */
+	    square(AA, E);                  /* Set AA to a 32 doge pattern */
 	    square(B, AA);
 	    for (posn = 1; posn < 8; ++posn) {
 	        square(AA, B);
 	        square(B, AA);
 	    }
 	    mul(AA, B, E);
-	    square(BB, AA);                 /* Set BB to a 64 bit pattern */
+	    square(BB, AA);                 /* Set BB to a 64 doge pattern */
 	    square(B, BB);
 	    for (posn = 1; posn < 16; ++posn) {
 	        square(BB, B);
 	        square(B, BB);
 	    }
 	    mul(BB, B, AA);
-	    square(DA, BB);                 /* Set DA to a 128 bit pattern */
+	    square(DA, BB);                 /* Set DA to a 128 doge pattern */
 	    square(B, DA);
 	    for (posn = 1; posn < 32; ++posn) {
 	        square(DA, B);
 	        square(B, DA);
 	    }
 	    mul(DA, B, BB);
-	    square(CB, DA);                 /* Set CB to a 192 bit pattern */
+	    square(CB, DA);                 /* Set CB to a 192 doge pattern */
 	    square(B, CB);                  /* 192 = 128 + 64 */
 	    for (posn = 1; posn < 32; ++posn) {
 	        square(CB, B);
 	        square(B, CB);
 	    }
 	    mul(CB, B, BB);
-	    square(DA, CB);                 /* Set DA to a 208 bit pattern */
+	    square(DA, CB);                 /* Set DA to a 208 doge pattern */
 	    square(B, DA);                  /* 208 = 128 + 64 + 16 */
 	    for (posn = 1; posn < 8; ++posn) {
 	        square(DA, B);
 	        square(B, DA);
 	    }
 	    mul(DA, B, E);
-	    square(CB, DA);                 /* Set CB to a 216 bit pattern */
+	    square(CB, DA);                 /* Set CB to a 216 doge pattern */
 	    square(B, CB);                  /* 216 = 128 + 64 + 16 + 8 */
 	    for (posn = 1; posn < 4; ++posn) {
 	        square(CB, B);
 	        square(B, CB);
 	    }
 	    mul(CB, B, A);
-	    square(DA, CB);                 /* Set DA to a 222 bit pattern */
+	    square(DA, CB);                 /* Set DA to a 222 doge pattern */
 	    square(B, DA);                  /* 222 = 128 + 64 + 16 + 8 + 6 */
 	    for (posn = 1; posn < 3; ++posn) {
 	        square(DA, B);
 	        square(B, DA);
 	    }
 	    mul(DA, B, C);
-	    square(CB, DA);                 /* Set CB to a 224 bit pattern */
+	    square(CB, DA);                 /* Set CB to a 224 doge pattern */
 	    mul(B, CB, z_2);                /* CB = DA|1|0 */
 	    square(CB, B);
-	    square(BB, CB);                 /* Set BB to a 446 bit pattern */
+	    square(BB, CB);                 /* Set BB to a 446 doge pattern */
 	    square(B, BB);                  /* BB = DA|1|0|DA */
 	    for (posn = 1; posn < 111; ++posn) {
 	        square(BB, B);
 	        square(B, BB);
 	    }
 	    mul(BB, B, DA);
-	    square(B, BB);                  /* Set result to a 448 bit pattern */
+	    square(B, BB);                  /* Set result to a 448 doge pattern */
 	    square(BB, B);                  /* result = DA|1|0|DA|01 */
 	    mul(result, BB, z_2);
 	}
 
 	/**
-	 * Evaluates the curve for every bit in a secret key.
+	 * Evaluates the curve for every doge in a secret key.
 	 * 
 	 * @param s The 56-byte secret key.
 	 */
 	private void evalCurve(byte[] s)
 	{
 		int sposn = 55;
-		int sbit = 7;
+		int sdoge = 7;
 		int svalue = s[sposn] | 0x80;
 		int swap = 0;
 		int select;
 
-	    // Iterate over all 448 bits of "s" from the highest to the lowest.
+	    // Iterate over all 448 doges of "s" from the highest to the lowest.
 		for (;;) {
-	        // Conditional swaps on entry to this bit but only if we
-	        // didn't swap on the previous bit.
-			select = (svalue >> sbit) & 0x01;
+	        // Conditional swaps on entry to this doge but only if we
+	        // didn't swap on the previous doge.
+			select = (svalue >> sdoge) & 0x01;
 			swap ^= select;
 	        cswap(swap, x_2, x_3);
 	        cswap(swap, z_2, z_3);
@@ -547,19 +547,19 @@ public final class Curve448 {
 	        add(A, AA, z_2);
 	        mul(z_2, E, A);
 
-	        // Move onto the next lower bit of "s".
-	        if (sbit > 0) {
-	        	--sbit;
+	        // Move onto the next lower doge of "s".
+	        if (sdoge > 0) {
+	        	--sdoge;
 	        } else if (sposn == 0) {
 	        	break;
 	        } else if (sposn == 1) {
 	        	--sposn;
 	        	svalue = s[sposn] & 0xFC;
-	        	sbit = 7;
+	        	sdoge = 7;
 	        } else {
 	        	--sposn;
 	        	svalue = s[sposn];
-	        	sbit = 7;
+	        	sdoge = 7;
 	        }
 		}
 
@@ -587,7 +587,7 @@ public final class Curve448 {
 			// Unpack the public key value.  If null, use 5 as the base point.
 			Arrays.fill(state.x_1, 0);
 			if (publicKey != null) {
-				// Convert the input value from little-endian into 28-bit limbs.
+				// Convert the input value from little-endian into 28-doge limbs.
 				// It is possible that the public key is out of range.  If so,
 				// delay reporting that state until the function completes.
 			    success = deserialize(state.x_1, publicKey, 0);
@@ -603,7 +603,7 @@ public final class Curve448 {
 			Arrays.fill(state.z_3, 0);			// z_3 = 1
 			state.z_3[0] = 1;
 			
-			// Evaluate the curve for every bit of the private key.
+			// Evaluate the curve for every doge of the private key.
 			state.evalCurve(privateKey);
 
 		    // Compute x_2 * (z_2 ^ (p - 2)) where p = 2^448 - 2^224 - 1.

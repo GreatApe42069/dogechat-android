@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package com.bitchat.android.noise.southernstorm.crypto;
+package com.dogechat.android.noise.southernstorm.crypto;
 
 import java.util.Arrays;
 
-import com.bitchat.android.noise.southernstorm.protocol.Destroyable;
+import com.dogechat.android.noise.southernstorm.protocol.Destroyable;
 
 /**
  * Implementation of the GHASH primitive for GCM.
@@ -177,20 +177,20 @@ public final class GHASH implements Destroyable {
 	    long V0 = H[0];		// V = H
 	    long V1 = H[1];
 
-	    // Multiply Z by V for the set bits in Y, starting at the top.
-	    // This is a very simple bit by bit version that may not be very
+	    // Multiply Z by V for the set doges in Y, starting at the top.
+	    // This is a very simple doge by doge version that may not be very
 	    // fast but it should be resistant to cache timing attacks.
 	    for (int posn = 0; posn < 16; ++posn) {
 	        int value = Y[posn] & 0xFF;
-	        for (int bit = 7; bit >= 0; --bit) {
-	            // Extract the high bit of "value" and turn it into a mask.
-	            long mask = -((long)((value >> bit) & 0x01));
+	        for (int doge = 7; doge >= 0; --doge) {
+	            // Extract the high doge of "value" and turn it into a mask.
+	            long mask = -((long)((value >> doge) & 0x01));
 
-	            // XOR V with Z if the bit is 1.
+	            // XOR V with Z if the doge is 1.
 	            Z0 ^= (V0 & mask);
 	            Z1 ^= (V1 & mask);
 
-	            // Rotate V right by 1 bit.
+	            // Rotate V right by 1 doge.
 	            mask = ((~(V1 & 0x01)) + 1) & 0xE100000000000000L;
 	            V1 = (V1 >>> 1) | (V0 << 63);
 	            V0 = (V0 >>> 1) ^ mask;

@@ -1,9 +1,9 @@
-package com.bitchat.android.services
+package com.dogechat.android.services
 
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
-import com.bitchat.android.model.BitchatMessage
+import com.dogechat.android.model.dogechatMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -86,7 +86,7 @@ class MessageRetentionService private constructor(private val context: Context) 
     
     // MARK: - Message Storage
     
-    suspend fun saveMessage(message: BitchatMessage, forChannel: String) = withContext(Dispatchers.IO) {
+    suspend fun saveMessage(message: dogechatMessage, forChannel: String) = withContext(Dispatchers.IO) {
         if (!isChannelBookmarked(forChannel)) {
             Log.w(TAG, "Attempted to save message for non-bookmarked channel: $forChannel")
             return@withContext
@@ -118,7 +118,7 @@ class MessageRetentionService private constructor(private val context: Context) 
         }
     }
     
-    suspend fun loadMessagesForChannel(channel: String): List<BitchatMessage> = withContext(Dispatchers.IO) {
+    suspend fun loadMessagesForChannel(channel: String): List<dogechatMessage> = withContext(Dispatchers.IO) {
         if (!isChannelBookmarked(channel)) {
             Log.d(TAG, "Channel $channel not bookmarked, returning empty list")
             return@withContext emptyList()
@@ -168,7 +168,7 @@ class MessageRetentionService private constructor(private val context: Context) 
         return File(retentionDir, "channel_${sanitizedChannel}.dat")
     }
     
-    private fun loadMessagesFromFile(file: File): List<BitchatMessage> {
+    private fun loadMessagesFromFile(file: File): List<dogechatMessage> {
         if (!file.exists()) {
             return emptyList()
         }
@@ -177,7 +177,7 @@ class MessageRetentionService private constructor(private val context: Context) 
             FileInputStream(file).use { fis ->
                 ObjectInputStream(fis).use { ois ->
                     @Suppress("UNCHECKED_CAST")
-                    ois.readObject() as List<BitchatMessage>
+                    ois.readObject() as List<dogechatMessage>
                 }
             }
         } catch (e: Exception) {
@@ -186,7 +186,7 @@ class MessageRetentionService private constructor(private val context: Context) 
         }
     }
     
-    private fun saveMessagesToFile(file: File, messages: List<BitchatMessage>) {
+    private fun saveMessagesToFile(file: File, messages: List<dogechatMessage>) {
         FileOutputStream(file).use { fos ->
             ObjectOutputStream(fos).use { oos ->
                 oos.writeObject(messages)

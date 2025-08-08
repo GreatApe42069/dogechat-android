@@ -1,4 +1,4 @@
-package com.bitchat.android.onboarding
+package com.dogechat.android.onboarding
 
 import android.Manifest
 import android.content.Context
@@ -9,14 +9,14 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 
 /**
- * Centralized permission management for bitchat app
+ * Centralized permission management for dogechat app
  * Handles all Bluetooth and notification permissions required for the app to function
  */
 class PermissionManager(private val context: Context) {
 
     companion object {
         private const val TAG = "PermissionManager"
-        private const val PREFS_NAME = "bitchat_permissions"
+        private const val PREFS_NAME = "dogechat_permissions"
         private const val KEY_FIRST_TIME_COMPLETE = "first_time_onboarding_complete"
     }
 
@@ -142,10 +142,10 @@ class PermissionManager(private val context: Context) {
         categories.add(
             PermissionCategory(
                 type = PermissionType.NEARBY_DEVICES,
-                description = "Required to discover bitchat users via Bluetooth",
+                description = "Required to discover dogechat users via Bluetooth",
                 permissions = bluetoothPermissions,
                 isGranted = bluetoothPermissions.all { isPermissionGranted(it) },
-                systemDescription = "Allow bitchat to connect to nearby devices"
+                systemDescription = "Allow dogechat to connect to nearby devices"
             )
         )
 
@@ -158,10 +158,10 @@ class PermissionManager(private val context: Context) {
         categories.add(
             PermissionCategory(
                 type = PermissionType.PRECISE_LOCATION,
-                description = "Required by Android to discover nearby bitchat users via Bluetooth",
+                description = "Required by Android to discover nearby dogechat users via Bluetooth",
                 permissions = locationPermissions,
                 isGranted = locationPermissions.all { isPermissionGranted(it) },
-                systemDescription = "bitchat needs this to scan for nearby devices"
+                systemDescription = "dogechat needs this to scan for nearby devices"
             )
         )
 
@@ -173,7 +173,7 @@ class PermissionManager(private val context: Context) {
                     description = "Receive notifications when you receive private messages",
                     permissions = listOf(Manifest.permission.POST_NOTIFICATIONS),
                     isGranted = isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS),
-                    systemDescription = "Allow bitchat to send you notifications"
+                    systemDescription = "Allow dogechat to send you notifications"
                 )
             )
         }
@@ -183,10 +183,10 @@ class PermissionManager(private val context: Context) {
             categories.add(
                 PermissionCategory(
                     type = PermissionType.BATTERY_OPTIMIZATION,
-                    description = "Disable battery optimization to ensure bitchat runs reliably in the background and maintains mesh network connections",
+                    description = "Disable battery optimization to ensure dogechat runs reliably in the background and maintains mesh network connections",
                     permissions = listOf("BATTERY_OPTIMIZATION"), // Custom identifier
                     isGranted = isBatteryOptimizationDisabled(),
-                    systemDescription = "Allow bitchat to run without battery restrictions"
+                    systemDescription = "Allow dogechat to run without battery restrictions"
                 )
             )
         }

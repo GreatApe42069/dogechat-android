@@ -1,11 +1,11 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import androidx.lifecycle.LifecycleCoroutineScope
-import com.bitchat.android.mesh.BluetoothMeshDelegate
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.model.DeliveryAck
-import com.bitchat.android.model.DeliveryStatus
-import com.bitchat.android.model.ReadReceipt
+import com.dogechat.android.mesh.BluetoothMeshDelegate
+import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DeliveryAck
+import com.dogechat.android.model.DeliveryStatus
+import com.dogechat.android.model.ReadReceipt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.util.*
@@ -25,7 +25,7 @@ class MeshDelegateHandler(
     private val getMeshService: () -> Any
 ) : BluetoothMeshDelegate {
 
-    override fun didReceiveMessage(message: BitchatMessage) {
+    override fun didReceiveMessage(message: dogechatMessage) {
         coroutineScope.launch {
             // FIXED: Deduplicate messages from dual connection paths
             val messageKey = messageManager.generateMessageKey(message)
