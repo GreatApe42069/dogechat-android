@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.dagger.hilt.android") version "2.48" apply false
+    id("dagger.hilt.android.plugin") version "2.48" apply false
 }
 
 android {
@@ -46,6 +48,7 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true
     }
     packaging {
         resources {
@@ -82,7 +85,7 @@ dependencies {
     implementation(libs.bundles.cryptography)
     
     // Dogecoin dependencies
-    implementation 'com.github.dogecoinproject:bitcore-lib-doge:1.0.0' // Ensure this is included
+    implementation 'com.github.dogecoinproject:bitcore-lib-doge:1.0.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
@@ -115,4 +118,9 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.bundles.compose.testing)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    
+    // Hilt dependencies
+    implementation("com.google.dagger:hilt-android:2.48")
+    kapt("com.google.dagger:hilt-android-compiler:2.48")
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 }
