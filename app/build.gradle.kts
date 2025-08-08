@@ -10,7 +10,7 @@ android {
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.dogechat.android"
+        applicationId = "com.dogechat.android"  //NEEDS UPDATING
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 8
@@ -83,6 +83,20 @@ dependencies {
     // Cryptography
     implementation(libs.bundles.cryptography)
     
+    // Dogecoin dependencies
+    implementation 'com.github.dogecoinproject:bitcore-lib-doge:1.0.0' // Check for the latest version
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    
+    // Bluetooth dependencies
+    implementation 'androidx.core:core:1.9.0'
+    implementation 'androidx.activity:activity:1.7.2'
+
+    // Internet permissions for SPV node
+    implementation 'org.slf4j:slf4j-api:2.0.7'
+    implementation 'org.slf4j:slf4j-simple:2.0.7'
+
     // JSON
     implementation(libs.gson)
     
