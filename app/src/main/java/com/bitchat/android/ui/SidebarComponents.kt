@@ -422,7 +422,7 @@ private fun UnreadBadge(
         Box(
             modifier = modifier
                 .background(
-                    color = Color(0xFFFFD700), // Yellow color
+                    color = Color(0xFFFFD700), // green color
                     shape = RoundedCornerShape(10.dp)
                 )
                 .padding(horizontal = 2.dp, vertical = 0.dp)
@@ -435,7 +435,7 @@ private fun UnreadBadge(
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 ),
-                color = Color.Black // Black text on yellow background
+                color = Color.Black // Black text on green background
             )
         }
     }

@@ -246,7 +246,7 @@ private fun getPermissionIconColor(permissionType: PermissionType): Color {
     return when (permissionType) {
         PermissionType.NEARBY_DEVICES -> Color(0xFF2196F3) // Blue
         PermissionType.PRECISE_LOCATION -> Color(0xFFFF9800) // Orange
-        PermissionType.NOTIFICATIONS -> Color(0xFFFFFF00) // Green
+        PermissionType.NOTIFICATIONS -> Color(0xFFFFFF00) // yellow
         PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
         PermissionType.OTHER -> Color(0xFF9C27B0) // Purple
     }
