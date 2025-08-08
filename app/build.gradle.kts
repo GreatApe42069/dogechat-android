@@ -10,7 +10,7 @@ android {
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.dogechat.android"  //NEEDS UPDATING
+        applicationId = "com.dogechat.android"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 8
@@ -23,9 +23,7 @@ android {
     }
 
     dependenciesInfo {
-        // Disables dependency metadata when building APKs.
         includeInApk = false
-        // Disables dependency metadata when building Android App Bundles.
         includeInBundle = false
     }
 
@@ -84,7 +82,7 @@ dependencies {
     implementation(libs.bundles.cryptography)
     
     // Dogecoin dependencies
-    implementation 'com.github.dogecoinproject:bitcore-lib-doge:1.0.0' // Check for the latest version
+    implementation 'com.github.dogecoinproject:bitcore-lib-doge:1.0.0' // Ensure this is included
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
