@@ -1,8 +1,12 @@
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import org.dogecoin.bitcore.Dogecoin
 import org.dogecoin.bitcore.network.DogecoinNetwork
 import org.dogecoin.bitcore.wallet.Wallet
@@ -16,8 +20,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                Surface(color = MaterialTheme.colorScheme.background) {
-                    // Your Compose UI here
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    DogechatApp() // Your Compose UI
                 }
             }
         }
@@ -41,5 +48,29 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         peerGroup.stopAsync()
         peerGroup = null
+    }
+}
+
+@Composable
+fun DogechatApp() {
+    // Your Compose UI implementation here
+    // For example:
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        // Add Compose elements that match the functionality of activity_main.xml
+        Text(text = "Dogechat App")
+        Button(onClick = { /* Handle send Dogecoin */ }) {
+            Text("Send Dogecoin")
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DefaultPreview() {
+    MaterialTheme {
+        DogechatApp()
     }
 }
