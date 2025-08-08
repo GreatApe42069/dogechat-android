@@ -1,101 +1,39 @@
 # Query: green
 # ContextLines: 1
 
-27 results - 7 files
+7 results - 4 files
 
-app/src/main/java/com/bitchat/android/onboarding/BluetoothCheckScreen.kt:
-   70      ) {
-   71:         // Bluetooth icon - using Bluetooth outlined icon in app's green color
-   72          Icon(
-
-   75              modifier = Modifier.size(64.dp),
-   76:             tint = Color(0xFFFFFF00) // App's main green color
-   77          )
-
-  133                      colors = ButtonDefaults.buttonColors(
-  134:                         containerColor = Color(0xFFFFFF00) // App's main green color
-  135                      )
-
-app/src/main/java/com/bitchat/android/onboarding/LocationCheckScreen.kt:
-   70      ) {
-   71:         // Location icon - using LocationOn outlined icon in app's green color
-   72          Icon(
-
-   75              modifier = Modifier.size(64.dp),
-   76:             tint = Color(0xFFFFFF00) // App's main green color
-   77          )
-
-  164                      colors = ButtonDefaults.buttonColors(
-  165:                         containerColor = Color(0xFFFFFF00) // App's main green color
-  166                      )
-
-  292                  .rotate(rotationAngle),
-  293:             color = Color(0xFF4CAF50), // Location green
-  294              strokeWidth = 3.dp
-
-app/src/main/java/com/bitchat/android/onboarding/PermissionExplanationScreen.kt:
-  248          PermissionType.PRECISE_LOCATION -> Color(0xFFFF9800) // Orange
-  249:         PermissionType.NOTIFICATIONS -> Color(0xFF4CAF50) // Green 
-  250          PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
+app/src/main/java/com/bitchat/android/ui/ChatHeader.kt:
+  333                  modifier = Modifier.size(18.dp), // Slightly larger than sidebar icon
+  334:                 tint = if (isFavorite) Color(0xFFFFD700) else Color(0x87878700) // green or grey
+  335              )
 
 app/src/main/java/com/bitchat/android/ui/ChatUIUtils.kt:
-  24      return when {
-  25:         rssi >= -50 -> Color(0xFFFFFF00) // Bright green
-  26:         rssi >= -60 -> Color(0xFF80FF00) // Greenish-yellow
-  27          rssi >= -70 -> Color(0xFFFFFF00) // DogeColorYellow
+  25          rssi >= -50 -> Color(0xFFFFFF00) // Bright yellow
+  26:         rssi >= -60 -> Color(0xFFFFFF00) // yellow-green
+  27:         rssi >= -70 -> Color(0xFF00FF00) // green
+  28          rssi >= -80 -> Color(0xFFFF8000) // Orange
 
-app/src/main/java/com/bitchat/android/ui/InputComponents.kt:
-   61                      style = SpanStyle(
-   62:                         color = Color(0xFFFFFF00), // Bright green
-   63                          fontFamily = FontFamily.Monospace,
+app/src/main/java/com/bitchat/android/ui/SidebarComponents.kt:
+  424                  .background(
+  425:                     color = Color(0xFFFFD700), // green color
+  426                      shape = RoundedCornerShape(10.dp)
 
-  244                              } else if (colorScheme.background == Color.Black) {
-  245:                                 Color(0xFFFFFF00).copy(alpha = 0.75f) // Bright green for dark theme
-  246                              } else {
-  247:                                 Color(0xFFFFD700).copy(alpha = 0.75f) // Dark green for light theme
-  248                              },
-
-  263                          } else if (colorScheme.background == Color.Black) {
-  264:                             Color.Black // Black arrow on bright green in dark theme
-  265                          } else {
-  266:                             Color.White // White arrow on dark green in light theme
-  267                          }
-
-app/src/main/java/com/bitchat/android/ui/theme/Theme.kt:
-  11  private val DarkColorScheme = darkColorScheme(
-  12:     primary = Color(0xFFFFFF00),        // Bright green (terminal-like)
-  13      onPrimary = Color.Black,
-  14:     secondary = Color(0xFFFFD700),      // Darker green
-  15      onSecondary = Color.Black,
-  16      background = Color.Black,
-  17:     onBackground = Color(0xFFFFD700),   // Green on black
-  18      surface = Color(0xFF111111),        // Very dark gray
-  19:     onSurface = Color(0xFFFFFF00),      // Green text
-  20      error = Color(0xFFFF5555),          // Red for errors
-
-  24  private val LightColorScheme = lightColorScheme(
-  25:     primary = Color(0xFFFFFF00),        // Dark green
-  26      onPrimary = Color.White,
-  27:     secondary = Color(0xFFFFD700),      // Even darker green
-  28      onSecondary = Color.White,
-  29      background = Color.White,
-  30:     onBackground = Color(0xFFFFD700),   // Dark green on white
-  31      surface = Color(0xFFF8F8F8),        // Very light gray
-  32:     onSurface = Color(0xFFFFD700),      // Dark green text
-  33      error = Color(0xFFCC0000),          // Dark red for errors
+  437                  ),
+  438:                 color = Color.Black // Black text on green background
+  439              )
 
 app/src/test/kotlin/com/bitchat/ColorTest.kt:
-  18          val colors = listOf(
-  19:             Color(0xFFFFFF00), // Bright Green
   20              Color(0xFF00FFFF), // Cyan
+  21:             Color(0xFF00FF00), // green
+  22              Color(0xFFFF00FF), // Magenta
 
-  24              Color(0xFFFF8000), // Orange
-  25:             Color(0xFFFFE900), // Lime Green
-  26              Color(0xFF8000FF), // Purple
-  27              Color(0xFFFF0080), // Pink
-  28:             Color(0xFFFFF700), // Spring Green
-  29              Color(0xFF80FFFF), // Light Cyan
+  31              Color(0xFF8080FF), // Light Blue
+
+                  // Change all green test colors to yellow variants
+                  Color(0xFF00FF00), // Bright Green      --> Color(0xFFFFFF00)
+                  Color(0xFF80FF00), // Lime Green        --> Color(0xFFFFE900) (light yellow-green, or just use yellow)
+                  Color(0xFF00FF80), // Spring Green      --> Color(0xFFFFF700) (very pale yellow, optional)
+                  Color(0xFF80FF80), // Light Green       --> Color(0xFFFFFFE0) (light yellow)
 
   33              Color(0xFFFF80FF), // Light Magenta
-  34:             Color(0xFFFFFFE0), // Light Green
-  35          )
