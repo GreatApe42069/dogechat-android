@@ -1,0 +1,101 @@
+# Query: yellow
+# ContextLines: 1
+
+27 results - 7 files
+
+app/src/main/java/com/bitchat/android/onboarding/BluetoothCheckScreen.kt:
+   70      ) {
+   71:         // Bluetooth icon - using Bluetooth outlined icon in app's yellow color
+   72          Icon(
+
+   75              modifier = Modifier.size(64.dp),
+   76:             tint = Color(0xFFFFFF00) // App's main yellow color
+   77          )
+
+  133                      colors = ButtonDefaults.buttonColors(
+  134:                         containerColor = Color(0xFFFFFF00) // App's main yellow color
+  135                      )
+
+app/src/main/java/com/bitchat/android/onboarding/LocationCheckScreen.kt:
+   70      ) {
+   71:         // Location icon - using LocationOn outlined icon in app's yellow color
+   72          Icon(
+
+   75              modifier = Modifier.size(64.dp),
+   76:             tint = Color(0xFFFFFF00) // App's main yellow color
+   77          )
+
+  164                      colors = ButtonDefaults.buttonColors(
+  165:                         containerColor = Color(0xFFFFFF00) // App's main yellow color
+  166                      )
+
+  292                  .rotate(rotationAngle),
+  293:             color = Color(0xFFFFFF00), // Location yellow
+  294              strokeWidth = 3.dp
+
+app/src/main/java/com/bitchat/android/onboarding/PermissionExplanationScreen.kt:
+  248          PermissionType.PRECISE_LOCATION -> Color(0xFFFF9800) // Orange
+  249:         PermissionType.NOTIFICATIONS -> Color(0xFFFFFF00) // yellow
+  250          PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
+
+app/src/main/java/com/bitchat/android/ui/ChatUIUtils.kt:
+  24      return when {
+  25:         rssi >= -50 -> Color(0xFFFFFF00) // Bright yellow
+  26:         rssi >= -60 -> Color(0xFFFFE900) // yellow-green
+  27          rssi >= -70 -> Color(0xFF00FF00) // green
+
+app/src/main/java/com/bitchat/android/ui/InputComponents.kt:
+   61                      style = SpanStyle(
+   62:                         color = Color(0xFFFFFF00), // Bright yellow
+   63                          fontFamily = FontFamily.Monospace,
+
+  244                              } else if (colorScheme.background == Color.Black) {
+  245:                                 Color(0xFFFFD700).copy(alpha = 0.75f) // Bright yellow for dark theme
+  246                              } else {
+  247:                                 Color(0xFFFFFF00).copy(alpha = 0.75f) // Dark yellow for light theme
+  248                              },
+
+  263                          } else if (colorScheme.background == Color.Black) {
+  264:                             Color.Black // Black arrow on bright yellow in dark theme
+  265                          } else {
+  266:                             Color.White // White arrow on dark yellow in light theme
+  267                          }
+
+app/src/main/java/com/bitchat/android/ui/theme/Theme.kt:
+  11  private val DarkColorScheme = darkColorScheme(
+  12:     primary = Color(0xFFFFFF00),        // Bright yellow (terminal-like)
+  13      onPrimary = Color.Black,
+  14:     secondary = Color(0xFFFFD700),      // Darker yellow
+  15      onSecondary = Color.Black,
+  16      background = Color.Black,
+  17:     onBackground = Color(0xFFFFFF00),   // yellow on black
+  18      surface = Color(0xFF111111),        // Very dark gray
+  19:     onSurface = Color(0xFFFFFF00),      // yellow text
+  20      error = Color(0xFFFF5555),          // Red for errors
+
+  24  private val LightColorScheme = lightColorScheme(
+  25:     primary = Color(0xFFFFFF00),        // Dark yellow
+  26      onPrimary = Color.White,
+  27:     secondary = Color(0xFFFFD700),      // Even darker yellow
+  28      onSecondary = Color.White,
+  29      background = Color.White,
+  30:     onBackground = Color(0xFFFFFF00),   // Dark yellow on white
+  31      surface = Color(0xFFF8F8F8),        // Very light gray
+  32:     onSurface = Color(0xFFFFFF00),      // Dark yellow text
+  33      error = Color(0xFFCC0000),          // Dark red for errors
+
+app/src/test/kotlin/com/bitchat/ColorTest.kt:
+  18          val colors = listOf(
+  19:             Color(0xFFFFFF00), // Bright yellow
+  20              Color(0xFF00FFFF), // Cyan
+
+  24              Color(0xFFFF8000), // Orange
+  25:             Color(0xFFFFE900), // Lime yellow
+  26              Color(0xFF8000FF), // Purple
+  27              Color(0xFFFF0080), // Pink
+  28:             Color(0xFFFFF700), // Spring yellow
+  29              Color(0xFF80FFFF), // Light Cyan
+
+  33              Color(0xFFFF80FF), // Light Magenta
+  34:             Color(0xFFFFFFE0), // Light yellow
+  35          )
