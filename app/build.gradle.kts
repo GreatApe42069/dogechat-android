@@ -1,11 +1,18 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.kotlin.parcelize) version "2.0.0"
     alias(libs.plugins.kotlin.compose)
-    id("com.google.dagger.hilt.android") version "2.48" apply false
-    id("dagger.hilt.android.plugin") version "2.48" apply false
 }
+
+buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url = uri("https://plugins.gradle.org/m2/") }
+    }
+}
+
 
 android {
     namespace = "com.dogechat.android"
@@ -48,7 +55,6 @@ android {
     }
     buildFeatures {
         compose = true
-        viewBinding = true
     }
     packaging {
         resources {
@@ -66,7 +72,7 @@ dependencies {
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.appcompat)
+    implementation('androidx.appcompat:appcompat:1.7.0') // Updated from 1.6.1
     
     // Compose
     implementation(platform(libs.androidx.compose.bom))
@@ -83,12 +89,17 @@ dependencies {
     
     // Cryptography
     implementation(libs.bundles.cryptography)
+
+    // Bouncy Castle
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.70' // Or the latest version NoiseEncryptionService
+
+
     
     // Dogecoin dependencies
-    implementation 'com.github.dogecoinproject:bitcore-lib-doge:1.0.0'
+    implementation 'com.github.dogecoinproject:bitcore-lib-doge:1.0.0' // Ensure this is included
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.9.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'com.google.android.material:material:1.12.0' // Updated from 1.9.0
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.0' // Updated from 2.1.4
     
     // Bluetooth dependencies
     implementation 'androidx.core:core:1.9.0'
@@ -118,9 +129,4 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.bundles.compose.testing)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    
-    // Hilt dependencies
-    implementation("com.google.dagger:hilt-android:2.48")
-    kapt("com.google.dagger:hilt-android-compiler:2.48")
-    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 }
