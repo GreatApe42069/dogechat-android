@@ -35,6 +35,13 @@ local.properties
 *.lock
 *.tmp
 
+# Logs
+*.log
+dogechat_logs.txt
+
+# Kotlin build cache
+.kotlin/
+
 # Keystore
 *.jks
 *.keystore
