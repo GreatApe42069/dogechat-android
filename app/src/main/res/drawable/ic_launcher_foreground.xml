@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Foreground uses the adaptive foreground PNG (per-mipmap densities) -->
-    <item>
-        <bitmap
-            android:src="@mipmap/ic_launcher_adaptive_fore"
-            android:gravity="center" />
-    </item>
-</layer-list>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="24dp"
+    android:insetTop="24dp"
+    android:insetRight="24dp"
+    android:insetBottom="24dp">
+    <bitmap
+        android:src="@mipmap/ic_launcher_adaptive_fore"
+        android:gravity="center"
+        android:antialias="true" />
+</inset>

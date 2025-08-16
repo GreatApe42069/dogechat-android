@@ -9,7 +9,7 @@
     <color name="dark_onBackground">#FF39FF14</color>  <!-- Yellow on black -->
     <color name="dark_surface">#FF111111</color>  <!-- Very dark gray -->
     <color name="dark_onSurface">#FF39FF14</color>  <!-- Yellow text -->
-    <color name="dark_error">#FFFF5555</color>  <!-- Red for errors -->
+    <color name="dark_error">#FFFF4444</color>  <!-- Red for errors -->
     <color name="dark_onError">#FF000000</color>  <!-- Black -->
 
     <!-- Light Theme Colors -->
