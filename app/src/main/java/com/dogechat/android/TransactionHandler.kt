@@ -1,20 +1,21 @@
-import org.dogecoin.bitcore.transaction.Transaction
-import org.dogecoin.bitcore.script.Script
-import org.dogecoin.bitcore.crypto.Transaction.Signature
-import org.dogecoin.bitcore.wallet.Wallet
+package com.dogechat.android
 
-class TransactionHandler {
-    companion object {
-        fun createDogecoinTransaction(wallet: Wallet, to: Address, amount: Coin): Transaction {
-            val tx = Transaction()
-            wallet.unspentOutputs.forEach { tx.addInput(it) }
-            tx.addOutput(amount, to)
-            wallet.signTransaction(tx)
-            return tx
-        }
+import org.bitcoinj.core.Address
+import org.bitcoinj.core.Coin
+import org.bitcoinj.core.NetworkParameters
+import org.libdohj.params.DogecoinMainNetParams
 
-        fun verifyDogecoinTransaction(tx: Transaction): Boolean {
-            return tx.verify()
-        }
-    }
+/**
+ * Thin helper around address/amount parsing (kept separate to satisfy existing references).
+ */
+object TransactionHandler {
+    private val params: NetworkParameters = DogecoinMainNetParams.get()
+
+    fun parseAddress(addr: String): Address = Address.fromString(params, addr)
+
+    fun parseAmountDogeToCoin(amountDoge: Long): Coin =
+        Coin.valueOf(amountDoge * 100_000_000L)
+
+    fun isValidAddress(addr: String): Boolean =
+        runCatching { Address.fromString(params, addr); true }.getOrElse { false }
 }

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark Theme Colors -->
+    <color name="dark_primary">#FF39FF14</color>  <!-- Bright yellow (terminal-like) -->
+    <color name="dark_onPrimary">#FF000000</color>  <!-- Black -->
+    <color name="dark_secondary">#FF2ECB10</color>  <!-- Darker yellow -->
+    <color name="dark_onSecondary">#FF000000</color>  <!-- Black -->
+    <color name="dark_background">#FF000000</color>  <!-- Black -->
+    <color name="dark_onBackground">#FF39FF14</color>  <!-- Yellow on black -->
+    <color name="dark_surface">#FF111111</color>  <!-- Very dark gray -->
+    <color name="dark_onSurface">#FF39FF14</color>  <!-- Yellow text -->
+    <color name="dark_error">#FFFF5555</color>  <!-- Red for errors -->
+    <color name="dark_onError">#FF000000</color>  <!-- Black -->
+
+    <!-- Light Theme Colors -->
+    <color name="light_primary">#FFFFFF00</color>  <!-- Dark yellow -->
+    <color name="light_onPrimary">#FFFFFFFF</color>  <!-- White -->
+    <color name="light_secondary">#FF006600</color>  <!-- Even darker yellow -->
+    <color name="light_onSecondary">#FFFFFFFF</color>  <!-- White -->
+    <color name="light_background">#FFFFFFFF</color>  <!-- White -->
+    <color name="light_onBackground">#FFFFFF00</color>  <!-- Dark yellow on white -->
+    <color name="light_surface">#FFF8F8F8</color>  <!-- Very light gray -->
+    <color name="light_onSurface">#FFFFFF00</color>  <!-- Dark yellow text -->
+    <color name="light_error">#FFCC0000</color>  <!-- Dark red for errors -->
+    <color name="light_onError">#FFFFFFFF</color>  <!-- White -->
+</resources>

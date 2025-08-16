@@ -39,7 +39,6 @@
     <string name="skip">Skip</string>
 
     <!-- Dogecoin -->
-    <string name="app_name">Dogechat</string>
     <string name="send_doge">Send Dogecoin</string>
     <string name="receive_doge">Receive Dogecoin</string>
     <string name="doge_balance">Dogecoin Balance</string>
