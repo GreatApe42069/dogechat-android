@@ -1,29 +1,60 @@
 # Android Studio / IntelliJ
 .idea/
 *.iml
+*.iws
+
+# Build & Gradle
 build/
-!*/build/filtered-manifest/
-!*/build/generated/
-!*/build/intermediates/
-local.properties
 .gradle/
 captures/
 .externalNativeBuild/
-debug_keystore/
-*.keystore
-debug.keystore
+.cxx/
+out/
+gen/
+*build/
+!*/build/filtered-manifest/
+!*/build/generated/
+!*/build/intermediates/
 
-# Gradle
-/build/
-/.gradle/
-/captures/
+# Gradle wrapper & daemon files
+gradle-app.setting
+gradlew.bat
+gradlew
+gradle-wrapper.jar
+gradle-wrapper.properties
+
+# APK/AAB and intermediates
 *.apk
 *.aab
 *.ap_
 *.dex
 
-# Mac
+# Local config
+local.properties
+*.log
+*.lock
+*.tmp
+
+# Keystore
+*.jks
+*.keystore
+debug.keystore
+debug_keystore/
+
+# Google/Firebase
+google-services.json
+crashlytics/
+fabric/
+
+# Compose preview snapshots
+compose-snapshots/
+
+# Navigation & cache
+.navigation/
+
+# OS-specific
 .DS_Store
+Thumbs.db
 *.swp
 *~
 
@@ -35,23 +66,3 @@ pom.xml.versionsBackup
 pom.xml.next
 release.properties
 dependency-reduced-pom.xml
-
-# Linters
-.lint/
-
-# Other
-*.log
-.cxx/
-*build/
-out/
-gen/
-*~
-*.swp
-*.lock
-
-# Google services
-google-services.json
-
-# Keystore files
-*.jks
-*.keystore

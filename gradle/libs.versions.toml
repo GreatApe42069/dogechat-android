@@ -1,49 +1,59 @@
 [versions]
 # Android and Kotlin
 agp = "8.10.1"
-kotlin = "2.2.0"
+kotlin = "2.0.0"
 compileSdk = "35"
-minSdk = "26" # API 26 for proper BLE support
+minSdk = "26"  # API 26 for proper BLE support
 targetSdk = "34"
 
 # AndroidX Core
-core-ktx = "1.16.0"
-lifecycle-runtime = "2.9.1"
-activity-compose = "1.10.1"
-appcompat = "1.7.1"
+core-ktx = "1.13.1"
+lifecycle-runtime = "2.8.0"
+activity-compose = "1.9.0"
+appcompat = "1.7.0"
 
 # Compose
-compose-bom = "2025.06.01"
+compose-bom = "2024.05.00"
 
 # Navigation
-navigation-compose = "2.9.1"
+navigation-compose = "2.7.7"
 
 # Accompanist
-accompanist-permissions = "0.37.3"
+accompanist-permissions = "0.34.0"
 
 # Cryptography
-bouncycastle = "1.70"
+bouncycastle = "1.81"
 tink-android = "1.10.0"
 
 # JSON
-gson = "2.13.1"
+gson = "2.10.1"
 
 # Coroutines
-kotlinx-coroutines = "1.10.2"
+kotlinx-coroutines = "1.7.3"
 
 # Bluetooth
-nordic-ble = "2.6.1"
+nordic-ble = "2.7.2"
 
 # Compression
 lz4-java = "1.8.0"
 
 # Security
-security-crypto = "1.1.0-beta01"
+security-crypto = "1.1.0-alpha06"
 
 # Testing
 junit = "4.13.2"
 androidx-test-ext = "1.2.1"
 espresso = "3.6.1"
+
+# Logging
+slf4j-api = "2.0.7"  # Added this line
+
+# Material Design
+material = "1.12.0"
+constraintlayout = "2.2.0"
+
+# Dogecoin
+bitcoinj = "0.15.10"
 
 [libraries]
 # AndroidX Core
@@ -73,7 +83,8 @@ androidx-navigation-compose = { module = "androidx.navigation:navigation-compose
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist-permissions" }
 
 # Cryptography
-bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk15on", version.ref = "bouncycastle" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+
 google-tink-android = { module = "com.google.crypto.tink:tink-android", version.ref = "tink-android" }
 
 # JSON
@@ -98,11 +109,21 @@ androidx-test-espresso-core = { module = "androidx.test.espresso:espresso-core",
 androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 
+# Material Design
+material = { module = "com.google.android.material:material", version.ref = "material" }
+constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
+
+# Logging
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j-api" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j-api" }  # Updated to reference slf4j-api
+
+# Dogecoin
+bitcoinj-core = { module = "org.bitcoinj:bitcoinj-core", version.ref = "bitcoinj" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlin-parcelize = { id = "kotlin-parcelize" }
+kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
 [bundles]
@@ -135,4 +156,4 @@ testing = [
 compose-testing = [
     "androidx-compose-ui-test-junit4",
     "androidx-compose-ui-test-manifest"
-] 
+]

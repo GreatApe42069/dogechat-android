@@ -7,5 +7,6 @@ import dagger.hilt.android.HiltAndroidApp
 class DogechatApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        // Hilt initialization happens automatically
     }
 }

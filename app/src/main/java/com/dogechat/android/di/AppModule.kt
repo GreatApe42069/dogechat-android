@@ -16,9 +16,9 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideWalletManager(@ApplicationContext context: Context): WalletManager {
-        return WalletManager().apply { initializeWallet() }
-    }
+    fun provideWalletManager(
+        @ApplicationContext appContext: Context
+    ): WalletManager = WalletManager(appContext)
 
     @Provides
     @Singleton
