@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@mipmap/ic_launcher"
-    android:gravity="center" />
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="24dp"
+    android:insetTop="24dp"
+    android:insetRight="24dp"
+    android:insetBottom="24dp">
+    <bitmap
+        android:src="@mipmap/ic_launcher_adaptive_fore"
+        android:gravity="center"
+        android:antialias="true" />
+</inset>

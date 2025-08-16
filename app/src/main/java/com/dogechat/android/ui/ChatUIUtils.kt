@@ -22,9 +22,9 @@ import java.util.*
  */
 fun getRSSIColor(rssi: Int): Color {
     return when {
-        rssi >= -50 -> Color(0xFFFFFF00) // Bright yellow
-        rssi >= -60 -> Color(0xFFFFFF00) // yellow-green
-        rssi >= -70 -> Color(0xFFFFFF00) // green
+        rssi >= -50 -> Color(0xFFFFFFE0) // light yellow
+        rssi >= -60 -> Color(0xFFFFFF00) // yellow
+        rssi >= -70 -> Color(0xFFFFFF80) // green
         rssi >= -80 -> Color(0xFFFF8000) // Orange
         else -> Color(0xFFFF4444) // Red
     }
