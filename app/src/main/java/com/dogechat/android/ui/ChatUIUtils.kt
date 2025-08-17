@@ -9,29 +9,31 @@ import androidx.compose.ui.unit.sp
 import com.dogechat.android.model.dogechatMessage
 import com.dogechat.android.mesh.BluetoothMeshService
 import androidx.compose.material3.ColorScheme
+import com.dogechat.android.ui.theme.ThemeColors
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
  * Utility functions for ChatScreen UI components
- * Extracted from ChatScreen.kt for better organization
+ * Centralized color usage through ThemeColors for consistency.
  */
 
 /**
- * Get RSSI-based color for signal strength visualization
+ * RSSI -> color gradient (Green → Yellow → Orange → Darker Orange → Red)
  */
 fun getRSSIColor(rssi: Int): Color {
     return when {
-        rssi >= -50 -> Color(0xFFFFFFE0) // light yellow
-        rssi >= -60 -> Color(0xFFFFFF00) // yellow
-        rssi >= -70 -> Color(0xFFFFFF80) // green
-        rssi >= -80 -> Color(0xFFFF8000) // Orange
-        else -> Color(0xFFFF4444) // Red
+        rssi >= -50 -> ThemeColors.RssiStrong
+        rssi >= -60 -> ThemeColors.RssiGood
+        rssi >= -70 -> ThemeColors.RssiMedium
+        rssi >= -80 -> ThemeColors.RssiWeak
+        else -> ThemeColors.RssiBad
     }
 }
 
 /**
  * Format message as annotated string with proper styling
+ * Uses Material3 colorScheme for base text and ThemeColors for accents.
  */
 fun formatMessageAsAnnotatedString(
     message: dogechatMessage,
@@ -41,8 +43,8 @@ fun formatMessageAsAnnotatedString(
     timeFormatter: SimpleDateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 ): AnnotatedString {
     val builder = AnnotatedString.Builder()
-    
-    // Timestamp
+
+    // Timestamp - subtle tint of primary
     val timestampColor = if (message.sender == "system") Color.Gray else colorScheme.primary.copy(alpha = 0.7f)
     builder.pushStyle(SpanStyle(
         color = timestampColor,
@@ -50,18 +52,17 @@ fun formatMessageAsAnnotatedString(
     ))
     builder.append("[${timeFormatter.format(message.timestamp)}] ")
     builder.pop()
-    
+
     if (message.sender != "system") {
-        // Sender
+        // Sender color: if it's me (local peer) use primary; otherwise deterministic username color
         val senderColor = when {
             message.senderPeerID == meshService.myPeerID -> colorScheme.primary
             else -> {
-                val peerID = message.senderPeerID
-                val rssi = peerID?.let { meshService.getPeerRSSI()[it] } ?: -60
-                getRSSIColor(rssi)
+                val id = message.senderPeerID ?: message.sender
+                ThemeColors.getUsernameColor(id)
             }
         }
-        
+
         builder.pushStyle(SpanStyle(
             color = senderColor,
             fontSize = 14.sp,
@@ -69,10 +70,10 @@ fun formatMessageAsAnnotatedString(
         ))
         builder.append("<@${message.sender}> ")
         builder.pop()
-        
+
         // Message content with mentions and hashtags highlighted
         appendFormattedContent(builder, message.content, message.mentions, currentUserNickname, colorScheme)
-        
+
     } else {
         // System message
         builder.pushStyle(SpanStyle(
@@ -83,12 +84,15 @@ fun formatMessageAsAnnotatedString(
         builder.append("* ${message.content} *")
         builder.pop()
     }
-    
+
     return builder.toAnnotatedString()
 }
 
 /**
  * Append formatted content with hashtag and mention highlighting
+ * - hashtags use ThemeColors.HashtagColor (but still readable with current Material color scheme)
+ * - mentions use ThemeColors.MentionColor (distinct and visible)
+ * - normal text uses colorScheme.primary for theme awareness
  */
 private fun appendFormattedContent(
     builder: AnnotatedString.Builder,
@@ -98,21 +102,21 @@ private fun appendFormattedContent(
     colorScheme: ColorScheme
 ) {
     val isMentioned = mentions?.contains(currentUserNickname) == true
-    
+
     // Parse hashtags and mentions
     val hashtagPattern = "#([a-zA-Z0-9_]+)".toRegex()
     val mentionPattern = "@([a-zA-Z0-9_]+)".toRegex()
-    
+
     val hashtagMatches = hashtagPattern.findAll(content).toList()
     val mentionMatches = mentionPattern.findAll(content).toList()
-    
+
     // Combine and sort all matches
-    val allMatches = (hashtagMatches.map { it.range to "hashtag" } + 
-                     mentionMatches.map { it.range to "mention" })
+    val allMatches = (hashtagMatches.map { it.range to "hashtag" } +
+            mentionMatches.map { it.range to "mention" })
         .sortedBy { it.first.first }
-    
+
     var lastEnd = 0
-    
+
     for ((range, type) in allMatches) {
         // Add text before the match
         if (lastEnd < range.first) {
@@ -125,13 +129,13 @@ private fun appendFormattedContent(
             builder.append(beforeText)
             builder.pop()
         }
-        
+
         // Add the styled match
         val matchText = content.substring(range.first, range.last + 1)
         when (type) {
             "hashtag" -> {
                 builder.pushStyle(SpanStyle(
-                    color = Color(0xFF0080FF), // Blue
+                    color = ThemeColors.HashtagColor,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
@@ -139,7 +143,7 @@ private fun appendFormattedContent(
             }
             "mention" -> {
                 builder.pushStyle(SpanStyle(
-                    color = Color(0xFFFF9500), // Orange
+                    color = ThemeColors.MentionColor,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 ))
@@ -147,10 +151,10 @@ private fun appendFormattedContent(
         }
         builder.append(matchText)
         builder.pop()
-        
+
         lastEnd = range.last + 1
     }
-    
+
     // Add remaining text
     if (lastEnd < content.length) {
         val remainingText = content.substring(lastEnd)
