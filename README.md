@@ -14,7 +14,7 @@ This is the **Android port** of the original [bitchat iOS app](https://github.co
 
 ## Install Đogechat
 
-You can download the latest version of Đogechat for Android from the [GitHub Releases page](https://github.com/GreatApe42069/dogechat-android/tree/main/releases).
+You can download the latest version of Đogechat for Android from the [GitHub Releases page](https://github.com/GreatApe42069/dogechat-android/releases).
 
 **Instructions:**
 
