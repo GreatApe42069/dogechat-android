@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+## [0.8.2] - 2025-08-17
+### Added
+- Initial apk & aab release of dogechat Android client Much LFG!!!!!
+- Added git pages `https://greatape42069.github.io/dogechat-android/`
+
 ## [0.7.3] - 2025-08-08
 ### Fixed
 - fix: - 🐶 Forked for the Đogecoin community, Much Better So Fun!!!!
