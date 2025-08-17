@@ -285,6 +285,11 @@ This Android port enables seamless communication with the original iOS dogechat 
 **iOS Version**: Coming Soon For iPhone/iPad users, get the original dogechat at [github.com/GreatApe42069/dogechat](https://github.com/greatape42069/dogechat)
 
 
+## Screenshots
+
+<img width="2048" height="2048" alt="image" src="https://github.com/user-attachments/assets/8203f901-fb61-41be-9471-e4601cf79827" />
+
+
 # 🛠 Contributing
 
 If you'd like to contribute or donate to this project, please donate in Dogecoin. For active contributors its as easy as opening issues, and or creating pull requests.
