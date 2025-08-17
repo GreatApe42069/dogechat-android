@@ -26,6 +26,15 @@ android {
         vectorDrawables.useSupportLibrary = true
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("dogechat-release-key.jks")
+            storePassword = "YOUR_KEYSTORE_PASSWORD"  // Replace with your actual keystore password
+            keyAlias = "dogechat-key"
+            keyPassword = "YOUR_KEY_PASSWORD"  // Replace with your actual key password
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -34,6 +43,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
