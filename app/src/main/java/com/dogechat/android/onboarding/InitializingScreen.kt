@@ -1,6 +1,7 @@
 package com.dogechat.android.onboarding
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -8,9 +9,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 
 /**
@@ -19,7 +23,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun InitializingScreen() {
     val colorScheme = MaterialTheme.colorScheme
-    
+
     // Animated rotation for the loading indicator
     val infiniteTransition = rememberInfiniteTransition(label = "loading")
     val rotationAngle by infiniteTransition.animateFloat(
@@ -59,6 +63,17 @@ fun InitializingScreen() {
             verticalArrangement = Arrangement.spacedBy(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            val screenWidthDp = LocalConfiguration.current.screenWidthDp
+            val logoSizeDp = (screenWidthDp * 0.45f).dp  // 45% of screen width
+            // Logo above the app title
+            Image(
+                painter = painterResource(id = com.dogechat.android.R.mipmap.ic_launcher_adaptive_fore),
+                contentDescription = "Dogechat logo",
+                modifier = Modifier
+                    .size(logoSizeDp)
+                    .padding(bottom = 8.dp),
+                contentScale = ContentScale.Fit
+            )
             // App title
             Text(
                 text = "Đogechat",
@@ -96,7 +111,7 @@ fun InitializingScreen() {
                         color = colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 )
-                
+
                 // Animated dots
                 dots.forEach { alpha ->
                     Text(
@@ -132,7 +147,7 @@ fun InitializingScreen() {
                         ),
                         textAlign = TextAlign.Center
                     )
-                    
+
                     Text(
                         text = "This should only take a few seconds",
                         style = MaterialTheme.typography.bodySmall.copy(
