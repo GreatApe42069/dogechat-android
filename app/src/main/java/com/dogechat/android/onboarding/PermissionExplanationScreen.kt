@@ -45,7 +45,7 @@ fun PermissionExplanationScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Welcome to dogechat",
+                    text = "Welcome to Đogechat",
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -57,7 +57,7 @@ fun PermissionExplanationScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "Decentralized mesh messaging over Bluetooth",
+                    text = "Such Đecentralized Much Mesh Messaging over Bluetooth....Such LFG!!!",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.7f)
@@ -90,7 +90,7 @@ fun PermissionExplanationScreen(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Your Privacy is Protected",
+                            text = "Such Privacy Your Much Protected",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colorScheme.onSurface
@@ -102,7 +102,7 @@ fun PermissionExplanationScreen(
                         text = "• dogechat doesn't track you or collect personal data\n" +
                                 "• No servers, no internet required, no data logging\n" +
                                 "• Location permission is only used by Android for Bluetooth scanning\n" +
-                                "• Your messages stay on your device and peer devices only",
+                                "• Your messages stay on your device and peer devices only....So Wow",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -114,7 +114,7 @@ fun PermissionExplanationScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "To work properly, dogechat needs these permissions:",
+                text = "To work properly, dogechat Much needs Such permissions:",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Medium,
                     color = colorScheme.onSurface
@@ -150,7 +150,7 @@ fun PermissionExplanationScreen(
                 )
             ) {
                 Text(
-                    text = "Grant Permissions",
+                    text = "Grant Much Permissions",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold

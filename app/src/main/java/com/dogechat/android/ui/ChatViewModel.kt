@@ -136,7 +136,7 @@ class ChatViewModel(
             if (state.getConnectedPeersValue().isEmpty() && state.getMessagesValue().isEmpty()) {
                 val welcomeMessage = dogechatMessage(
                     sender = "system",
-                    content = "get people around you to download dogechat and chat with them here!",
+                    content = "get Such people around you to So download dogechat and Very chat with Many friends here!",
                     timestamp = Date(),
                     isRelay = false
                 )
@@ -409,7 +409,7 @@ class ChatViewModel(
     // MARK: - Emergency Clear
     
     fun panicClearAllData() {
-        Log.w(TAG, "🚨 PANIC MODE ACTIVATED - Clearing all sensitive data")
+        Log.w(TAG, "🚨 PANIC MODE ACTIVATED - Clearing Much sensitive data Very Fast")
         
         // Clear all UI managers
         messageManager.clearAllMessages()
@@ -431,7 +431,7 @@ class ChatViewModel(
         state.setNickname(newNickname)
         dataManager.saveNickname(newNickname)
         
-        Log.w(TAG, "🚨 PANIC MODE COMPLETED - All sensitive data cleared")
+        Log.w(TAG, "🚨 PANIC MODE COMPLETED - All sensitive data VERY cleared")
         
         // Note: Mesh service restart is now handled by MainActivity
         // This method now only clears data, not mesh service lifecycle

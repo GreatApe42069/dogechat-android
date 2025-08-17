@@ -1,26 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark Theme Colors -->
-    <color name="dark_primary">#FF39FF14</color>  <!-- Bright yellow (terminal-like) -->
-    <color name="dark_onPrimary">#FF000000</color>  <!-- Black -->
-    <color name="dark_secondary">#FF2ECB10</color>  <!-- Darker yellow -->
-    <color name="dark_onSecondary">#FF000000</color>  <!-- Black -->
-    <color name="dark_background">#FF000000</color>  <!-- Black -->
-    <color name="dark_onBackground">#FF39FF14</color>  <!-- Yellow on black -->
-    <color name="dark_surface">#FF111111</color>  <!-- Very dark gray -->
-    <color name="dark_onSurface">#FF39FF14</color>  <!-- Yellow text -->
-    <color name="dark_error">#FFFF4444</color>  <!-- Red for errors -->
-    <color name="dark_onError">#FF000000</color>  <!-- Black -->
+    <!-- ===========================================================
+         Primary / Brand (Dogecoin-inspired)
+         =========================================================== -->
+    <!-- Canonical (new) names -->
+    <color name="gold">#FFFFD700</color>            <!-- Dogecoin Gold -->
+    <color name="dark_gold">#FFE6B800</color>       <!-- Slightly darker gold -->
 
-    <!-- Light Theme Colors -->
-    <color name="light_primary">#FFFFFF00</color>  <!-- Dark yellow -->
-    <color name="light_onPrimary">#FFFFFFFF</color>  <!-- White -->
-    <color name="light_secondary">#FF006600</color>  <!-- Even darker yellow -->
-    <color name="light_onSecondary">#FFFFFFFF</color>  <!-- White -->
-    <color name="light_background">#FFFFFFFF</color>  <!-- White -->
-    <color name="light_onBackground">#FFFFFF00</color>  <!-- Dark yellow on white -->
-    <color name="light_surface">#FFF8F8F8</color>  <!-- Very light gray -->
-    <color name="light_onSurface">#FFFFFF00</color>  <!-- Dark yellow text -->
-    <color name="light_error">#FFCC0000</color>  <!-- Dark red for errors -->
-    <color name="light_onError">#FFFFFFFF</color>  <!-- White -->
+    <!-- Backwards-compatible (legacy) aliases used elsewhere in repo -->
+    <!-- Old "dark_" names (map to new gold) -->
+    <color name="dark_primary">#FFFFD700</color>
+    <color name="dark_onPrimary">#FF000000</color>
+    <color name="dark_secondary">#FFE6B800</color>
+    <color name="dark_onSecondary">#FF000000</color>
+
+    <!-- Old "light_" names (map to gold / readable on light) -->
+    <color name="light_primary">#FFFFFF00</color> <!-- bright yellow used historically -->
+    <color name="light_onPrimary">#FFFFFFFF</color>
+    <color name="light_secondary">#FF006600</color>
+    <color name="light_onSecondary">#FFFFFFFF</color>
+
+    <!-- ===========================================================
+         Background / Surface / On-colors (dark + light)
+         =========================================================== -->
+    <!-- Canonical names -->
+    <color name="background_dark">#FF000000</color>   <!-- black -->
+    <color name="surface_dark">#FF111111</color>
+    <color name="background_light">#FFFFFFFF</color>  <!-- white -->
+    <color name="surface_light">#FFF8F8F8</color>
+
+    <!-- Aliases for older usage -->
+    <color name="dark_background">#FF000000</color>
+    <color name="dark_onBackground">#FF39FF14</color> <!-- NOTE: kept previous repository value if still used -->
+    <color name="dark_onSurface">#FF39FF14</color>
+    <color name="dark_error">#FFFF4444</color>
+
+    <color name="light_background">#FFFFFFFF</color>
+    <color name="light_onBackground">#FFFFFF00</color> <!-- historical light_onBackground -->
+    <color name="light_onSurface">#FFFFFF00</color>
+    <color name="light_error">#FFCC0000</color>
+
+    <!-- Canonical on-background/on-surface mapping (for Compose ThemeColors usage) -->
+    <color name="on_background_dark">#FFFFFFFF</color>
+    <color name="on_background_light">#FF000000</color>
+    <color name="on_surface_dark">#FFFFFFFF</color>
+    <color name="on_surface_light">#FF000000</color>
+
+    <!-- ===========================================================
+         Accent / Mentions / Hashtags / RSSI
+         =========================================================== -->
+    <!-- Canonical names -->
+    <color name="mention_color">#FF32CD32</color>   <!-- LimeGreen for mentions -->
+    <color name="hashtag_color">#FF0080FF</color>   <!-- Blue for hashtags -->
+    <color name="error_red">#FFFF3B30</color>       <!-- iOS-style error red -->
+
+    <!-- RSSI gradient (strong->weak) -->
+    <color name="rssi_strong">#FF00FF00</color>     <!-- Bright Green -->
+    <color name="rssi_good">#FFFFFF00</color>       <!-- Yellow -->
+    <color name="rssi_medium">#FFFFA500</color>     <!-- Orange -->
+    <color name="rssi_weak">#FFFF8000</color>       <!-- Dark Orange -->
+    <color name="rssi_bad">#FFFF3B30</color>        <!-- Red -->
+
+    <!-- ===========================================================
+         Username palette (legacy resource entries; kept for xml-style reference)
+         =========================================================== -->
+    <color name="user_1">#FFFFD700</color>  <!-- Dogecoin Gold -->
+    <color name="user_2">#FF00FF9F</color>  <!-- Spring Green / Mint -->
+    <color name="user_3">#FF00FFFF</color>  <!-- Cyan -->
+    <color name="user_4">#FF32CD32</color>  <!-- LimeGreen -->
+    <color name="user_5">#FFFFA500</color>  <!-- Orange -->
+    <color name="user_6">#FF0080FF</color>  <!-- Bright Blue -->
+    <color name="user_7">#FFFF0080</color>  <!-- Hot Pink -->
+    <color name="user_8">#FF8000FF</color>  <!-- Purple -->
+    <color name="user_9">#FFFF8000</color>  <!-- Deep Orange -->
+    <color name="user_10">#FFFF3B30</color> <!-- Error Red -->
+    <color name="user_11">#FF80FFFF</color> <!-- Light Cyan -->
+    <color name="user_12">#FFFF8080</color> <!-- Light Red/Pink -->
+    <color name="user_13">#FF8080FF</color> <!-- Light Blue -->
+    <color name="user_14">#FFFFFF80</color> <!-- Pale Yellow -->
+    <color name="user_15">#FFFF80FF</color> <!-- Light Magenta -->
+    <color name="user_16">#FFFFFF00</color> <!-- Bright Yellow -->
 </resources>
