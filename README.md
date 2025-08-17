@@ -4,11 +4,13 @@
 > [!WARNING]
 > This software has not received external security review and may contain vulnerabilities and may not necessarily meet its stated security goals. Do not use it for sensitive use cases, and do not rely on its security until it has been reviewed. Work in progress.
 
-# Đogechat for Android
+# 🐶 Đogechat for Android
+
+## 🔍 Overview
 
 A secure, Đecentralized, peer-to-peer messaging app that works over Bluetooth mesh networks. No internet required, no servers, no phone numbers - just pure encrypted communication.
 
-This is the **Android port** of the original [dogechat iOS app](https://github.com/jackjackdoges/dogechat), maintaining 100% protocol compatibility for cross-platform communication.
+This is the **Android port** of the original [bitchat iOS app](https://github.com/jackjackdoges/bitchat), and fork of the [original bitchat-android repository](https://github.com/permissionlesstech/bitchat-android) maintaining 100% protocol compatibility for cross-platform communication.
 
 ## Install Đogechat
 
@@ -280,11 +282,23 @@ This Android port enables seamless communication with the original iOS dogechat 
 - **Feature Parity**: All commands and encryption work across platforms
 - **Protocol Sync**: Identical message format and routing behavior
 
-**iOS Version**: For iPhone/iPad users, get the original dogechat at [github.com/jackjackdoges/dogechat](https://github.com/greatape42069/dogechat)
+**iOS Version**: Coming Soon For iPhone/iPad users, get the original dogechat at [github.com/GreatApe42069/dogechat](https://github.com/greatape42069/dogechat)
 
-## Contributing
 
-Contributions are welcome! Key areas for enhancement:
+# 🛠 Contributing
+
+If you'd like to contribute or donate to this project, please donate in Dogecoin. For active contributors its as easy as opening issues, and or creating pull requests.
+
+This software is Open-source, Đecentralized, an FREE to use, Đonations are accepted, but never expected, to support The Contributers of Đogechat you can send any Donations in Dogecoin, Doginals, Dunes, or Drc-20's to the following Contributors:
+
+***You can donate to*** **GreatApe** ***here:***
+
+"handle": ***"GreatApe42069"*** "at": [***"@Greatape42069E"***](https://x.com/Greatape42069E)
+
+ **"Đogecoin_address":** **D9pqzxiiUke5eodEzMmxZAxpFcbvwuM4Hg**
+
+
+## ***Contributions are welcome! Key areas for enhancement:***
 
 1. **Performance**: Battery optimization and connection reliability
 2. **UI/UX**: Additional Material Design 3 features
@@ -292,11 +306,18 @@ Contributions are welcome! Key areas for enhancement:
 4. **Testing**: Unit and integration test coverage
 5. **Documentation**: API documentation and development guides
 
-## Support & Issues
+### Support & Issues
 
 - **Bug Reports**: [Create an issue](../../issues) with device info and logs
 - **Feature Requests**: [Start a discussion](https://github.com/orgs/greatape42069/discussions)
 - **Security Issues**: Email security concerns privately
-- **iOS Compatibility**: Cross-reference with [original iOS repo](https://github.com/jackjackdoges/dogechat)
+- **Android Compatibility**: Cross-reference with [original bitchat Android repo](https://github.com/permissionlesstech/bitchat-android)
 
-For iOS-specific issues, please refer to the [original iOS dogechat repository](https://github.com/jackjackdoges/dogechat).
+For Android-specific issues, please refer to the [original bitchat-android repository](https://github.com/permissionlesstech/bitchat-android).
+- **iOS Compatibility**: Cross-reference with [original iOS repo](https://github.com/jackjackdoges/bitchat)
+
+For iOS-specific issues, please refer to the [original iOS bitchat repository](https://github.com/jackjackdoges/bitchat).
+
+
+![image](https://github.com/user-attachments/assets/92ad2d4c-b3b1-4464-b9c0-708038634770)
+
