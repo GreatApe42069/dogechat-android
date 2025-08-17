@@ -1,6 +1,6 @@
 # dogechat Privacy Policy
 
-*Last updated: January 2025*
+*Last updated: August 2025*
 
 ## Our Commitment
 
@@ -126,7 +126,7 @@ If we update this policy:
 ## Contact
 
 dogechat is an open source project. For privacy questions:
-- Review our code: https://github.com/yourusername/dogechat
+- Review our code: https://github.com/GreatApe42069/dogechat-android
 - Open an issue on GitHub
 - Join the discussion in public rooms
 

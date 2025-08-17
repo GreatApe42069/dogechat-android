@@ -16,12 +16,20 @@ gen/
 !*/build/generated/
 !*/build/intermediates/
 
+# Release keystore
+dogechat-release-key.jks
+
+# Sensitive Gradle file (because now it contains signing configs)
+app/build.gradle.kts
+
 # Gradle wrapper & daemon files
 gradle-app.setting
 gradlew.bat
 gradlew
 gradle-wrapper.jar
 gradle-wrapper.properties
+gradle.properties
+
 
 # APK/AAB and intermediates
 *.apk

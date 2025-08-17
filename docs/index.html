@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>dogechat.free</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dogechat — decentralized peer-to-peer messaging over Bluetooth mesh. No internet required.">
+
+  <!-- Icons / manifest (use relative paths so this works for project pages) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest">
+
+  <!-- fallback ICO -->
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+
+  <style>
+  :root {
+    --bg-color: #ffffff;
+    --text-color: #1a1a1a;
+    --link-color: #228B22;
+    --warning-bg: #e8f5e8;
+    --warning-border: #4caf50;
+    --warning-text: #2e7d2e;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-color: #0a0a0a;
+      --text-color: #f0f0f0;
+      --link-color: #32CD32;
+      --warning-bg: #1a2f1a;
+      --warning-border: #4caf50;
+      --warning-text: #81c784;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  a { color: var(--link-color); text-decoration: underline; }
+  a:hover { color: var(--link-color); text-decoration: none; }
+
+  .warning-box {
+    background-color: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    color: var(--warning-text);
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 5px;
+  }
+
+  .warning-box p { margin: 0; }
+
+  hr { border: none; border-top: 1px solid var(--text-color); opacity: 0.3; }
+
+  small { opacity: 0.7; }
+
+  .ascii-art {
+    white-space: pre;
+    font-family: monospace;
+    line-height: 1.05;
+    overflow-x: auto;
+    font-size: 2.8vw;
+    max-width: 100%;
+  }
+
+  @media (max-width: 600px) {
+    .ascii-art { font-size: 4.5vw; }
+  }
+
+  @media (min-width: 1200px) {
+    .ascii-art { font-size: 14px; }
+  }
+  </style>
+</head>
+<body>
+
+<pre class="ascii-art">
+       /##                                         ##\                  ##\
+      | ##                                         ## |                 ## |
+  /####### /#######\  ######\  /#######\  #######\ #######\   ######\ ######\
+ /##__  ##/## | |## \##  __##\ ## | |## \##  _____|##  __##\  \____##\\_##  _|
+| ##   |##|## | |## |## |  ## |## |_|##_/## /      ## |  ## | ####### | ## |
+| ##   |##|## |_|## |## |  ## |##|______ ## |      ## |  ## |##  __## | ## |##\
+|  #######\######## /######## |######## |\#######\ ## |  ## |\####### | \####  |
+ \_______/ \_______/ \____ ## |\_______/  \_______|\__|  \__| \_______|  \____/
+                     __    ## |
+                    |##|   ## |
+                    |######## |
+                     \_______/
+</pre>
+
+<p>
+dogechat is a decentralized peer-to-peer messaging application that operates over bluetooth mesh networks.
+no internet required, no servers, no phone numbers.
+</p>
+
+<p>
+traditional messaging apps depend on centralized infrastructure that can be monitored, censored, or disabled.
+dogechat creates ad-hoc communication networks using only the devices present in physical proximity.
+each device acts as both client and server, automatically discovering peers and relaying messages across multiple hops to extend the network's reach.
+</p>
+
+<p>
+this approach provides censorship resistance, surveillance resistance, and infrastructure independence.
+the network remains functional during internet outages, natural disasters, protests, or in regions with limited connectivity.
+</p>
+
+<div class="warning-box">
+  <p>
+    <b>⚠️ security notice:</b> private messages have not received external security review and may contain vulnerabilities. do not use for sensitive use cases, and do not rely on its security until it has been reviewed. public local chat (the main feature) has no security concerns.
+  </p>
+</div>
+
+<h2>software</h2>
+
+<p>
+<b>android version:</b><br>
+source code: <a href="https://github.com/GreatApe42069/dogechat-android">https://github.com/GreatApe42069/dogechat-android</a><br>
+apk and aab releases: <a href="https://github.com/GreatApe42069/dogechat-android/releases">https://github.com/GreatApe42069/dogechat-android/releases</a><br>
+supports android 8.0+ (api 26). full protocol compatibility with ios version.
+</p>
+
+<h2>documentation</h2>
+
+<p>
+technical whitepaper: <a href="https://github.com/GreatApe42069/dogechat-android/docs/WHITEPAPER.md">whitepaper.md</a>
+</p>
+
+<p>
+the software is released into the public domain.
+</p>
+
+<hr>
+<small>GreatApe42069 · <a href="https://github.com/GreatApe42069/GreatApe42069/blob/main/README.md">contact</a></small>
+
+</body>
+</html>
