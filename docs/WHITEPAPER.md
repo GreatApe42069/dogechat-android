@@ -1,22 +1,22 @@
-# dogeChat Protocol Whitepaper
+# dogechat Protocol Whitepaper
 
-**Version 1.1**
+**Version 0.8.2**
 
-**Date: July 25, 2025**
+**Date: July, 2025**
 
 ---
 
 ## Abstract
 
-dogeChat is a decentralized, peer-to-peer messaging application designed for secure, private, and censorship-resistant communication over ephemeral, ad-hoc networks. This whitepaper details the dogeChat Protocol Stack, a layered architecture that combines a modern cryptographic foundation with a flexible application protocol. At its core, dogeChat leverages the Noise Protocol Framework (specifically, the `XX` pattern) to establish mutually authenticated, end-to-end encrypted sessions between peers. This document provides a technical specification of the identity management, session lifecycle, message framing, and security considerations that underpin the dogeChat network.
+dogechat is a Đecentralized, peer-to-peer messaging application designed for secure, private, and censorship-resistant communication over ephemeral, ad-hoc networks. This whitepaper details the dogeChat Protocol Stack, a layered architecture that combines a modern cryptographic foundation with a flexible application protocol. At its core, dogechat leverages the Noise Protocol Framework (specifically, the `XX` pattern) to establish mutually authenticated, end-to-end encrypted sessions between peers. This document provides a technical specification of the identity management, session lifecycle, message framing, and security considerations that underpin the dogeChat network.
 
 ---
 
 ## 1. Introduction
 
-In an era of centralized communication platforms, dogeChat offers a resilient alternative by operating without central servers. It is designed for scenarios where internet connectivity is unavailable or untrustworthy, such as protests, natural disasters, or remote areas. Communication occurs directly between devices over transports like Bluetooth Low Energy (BLE).
+In an era of centralized communication platforms, dogechat offers a resilient alternative by operating without central servers. It is designed for scenarios where internet connectivity is unavailable or untrustworthy, such as protests, natural disasters, or remote areas. Communication occurs directly between devices over transports like Bluetooth Low Energy (BLE).
 
-The design goals of the dogeChat Protocol are:
+The design goals of the dogechat Protocol are:
 
 *   **Confidentiality:** All communication must be unreadable to third parties.
 *   **Authentication:** Users must be able to verify the identity of their correspondents.
@@ -39,7 +39,7 @@ graph TD
     B --> C[Encryption Layer];
     C --> D[Transport Layer];
 
-    subgraph "dogeChat Application"
+    subgraph "dogechat Application"
         A
     end
 
@@ -70,7 +70,7 @@ graph TD
 
 ## 3. Identity and Key Management
 
-A peer's identity in dogeChat is defined by two persistent cryptographic key pairs, which are generated on first launch and stored securely in the device's Keychain.
+A peer's identity in dogechat is defined by two persistent cryptographic key pairs, which are generated on first launch and stored securely in the device's Keychain.
 
 1.  **Noise Static Key Pair (`Curve25519`):** This is the long-term identity key used for the Noise Protocol handshake. The public part of this key is shared with peers to establish secure sessions.
 2.  **Signing Key Pair (`Ed25519`):** This key is used to sign announcements and other protocol messages where non-repudiation is required, such as binding a public key to a nickname.
@@ -89,7 +89,7 @@ The `SecureIdentityStateManager` class is responsible for managing all cryptogra
 
 ## 4. The Social Trust Layer
 
-Beyond cryptographic identity, dogeChat incorporates a social trust layer, allowing users to manage their relationships with peers. This functionality is handled by the `SecureIdentityStateManager`.
+Beyond cryptographic identity, dogechat incorporates a social trust layer, allowing users to manage their relationships with peers. This functionality is handled by the `SecureIdentityStateManager`.
 
 ### 4.1. Peer Verification
 
@@ -105,7 +105,7 @@ To improve the user experience and provide control over interactions, the protoc
 
 ## 5. The Noise Protocol Layer
 
-dogeChat implements the Noise Protocol Framework to provide strong, authenticated end-to-end encryption.
+dogechat implements the Noise Protocol Framework to provide strong, authenticated end-to-end encryption.
 
 ### 5.1. Protocol Name
 
@@ -159,7 +159,7 @@ The `NoiseSessionManager` class manages all active Noise sessions. It handles:
 
 ---
 
-## 6. The dogeChat Session and Application Protocol
+## 6. The dogechat Session and Application Protocol
 
 Once a Noise session is established, peers exchange `dogechatPacket` structures, which are encrypted as the payload of Noise transport messages.
 
@@ -204,13 +204,13 @@ For packets of type `message`, the payload is a binary-serialized `dogechatMessa
 
 dogeChat operates as a decentralized mesh network, meaning there are no central servers to route messages. Packets are propagated through the network from peer to peer. The protocol supports several modes of message delivery.
 
-### 7.1. Direct Connection
+### 7.1. Đirect Connection
 
 This is the simplest case. If Peer A and Peer B are directly connected, they can exchange packets after establishing a mutually authenticated Noise session. All packets are encrypted using the transport ciphers derived from the handshake.
 
 ### 7.2. Efficient Gossip with Bloom Filters
 
-To send messages to peers that are not directly connected, dogeChat employs a "flooding" or "gossip" protocol. When a peer receives a packet that is not destined for it, it acts as a relay. To prevent infinite routing loops and minimize memory usage, the protocol uses an `OptimizedBloomFilter` to track recently seen packet IDs.
+To send messages to peers that are not directly connected, dogechat employs a "flooding" or "gossip" protocol. When a peer receives a packet that is not destined for it, it acts as a relay. To prevent infinite routing loops and minimize memory usage, the protocol uses an `OptimizedBloomFilter` to track recently seen packet IDs.
 
 The logic is as follows:
 
@@ -243,7 +243,7 @@ To function in unreliable, lossy networks, the protocol includes features to tra
 
 ### 7.6. Fragmentation
 
-Transport layers like BLE have a Maximum Transmission Unit (MTU) that limits the size of a single packet. To handle messages larger than this limit, dogeChat implements a fragmentation protocol.
+Transport layers like BLE have a Maximum Transmission Unit (MTU) that limits the size of a single packet. To handle messages larger than this limit, dogechat implements a fragmentation protocol.
 
 *   **`fragmentStart`:** A packet with this type marks the beginning of a fragmented message. It contains metadata about the total size and number of fragments.
 *   **`fragmentContinue`:** These packets carry the intermediate chunks of the message data.
@@ -265,4 +265,4 @@ Receiving peers collect all fragments and reassemble them in the correct order b
 
 ## 9. Conclusion
 
-The dogeChat Protocol provides a robust and secure foundation for decentralized, peer-to-peer communication. By layering a flexible application protocol on top of the well-regarded Noise Protocol Framework, it achieves strong confidentiality, authentication, and forward secrecy. The use of a compact binary format and thoughtful security considerations like rate limiting and traffic analysis resistance make it suitable for use in challenging network environments.
+The dogechat Protocol provides a robust and secure foundation for decentralized, peer-to-peer communication. By layering a flexible application protocol on top of the well-regarded Noise Protocol Framework, it achieves strong confidentiality, authentication, and forward secrecy. The use of a compact binary format and thoughtful security considerations like rate limiting and traffic analysis resistance make it suitable for use in challenging network environments.
