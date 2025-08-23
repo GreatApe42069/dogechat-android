@@ -407,29 +407,36 @@ class BluetoothMeshService(private val context: Context) {
         }
     }
 
-    /**
-     * Start the mesh service
-     */
-    fun startServices() {
-        // Prevent double starts (defensive programming)
-        if (isActive) {
-            Log.w(TAG, "Mesh service already active, ignoring duplicate start request")
-            return
-        }
-
-        Log.i(TAG, "Starting Bluetooth mesh service with peer ID: $myPeerID")
-
-        if (connectionManager.startServices()) {
-            isActive = true
-
-            // start jobs that only run when active
-            startPeriodicDebugLoggingJob()
-            startPeriodicAnnounceJob()
-        } else {
-            Log.e(TAG, "Failed to start Bluetooth services")
-        }
+/**
+ * Start the mesh service
+ */
+fun startServices() {
+    // Prevent double starts (defensive programming)
+    if (isActive) {
+        Log.w(TAG, "Mesh service already active, ignoring duplicate start request")
+        return
     }
 
+    Log.i(TAG, "Starting Bluetooth mesh service with peer ID: $myPeerID")
+
+    if (connectionManager.startServices()) {
+        isActive = true
+
+        // start jobs that only run when active
+        startPeriodicDebugLoggingJob()
+        startPeriodicAnnounceJob()
+
+        // Upstream added a dedicated periodic broadcast starter for reliability:
+        try {
+            sendPeriodicBroadcastAnnounce()
+            Log.d(TAG, "Started periodic broadcast announcements (every 30 seconds)")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to start periodic broadcast announce: ${e.message}")
+        }
+    } else {
+        Log.e(TAG, "Failed to start Bluetooth services")
+    }
+}
     /**
      * Stop all mesh services
      */

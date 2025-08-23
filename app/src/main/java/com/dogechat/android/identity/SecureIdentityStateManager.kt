@@ -25,6 +25,8 @@ class SecureIdentityStateManager(private val context: Context) {
         private const val PREFS_NAME = "dogechat_identity"
         private const val KEY_STATIC_PRIVATE_KEY = "static_private_key"
         private const val KEY_STATIC_PUBLIC_KEY = "static_public_key"
+        private const val KEY_SIGNING_PRIVATE_KEY = "signing_private_key"
+        private const val KEY_SIGNING_PUBLIC_KEY = "signing_public_key"
         private const val KEY_LAST_ROTATION = "last_rotation"
         private const val KEY_NEXT_ROTATION_INTERVAL = "next_rotation_interval"
 
@@ -110,88 +112,103 @@ class SecureIdentityStateManager(private val context: Context) {
         }
     }
 
-    // MARK: - Fingerprint Generation
-
     /**
-     * Generate fingerprint from public key (SHA-256 hash)
+     * Load saved signing key pair (Ed25519 for Nostr)
+     * Returns (privateKey, publicKey) or null if none exists
      */
-    fun generateFingerprint(publicKeyData: ByteArray): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(publicKeyData)
-        return hash.joinToString("") { "%02x".format(it) }
+    fun loadSigningKey(): Pair<ByteArray, ByteArray>? {
+        return try {
+            val privateKeyString = prefs.getString(KEY_SIGNING_PRIVATE_KEY, null)
+            val publicKeyString = prefs.getString(KEY_SIGNING_PUBLIC_KEY, null)
+
+            if (privateKeyString != null && publicKeyString != null) {
+                val privateKey = android.util.Base64.decode(privateKeyString, android.util.Base64.DEFAULT)
+                val publicKey = android.util.Base64.decode(publicKeyString, android.util.Base64.DEFAULT)
+
+                // Validate Ed25519 key sizes
+                if (privateKey.size == 32 && publicKey.size == 32) {
+                    Log.d(TAG, "Loaded signing key from secure storage")
+                    Pair(privateKey, publicKey)
+                } else {
+                    Log.w(TAG, "Invalid signing key sizes in storage")
+                    null
+                }
+            } else {
+                Log.d(TAG, "No signing key found in storage")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load signing key: ${e.message}")
+            null
+        }
     }
 
     /**
-     * Validate fingerprint format
+     * Save signing key pair to secure storage
      */
-    fun isValidFingerprint(fingerprint: String): Boolean {
-        // SHA-256 fingerprint should be 64 hex characters
-        return fingerprint.matches(Regex("^[a-fA-F0-9]{64}$"))
+    fun saveSigningKey(privateKey: ByteArray, publicKey: ByteArray) {
+        try {
+            // Validate Ed25519 key sizes
+            if (privateKey.size != 32 || publicKey.size != 32) {
+                throw IllegalArgumentException("Invalid signing key sizes: private=${privateKey.size}, public=${publicKey.size}")
+            }
+
+            val privateKeyString = android.util.Base64.encodeToString(privateKey, android.util.Base64.DEFAULT)
+            val publicKeyString = android.util.Base64.encodeToString(publicKey, android.util.Base64.DEFAULT)
+
+            prefs.edit()
+                .putString(KEY_SIGNING_PRIVATE_KEY, privateKeyString)
+                .putString(KEY_SIGNING_PUBLIC_KEY, publicKeyString)
+                .apply()
+
+            Log.d(TAG, "Saved signing key to secure storage")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save signing key: ${e.message}")
+            throw e
+        }
     }
 
-    // MARK: - Peer ID Rotation Management
+    // MARK: - Rotation Management
 
     /**
-     * Check if peer ID should be rotated based on random interval
+     * Schedule next rotation interval (5-15 minutes random)
      */
-    fun shouldRotatePeerID(): Boolean {
+    fun scheduleNextRotation() {
+        val interval = ThreadLocalRandom.current().nextLong(MIN_ROTATION_INTERVAL, MAX_ROTATION_INTERVAL + 1)
+        val now = System.currentTimeMillis()
+
+        prefs.edit()
+            .putLong(KEY_LAST_ROTATION, now)
+            .putLong(KEY_NEXT_ROTATION_INTERVAL, interval)
+            .apply()
+
+        Log.d(TAG, "Scheduled next rotation in ${interval / 1000} seconds")
+    }
+
+    /**
+     * Check if rotation is needed
+     */
+    fun needsRotation(): Boolean {
         val lastRotation = prefs.getLong(KEY_LAST_ROTATION, 0L)
         val nextInterval = prefs.getLong(KEY_NEXT_ROTATION_INTERVAL, 0L)
         val now = System.currentTimeMillis()
 
         if (lastRotation == 0L || nextInterval == 0L) {
-            // First run or missing data - schedule next rotation and don't rotate now
-            scheduleNextRotation()
-            return false
+            Log.d(TAG, "No previous rotation, needs rotation")
+            return true
         }
 
-        val shouldRotate = (now - lastRotation) >= nextInterval
-        if (shouldRotate) {
-            Log.d(TAG, "Peer ID rotation due: ${(now - lastRotation) / 1000}s since last rotation")
+        val timeSinceLast = now - lastRotation
+        val needs = timeSinceLast >= nextInterval
+        if (needs) {
+            Log.d(TAG, "Rotation needed: ${timeSinceLast / 1000}s > ${nextInterval / 1000}s")
         }
-
-        return shouldRotate
+        return needs
     }
 
     /**
-     * Mark rotation as completed and schedule next one
-     */
-    fun markRotationCompleted() {
-        val now = System.currentTimeMillis()
-        prefs.edit()
-            .putLong(KEY_LAST_ROTATION, now)
-            .apply()
-
-        scheduleNextRotation()
-
-        Log.d(TAG, "Peer ID rotation marked as completed")
-    }
-
-    /**
-     * Schedule the next rotation with random interval (5-15 minutes)
-     *
-     * Use ThreadLocalRandom for convenient bounded random long.
-     */
-    private fun scheduleNextRotation() {
-        val range = (MAX_ROTATION_INTERVAL - MIN_ROTATION_INTERVAL)
-        val offset = if (range <= Int.MAX_VALUE) {
-            random.nextInt(range.toInt()).toLong()
-        } else {
-            kotlin.math.abs(random.nextLong()) % range
-        }
-
-        val nextInterval = MIN_ROTATION_INTERVAL + offset
-
-        prefs.edit()
-            .putLong(KEY_NEXT_ROTATION_INTERVAL, nextInterval)
-            .apply()
-
-        Log.d(TAG, "Next peer ID rotation scheduled in ${nextInterval / 60000} minutes")
-    }
-
-
-    /**
-     * Get time until next rotation (for debugging)
+     * Get time remaining until next rotation
+     * Returns -1 if no rotation scheduled
      */
     fun getTimeUntilNextRotation(): Long {
         val lastRotation = prefs.getLong(KEY_LAST_ROTATION, 0L)
@@ -233,7 +250,7 @@ class SecureIdentityStateManager(private val context: Context) {
         // Check for all-zero key
         if (privateKey.all { it == 0.toByte() }) return false
 
-        // Check that clamping doges are correct for Curve25519
+        // Check that clamping bits are correct for Curve25519
         val clampedKey = privateKey.clone()
         clampedKey[0] = (clampedKey[0].toInt() and 248).toByte()
         clampedKey[31] = (clampedKey[31].toInt() and 127).toByte()
@@ -295,5 +312,46 @@ class SecureIdentityStateManager(private val context: Context) {
      */
     fun hasIdentityData(): Boolean {
         return prefs.contains(KEY_STATIC_PRIVATE_KEY) && prefs.contains(KEY_STATIC_PUBLIC_KEY)
+    }
+    
+    // MARK: - Public SharedPreferences Access (for favorites and Nostr data)
+    
+    /**
+     * Store a string value in secure preferences
+     */
+    fun storeSecureValue(key: String, value: String) {
+        prefs.edit().putString(key, value).apply()
+    }
+    
+    /**
+     * Retrieve a string value from secure preferences
+     */
+    fun getSecureValue(key: String): String? {
+        return prefs.getString(key, null)
+    }
+    
+    /**
+     * Remove a value from secure preferences
+     */
+    fun removeSecureValue(key: String) {
+        prefs.edit().remove(key).apply()
+    }
+    
+    /**
+     * Check if a key exists in secure preferences
+     */
+    fun hasSecureValue(key: String): Boolean {
+        return prefs.contains(key)
+    }
+    
+    /**
+     * Clear specific keys from secure preferences
+     */
+    fun clearSecureValues(vararg keys: String) {
+        val editor = prefs.edit()
+        keys.forEach { key ->
+            editor.remove(key)
+        }
+        editor.apply()
     }
 }

@@ -1,297 +1,124 @@
 package com.dogechat.android.onboarding
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import android.content.Intent
+import android.location.LocationManager
+import android.provider.Settings
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
 /**
- * Screen shown when checking location services status or requesting location services enable
+ * LocationCheckScreen
+ *
+ * Ensures location is enabled + permission granted before Dogechat enables
+ * geohash-based local channels and peer discovery improvements from upstream.
+ *
+ * onReady: called when location services are enabled AND the permission is granted.
  */
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun LocationCheckScreen(
-    status: LocationStatus,
-    onEnableLocation: () -> Unit,
-    onRetry: () -> Unit,
-    isLoading: Boolean = false
+    modifier: Modifier = Modifier,
+    onReady: () -> Unit,
+    // allow custom titles if you want to theme later
+    title: String = "Enable Location for Dogechat",
+    subtitle: String = "Dogechat uses approximate location to power geohash-based channels near you. " +
+            "We never store your precise location."
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        when (status) {
-            LocationStatus.DISABLED -> {
-                LocationDisabledContent(
-                    onEnableLocation = onEnableLocation,
-                    onRetry = onRetry,
-                    colorScheme = colorScheme,
-                    isLoading = isLoading
-                )
-            }
-            LocationStatus.NOT_AVAILABLE -> {
-                LocationNotAvailableContent(
-                    colorScheme = colorScheme
-                )
-            }
-            LocationStatus.ENABLED -> {
-                LocationCheckingContent(
-                    colorScheme = colorScheme
-                )
-            }
-        }
+    val context = LocalContext.current
+    val locationManager = remember {
+        context.getSystemService(LocationManager::class.java)
     }
-}
 
-@Composable
-private fun LocationDisabledContent(
-    onEnableLocation: () -> Unit,
-    onRetry: () -> Unit,
-    colorScheme: ColorScheme,
-    isLoading: Boolean
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Location icon - using LocationOn outlined icon in app's yellow color
-        Icon(
-            imageVector = Icons.Outlined.LocationOn,
-            contentDescription = "Location Services",
-            modifier = Modifier.size(64.dp),
-            tint = Color(0xFFFFFF00) // App's main yellow color
-        )
-
-        Text(
-            text = "Location Services Required",
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.primary
-            ),
-            textAlign = TextAlign.Center
-        )
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Privacy assurance section
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Security,
-                        contentDescription = "Privacy",
-                        tint = Color(0xFFFFFF00),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Privacy First",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurface
-                        )
-                    )
-                }
-                
-                Text(
-                    text = "dogechat does NOT track your location or use GPS.\n\nLocation services are required by Android for Bluetooth scanning to work properly. This is an Android system requirement.",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "dogechat needs location services for:",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                        color = colorScheme.onSurface
-                    ),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Text(
-                    text = "• Bluetooth device scanning (Android requirement)\n" +
-                            "• Discovering nearby users on mesh network\n" +
-                            "• Creating connections without internet\n" +
-                            "• No GPS tracking or location collection",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
-                )
-            }
-        }
-
-        if (isLoading) {
-            LocationLoadingIndicator()
-        } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Button(
-                    onClick = onEnableLocation,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFFF00) // App's main yellow color
-                    )
-                ) {
-                    Text(
-                        text = "Open Location Settings",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = onRetry,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Check Again",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = FontFamily.Monospace
-                        ),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LocationNotAvailableContent(
-    colorScheme: ColorScheme
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Error icon
-        Icon(
-            imageVector = Icons.Filled.ErrorOutline,
-            contentDescription = "Error",
-            modifier = Modifier.size(64.dp),
-            tint = colorScheme.error
-        )
-
-        Text(
-            text = "Location Services Unavailable",
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.error
-            ),
-            textAlign = TextAlign.Center
-        )
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = colorScheme.errorContainer.copy(alpha = 0.1f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Text(
-                text = "Location services are not available on this device. This is unusual as location services are standard on Android devices.\n\ndogechat needs location services for Bluetooth scanning to work properly (Android requirement). Without this, the app cannot discover nearby users.",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = FontFamily.Monospace,
-                    color = colorScheme.onSurface
-                ),
-                modifier = Modifier.padding(16.dp),
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-private fun LocationCheckingContent(
-    colorScheme: ColorScheme
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Đogechat",
-            style = MaterialTheme.typography.headlineLarge.copy(
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.primary
-            ),
-            textAlign = TextAlign.Center
-        )
-
-        LocationLoadingIndicator()
-
-        Text(
-            text = "Checking location services...",
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontFamily = FontFamily.Monospace,
-                color = colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-        )
-    }
-}
-
-@Composable
-private fun LocationLoadingIndicator() {
-    // Animated rotation for the loading indicator
-    val infiniteTransition = rememberInfiniteTransition(label = "location_loading")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
+    val fineLocationPermission = rememberPermissionState(
+        android.Manifest.permission.ACCESS_FINE_LOCATION
     )
 
-    Box(
-        modifier = Modifier.size(60.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator(
-            modifier = Modifier
-                .fillMaxSize()
-                .rotate(rotationAngle),
-            color = Color(0xFFFFFF00), // Location yellow
-            strokeWidth = 3.dp
+    val isProviderEnabled by remember {
+        mutableStateOf(
+            (locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true) ||
+            (locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true)
         )
+    }
+
+    // If permission is already granted and provider is enabled, proceed
+    SideEffect {
+        if (fineLocationPermission.status.isGranted && isProviderEnabled) {
+            onReady()
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.height(24.dp))
+
+        if (!fineLocationPermission.status.isGranted) {
+            Button(
+                onClick = { fineLocationPermission.launchPermissionRequest() }
+            ) {
+                Text("Allow Location Permission")
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        if (!isProviderEnabled) {
+            Button(
+                onClick = {
+                    // Open system Location settings so user can enable GPS/Network location
+                    context.startActivity(
+                        Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    )
+                }
+            ) {
+                Text("Open Location Settings")
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        OutlinedButton(
+            onClick = {
+                if (fineLocationPermission.status.isGranted && isProviderEnabled) {
+                    onReady()
+                }
+            },
+            enabled = fineLocationPermission.status.isGranted && isProviderEnabled
+        ) {
+            Text("Continue to Dogechat")
+        }
     }
 }
