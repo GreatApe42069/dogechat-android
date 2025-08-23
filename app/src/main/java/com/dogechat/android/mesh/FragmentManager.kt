@@ -1,10 +1,10 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.util.Log
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
-import com.bitchat.android.protocol.MessagePadding
-import com.bitchat.android.model.FragmentPayload
+import com.dogechat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.MessageType
+import com.dogechat.android.protocol.MessagePadding
+import com.dogechat.android.model.FragmentPayload
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 

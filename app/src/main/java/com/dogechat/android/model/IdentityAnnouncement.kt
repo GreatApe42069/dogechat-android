@@ -1,8 +1,8 @@
-package com.bitchat.android.model
+package com.dogechat.android.model
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
-import com.bitchat.android.util.*
+import com.dogechat.android.util.*
 
 /**
  * Identity announcement structure with TLV encoding

@@ -1,4 +1,4 @@
-//package com.bitchat.android.services
+//package com.dogechat.android.services
 //
 //import android.content.Context
 //import android.content.SharedPreferences

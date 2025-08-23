@@ -1,8 +1,8 @@
-package com.bitchat.android.favorites
+package com.dogechat.android.favorites
 
 import android.content.Context
 import android.util.Log
-import com.bitchat.android.identity.SecureIdentityStateManager
+import com.dogechat.android.identity.SecureIdentityStateManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.*

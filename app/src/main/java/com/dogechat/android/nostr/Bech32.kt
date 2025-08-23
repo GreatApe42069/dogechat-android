@@ -1,4 +1,4 @@
-package com.bitchat.android.nostr
+package com.dogechat.android.nostr
 
 /**
  * Bech32 encoding/decoding implementation for Nostr

@@ -1,4 +1,4 @@
-package com.bitchat.android.nostr
+package com.dogechat.android.nostr
 
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName

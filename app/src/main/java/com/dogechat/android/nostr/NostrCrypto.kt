@@ -1,4 +1,4 @@
-package com.bitchat.android.nostr
+package com.dogechat.android.nostr
 
 import org.bouncycastle.crypto.ec.CustomNamedCurves
 import org.bouncycastle.crypto.params.ECDomainParameters

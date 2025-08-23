@@ -1,9 +1,9 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.util.Log
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
-import com.bitchat.android.model.RoutedPacket
+import com.dogechat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.MessageType
+import com.dogechat.android.model.RoutedPacket
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.actor

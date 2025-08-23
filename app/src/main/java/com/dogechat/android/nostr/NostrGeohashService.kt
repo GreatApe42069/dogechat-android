@@ -1,17 +1,17 @@
 
-package com.bitchat.android.nostr
+package com.dogechat.android.nostr
 
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.viewModelScope
-import com.bitchat.android.mesh.BluetoothMeshService
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.ui.ChatState
-import com.bitchat.android.ui.MessageManager
-import com.bitchat.android.ui.MeshDelegateHandler
-import com.bitchat.android.ui.PrivateChatManager
-import com.bitchat.android.ui.GeoPerson
-import com.bitchat.android.ui.colorForPeerSeed
+import com.dogechat.android.mesh.BluetoothMeshService
+import com.dogechat.android.model.BitchatMessage
+import com.dogechat.android.ui.ChatState
+import com.dogechat.android.ui.MessageManager
+import com.dogechat.android.ui.MeshDelegateHandler
+import com.dogechat.android.ui.PrivateChatManager
+import com.dogechat.android.ui.GeoPerson
+import com.dogechat.android.ui.colorForPeerSeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -85,7 +85,7 @@ class NostrGeohashService(
     
     // MARK: - Location Channel Management Properties
     
-    private var locationChannelManager: com.bitchat.android.geohash.LocationChannelManager? = null
+    private var locationChannelManager: com.dogechat.android.geohash.LocationChannelManager? = null
     private var currentGeohashSubscriptionId: String? = null
     private var currentGeohashDmSubscriptionId: String? = null
     private var currentGeohash: String? = null
@@ -134,7 +134,7 @@ class NostrGeohashService(
     fun initializeLocationChannelState() {
         try {
             // Initialize location channel manager safely
-            locationChannelManager = com.bitchat.android.geohash.LocationChannelManager.getInstance(application)
+            locationChannelManager = com.dogechat.android.geohash.LocationChannelManager.getInstance(application)
             
             // Observe location channel manager state and trigger channel switching
             locationChannelManager?.selectedChannel?.observeForever { channel ->
@@ -151,7 +151,7 @@ class NostrGeohashService(
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to initialize location channel state: ${e.message}")
             // Set default values in case of failure
-            state.setSelectedLocationChannel(com.bitchat.android.geohash.ChannelID.Mesh)
+            state.setSelectedLocationChannel(com.dogechat.android.geohash.ChannelID.Mesh)
             state.setIsTeleported(false)
         }
     }
@@ -161,7 +161,7 @@ class NostrGeohashService(
     /**
      * Send message to geohash channel via Nostr ephemeral event
      */
-    fun sendGeohashMessage(content: String, channel: com.bitchat.android.geohash.GeohashChannel, myPeerID: String, nickname: String?) {
+    fun sendGeohashMessage(content: String, channel: com.dogechat.android.geohash.GeohashChannel, myPeerID: String, nickname: String?) {
         coroutineScope.launch {
             try {
                 val identity = NostrIdentityBridge.deriveIdentity(
@@ -248,26 +248,26 @@ class NostrGeohashService(
             val (content, senderPubkey, rumorTimestamp) = decryptResult
             
             // Expect embedded BitChat packet content
-            if (!content.startsWith("bitchat1:")) {
+            if (!content.startsWith("dogechat1:")) {
                 Log.d(TAG, "Ignoring non-embedded Nostr DM content")
                 return
             }
             
-            val base64Content = content.removePrefix("bitchat1:")
+            val base64Content = content.removePrefix("dogechat1:")
             val packetData = base64URLDecode(base64Content)
             if (packetData == null) {
                 Log.e(TAG, "Failed to decode base64url BitChat packet")
                 return
             }
             
-            val packet = com.bitchat.android.protocol.BitchatPacket.fromBinaryData(packetData)
+            val packet = com.dogechat.android.protocol.BitchatPacket.fromBinaryData(packetData)
             if (packet == null) {
                 Log.e(TAG, "Failed to parse embedded BitChat packet from Nostr DM")
                 return
             }
             
             // Only process noiseEncrypted envelope for private messages/receipts
-            if (packet.type != com.bitchat.android.protocol.MessageType.NOISE_ENCRYPTED.value) {
+            if (packet.type != com.dogechat.android.protocol.MessageType.NOISE_ENCRYPTED.value) {
                 Log.w(TAG, "Unsupported embedded packet type: ${packet.type}")
                 return
             }
@@ -280,7 +280,7 @@ class NostrGeohashService(
             }
             
             // Parse plaintext typed payload (NoisePayload)
-            val noisePayload = com.bitchat.android.model.NoisePayload.decode(packet.payload)
+            val noisePayload = com.dogechat.android.model.NoisePayload.decode(packet.payload)
             if (noisePayload == null) {
                 Log.e(TAG, "Failed to parse embedded NoisePayload")
                 return
@@ -315,14 +315,14 @@ class NostrGeohashService(
      * Process NoisePayload from Nostr message
      */
     private fun processNoisePayload(
-        noisePayload: com.bitchat.android.model.NoisePayload,
+        noisePayload: com.dogechat.android.model.NoisePayload,
         targetPeerID: String,
         senderNickname: String,
         messageTimestamp: Date
     ) {
         when (noisePayload.type) {
-            com.bitchat.android.model.NoisePayloadType.PRIVATE_MESSAGE -> {
-                val pm = com.bitchat.android.model.PrivateMessagePacket.decode(noisePayload.data)
+            com.dogechat.android.model.NoisePayloadType.PRIVATE_MESSAGE -> {
+                val pm = com.dogechat.android.model.PrivateMessagePacket.decode(noisePayload.data)
                 if (pm == null) {
                     Log.e(TAG, "Failed to decode PrivateMessagePacket")
                     return
@@ -361,7 +361,7 @@ class NostrGeohashService(
                     isPrivate = true,
                     recipientNickname = state.getNicknameValue(),
                     senderPeerID = targetPeerID,
-                    deliveryStatus = com.bitchat.android.model.DeliveryStatus.Delivered(
+                    deliveryStatus = com.dogechat.android.model.DeliveryStatus.Delivered(
                         to = state.getNicknameValue() ?: "Unknown",
                         at = Date()
                     )
@@ -379,14 +379,14 @@ class NostrGeohashService(
                 Log.i(TAG, "📥 Processed Nostr private message from $senderNickname")
             }
             
-            com.bitchat.android.model.NoisePayloadType.DELIVERED -> {
+            com.dogechat.android.model.NoisePayloadType.DELIVERED -> {
                 val messageId = String(noisePayload.data, Charsets.UTF_8)
                 // Use the existing delegate to handle delivery acknowledgment
                 meshDelegateHandler.didReceiveDeliveryAck(messageId, targetPeerID)
                 Log.d(TAG, "📥 Processed Nostr delivery ACK for message $messageId")
             }
             
-            com.bitchat.android.model.NoisePayloadType.READ_RECEIPT -> {
+            com.dogechat.android.model.NoisePayloadType.READ_RECEIPT -> {
                 val messageId = String(noisePayload.data, Charsets.UTF_8)
                 // Use the existing delegate to handle read receipt
                 meshDelegateHandler.didReceiveReadReceipt(messageId, targetPeerID)
@@ -399,14 +399,14 @@ class NostrGeohashService(
      * Find Noise key for Nostr pubkey from favorites
      */
     private fun findNoiseKeyForNostrPubkey(nostrPubkey: String): ByteArray? {
-        return com.bitchat.android.favorites.FavoritesPersistenceService.shared.findNoiseKey(nostrPubkey)
+        return com.dogechat.android.favorites.FavoritesPersistenceService.shared.findNoiseKey(nostrPubkey)
     }
     
     /**
      * Get favorite nickname for Noise key
      */
     private fun getFavoriteNickname(noiseKey: ByteArray): String? {
-        return com.bitchat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey)?.peerNickname
+        return com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey)?.peerNickname
     }
     
     /**
@@ -726,7 +726,7 @@ class NostrGeohashService(
     
     // MARK: - Location Channel Management
     
-    fun selectLocationChannel(channel: com.bitchat.android.geohash.ChannelID) {
+    fun selectLocationChannel(channel: com.dogechat.android.geohash.ChannelID) {
         locationChannelManager?.select(channel) ?: run {
             Log.w(TAG, "Cannot select location channel - LocationChannelManager not initialized")
         }
@@ -736,7 +736,7 @@ class NostrGeohashService(
      * Switch to location channel and set up proper Nostr subscriptions (iOS-compatible)
      * Optimized for non-blocking UI with immediate feedback
      */
-    private fun switchLocationChannel(channel: com.bitchat.android.geohash.ChannelID?) {
+    private fun switchLocationChannel(channel: com.dogechat.android.geohash.ChannelID?) {
         // STEP 1: Immediate UI updates (synchronous, no blocking)
         try {
             // Clear all displayed messages and load stored messages for the new channel
@@ -744,7 +744,7 @@ class NostrGeohashService(
             Log.d(TAG, "🗑️ Cleared all messages for channel switch")
             
             when (channel) {
-                is com.bitchat.android.geohash.ChannelID.Mesh -> {
+                is com.dogechat.android.geohash.ChannelID.Mesh -> {
                     Log.d(TAG, "📡 Switched to mesh channel")
                     // Immediate UI state updates
                     currentGeohash = null
@@ -754,7 +754,7 @@ class NostrGeohashService(
                     state.setTeleportedGeo(emptySet())
                 }
                 
-                is com.bitchat.android.geohash.ChannelID.Location -> {
+                is com.dogechat.android.geohash.ChannelID.Location -> {
                     Log.d(TAG, "📍 Switching to geohash channel: ${channel.channel.geohash}")
                     currentGeohash = channel.channel.geohash
                     // Note: Don't clear geoNicknames - they contain cached nicknames for all geohashes
@@ -837,7 +837,7 @@ class NostrGeohashService(
                 }
                 
                 // Setup new subscriptions for location channels
-                if (channel is com.bitchat.android.geohash.ChannelID.Location) {
+                if (channel is com.dogechat.android.geohash.ChannelID.Location) {
                     Log.d(TAG, "🌐 Setting up Nostr subscriptions for geohash: ${channel.channel.geohash}")
                     
                     try {
@@ -1007,7 +1007,7 @@ class NostrGeohashService(
             // This prevents messages from being lost during channel switching race conditions
             val selectedLocationChannel = state.selectedLocationChannel.value
             val shouldShowMessage = currentGeohash == geohash || 
-                (selectedLocationChannel is com.bitchat.android.geohash.ChannelID.Location && 
+                (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location && 
                  selectedLocationChannel.channel.geohash == geohash)
             
             if (shouldShowMessage) {
@@ -1048,22 +1048,22 @@ class NostrGeohashService(
             val (content, senderPubkey, rumorTimestamp) = decryptResult
             
             // Only process BitChat embedded messages
-            if (!content.startsWith("bitchat1:")) return
+            if (!content.startsWith("dogechat1:")) return
             
-            val base64Content = content.removePrefix("bitchat1:")
+            val base64Content = content.removePrefix("dogechat1:")
             val packetData = base64URLDecode(base64Content) ?: return
-            val packet = com.bitchat.android.protocol.BitchatPacket.fromBinaryData(packetData) ?: return
+            val packet = com.dogechat.android.protocol.BitchatPacket.fromBinaryData(packetData) ?: return
             
-            if (packet.type != com.bitchat.android.protocol.MessageType.NOISE_ENCRYPTED.value) return
+            if (packet.type != com.dogechat.android.protocol.MessageType.NOISE_ENCRYPTED.value) return
             
-            val noisePayload = com.bitchat.android.model.NoisePayload.decode(packet.payload) ?: return
+            val noisePayload = com.dogechat.android.model.NoisePayload.decode(packet.payload) ?: return
             val messageTimestamp = Date(rumorTimestamp * 1000L)
             val convKey = "nostr_${senderPubkey.take(16)}"
             nostrKeyMapping[convKey] = senderPubkey
             
             when (noisePayload.type) {
-                com.bitchat.android.model.NoisePayloadType.PRIVATE_MESSAGE -> {
-                    val pm = com.bitchat.android.model.PrivateMessagePacket.decode(noisePayload.data) ?: return
+                com.dogechat.android.model.NoisePayloadType.PRIVATE_MESSAGE -> {
+                    val pm = com.dogechat.android.model.PrivateMessagePacket.decode(noisePayload.data) ?: return
                     val messageId = pm.messageID
                     
                     Log.d(TAG, "📥 Received geohash DM from ${senderPubkey.take(8)}...")
@@ -1091,7 +1091,7 @@ class NostrGeohashService(
                         isPrivate = true,
                         recipientNickname = state.getNicknameValue(),
                         senderPeerID = convKey,
-                        deliveryStatus = com.bitchat.android.model.DeliveryStatus.Delivered(
+                        deliveryStatus = com.dogechat.android.model.DeliveryStatus.Delivered(
                             to = state.getNicknameValue() ?: "Unknown",
                             at = Date()
                         )
@@ -1107,12 +1107,12 @@ class NostrGeohashService(
                     }
                 }
                 
-                com.bitchat.android.model.NoisePayloadType.DELIVERED -> {
+                com.dogechat.android.model.NoisePayloadType.DELIVERED -> {
                     val messageId = String(noisePayload.data, Charsets.UTF_8)
                     meshDelegateHandler.didReceiveDeliveryAck(messageId, convKey)
                 }
                 
-                com.bitchat.android.model.NoisePayloadType.READ_RECEIPT -> {
+                com.dogechat.android.model.NoisePayloadType.READ_RECEIPT -> {
                     val messageId = String(noisePayload.data, Charsets.UTF_8)
                     meshDelegateHandler.didReceiveReadReceipt(messageId, convKey)
                 }
@@ -1176,10 +1176,10 @@ class NostrGeohashService(
         coroutineScope.launch {
             try {
                 // Get the current geohash from location channel manager
-                val locationChannelManager = com.bitchat.android.geohash.LocationChannelManager.getInstance(application)
+                val locationChannelManager = com.dogechat.android.geohash.LocationChannelManager.getInstance(application)
                 val selectedChannel = locationChannelManager.selectedChannel.value
                 
-                if (selectedChannel !is com.bitchat.android.geohash.ChannelID.Location) {
+                if (selectedChannel !is com.dogechat.android.geohash.ChannelID.Location) {
                     Log.w(TAG, "Cannot send geohash DM: not in a location channel")
                     return@launch
                 }
@@ -1224,10 +1224,10 @@ class NostrGeohashService(
         coroutineScope.launch {
             try {
                 // Get the current geohash from location channel manager
-                val locationChannelManager = com.bitchat.android.geohash.LocationChannelManager.getInstance(application)
+                val locationChannelManager = com.dogechat.android.geohash.LocationChannelManager.getInstance(application)
                 val selectedChannel = locationChannelManager.selectedChannel.value
                 
-                if (selectedChannel !is com.bitchat.android.geohash.ChannelID.Location) {
+                if (selectedChannel !is com.dogechat.android.geohash.ChannelID.Location) {
                     Log.w(TAG, "Cannot send geohash read receipt: not in a location channel")
                     return@launch
                 }

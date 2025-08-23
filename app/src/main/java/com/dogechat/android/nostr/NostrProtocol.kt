@@ -1,4 +1,4 @@
-package com.bitchat.android.nostr
+package com.dogechat.android.nostr
 
 import android.util.Log
 import com.google.gson.Gson
