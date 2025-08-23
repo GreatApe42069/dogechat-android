@@ -1,8 +1,8 @@
-package com.bitchat.android.nostr
+package com.dogechat.android.nostr
 
 import android.content.Context
 import android.util.Log
-import com.bitchat.android.identity.SecureIdentityStateManager
+import com.dogechat.android.identity.SecureIdentityStateManager
 import java.security.MessageDigest
 import java.security.SecureRandom
 

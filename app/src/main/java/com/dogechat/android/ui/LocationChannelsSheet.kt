@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import android.content.Intent
 import android.net.Uri
@@ -24,10 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import com.bitchat.android.geohash.ChannelID
-import com.bitchat.android.geohash.GeohashChannel
-import com.bitchat.android.geohash.GeohashChannelLevel
-import com.bitchat.android.geohash.LocationChannelManager
+import com.dogechat.android.geohash.ChannelID
+import com.dogechat.android.geohash.GeohashChannel
+import com.dogechat.android.geohash.GeohashChannelLevel
+import com.dogechat.android.geohash.LocationChannelManager
 import java.util.*
 
 /**

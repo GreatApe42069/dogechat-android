@@ -1,4 +1,4 @@
-package com.bitchat.android.ui
+package com.dogechat.android.ui
 
 import android.util.Log
 import androidx.compose.foundation.*
@@ -86,9 +86,9 @@ fun GeohashPeopleList(
             // Get current geohash identity for "me" detection
             val myHex = remember(selectedLocationChannel) {
                 when (val channel = selectedLocationChannel) {
-                    is com.bitchat.android.geohash.ChannelID.Location -> {
+                    is com.dogechat.android.geohash.ChannelID.Location -> {
                         try {
-                            val identity = com.bitchat.android.nostr.NostrIdentityBridge.deriveIdentity(
+                            val identity = com.dogechat.android.nostr.NostrIdentityBridge.deriveIdentity(
                                 forGeohash = channel.channel.geohash,
                                 context = viewModel.getApplication()
                             )
@@ -196,7 +196,7 @@ private fun GeohashPersonItem(
         Spacer(modifier = Modifier.width(8.dp))
         
         // Display name with suffix handling (matches iOS splitSuffix logic)
-        val (baseName, suffix) = com.bitchat.android.ui.splitSuffix(person.displayName)
+        val (baseName, suffix) = com.dogechat.android.ui.splitSuffix(person.displayName)
         
         // Get consistent peer color (matches iOS color assignment exactly)
         val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
