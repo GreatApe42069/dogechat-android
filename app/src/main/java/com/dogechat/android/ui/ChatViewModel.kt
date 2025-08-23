@@ -41,15 +41,12 @@ class ChatViewModel(
     private val noiseSessionDelegate = object : NoiseSessionDelegate {
         override fun hasEstablishedSession(peerID: String): Boolean = meshService.hasEstablishedSession(peerID)
         override fun initiateHandshake(peerID: String) = meshService.initiateNoiseHandshake(peerID) 
-        override fun broadcastNoiseIdentityAnnouncement() = meshService.broadcastNoiseIdentityAnnouncement()
-        override fun sendHandshakeRequest(targetPeerID: String, pendingCount: UByte) = meshService.sendHandshakeRequest(targetPeerID, pendingCount)
         override fun getMyPeerID(): String = meshService.myPeerID
     }
     
     val privateChatManager = PrivateChatManager(state, messageManager, dataManager, noiseSessionDelegate)
     private val commandProcessor = CommandProcessor(state, messageManager, channelManager, privateChatManager)
     private val notificationManager = NotificationManager(application.applicationContext)
-    
     // Delegate handler for mesh callbacks
     private val meshDelegateHandler = MeshDelegateHandler(
         state = state,
@@ -61,6 +58,16 @@ class ChatViewModel(
         onHapticFeedback = { ChatViewModelUtils.triggerHapticFeedback(application.applicationContext) },
         getMyPeerID = { meshService.myPeerID },
         getMeshService = { meshService }
+    )
+    
+    // Nostr and Geohash service - initialize singleton
+    private val nostrGeohashService = NostrGeohashService.initialize(
+        application = application,
+        state = state,
+        messageManager = messageManager,
+        privateChatManager = privateChatManager,
+        meshDelegateHandler = meshDelegateHandler,
+        coroutineScope = viewModelScope
     )
     
     // Expose state through LiveData (maintaining the same interface)
@@ -91,6 +98,11 @@ class ChatViewModel(
     val peerNicknames: LiveData<Map<String, String>> = state.peerNicknames
     val peerRSSI: LiveData<Map<String, Int>> = state.peerRSSI
     val showAppInfo: LiveData<Boolean> = state.showAppInfo
+    val selectedLocationChannel: LiveData<com.dogechat.android.geohash.ChannelID?> = state.selectedLocationChannel
+    val isTeleported: LiveData<Boolean> = state.isTeleported
+    val geohashPeople: LiveData<List<GeoPerson>> = state.geohashPeople
+    val teleportedGeo: LiveData<Set<String>> = state.teleportedGeo
+    val geohashParticipantCounts: LiveData<Map<String, Int>> = state.geohashParticipantCounts
     
     init {
         // Note: Mesh service delegate is now set by MainActivity
@@ -116,261 +128,166 @@ class ChatViewModel(
             }
         }
         
-        // Load other data
-        dataManager.loadFavorites()
+        // Load favorites and blocked users (fingerprints only)
         state.setFavoritePeers(dataManager.favoritePeers.toSet())
-        dataManager.loadBlockedUsers()
+        state.setBlockedPeers(dataManager.blockedPeers.toSet())
         
-        // Log all favorites at startup
-        dataManager.logAllFavorites()
-        logCurrentFavoriteState()
+        // Load peer nicknames from mesh service
+        state.setPeerNicknames(meshService.getPeerNicknames())
         
-        // Initialize session state monitoring
-        initializeSessionStateMonitoring()
+        // Load peer RSSI from mesh service
+        state.setPeerRSSI(meshService.getPeerRSSI())
         
-        // Note: Mesh service is now started by MainActivity
+        // Load peer session states from mesh service
+        state.setPeerSessionStates(meshService.getPeerSessionStates())
         
-        // Show welcome message if no peers after delay
+        // Load peer fingerprints from centralized manager
+        state.setPeerFingerprints(privateChatManager.getAllPeerFingerprints())
+        
+        // Initialize geohash channels
+        nostrGeohashService.loadGeohashChannels()
+        
+        // Start geohash monitoring
+        nostrGeohashService.startGeohashMonitoring()
+        
+        // Start sampling nearby geohashes
+        beginGeohashSampling(listOf("9z", "9y", "9x")) // Example geohashes
+        
+        // Periodic cleanup
         viewModelScope.launch {
-            delay(10000)
-            if (state.getConnectedPeersValue().isEmpty() && state.getMessagesValue().isEmpty()) {
-                val welcomeMessage = dogechatMessage(
-                    sender = "system",
-                    content = "get Such people around you to So download dogechat and Very chat with Many friends here!",
-                    timestamp = Date(),
-                    isRelay = false
-                )
-                messageManager.addMessage(welcomeMessage)
+            while (true) {
+                cleanupDisconnectedPeers()
+                delay(30000) // Every 30 seconds
             }
         }
     }
     
-    override fun onCleared() {
-        super.onCleared()
-        // Note: Mesh service lifecycle is now managed by MainActivity
-    }
-    
     // MARK: - Nickname Management
     
-    fun setNickname(newNickname: String) {
+    fun updateNickname(newNickname: String) {
         state.setNickname(newNickname)
         dataManager.saveNickname(newNickname)
-        meshService.sendBroadcastAnnounce()
+        meshService.updateNickname(newNickname)
     }
     
-    // MARK: - Channel Management (delegated)
+    // MARK: - Message Sending
     
-    fun joinChannel(channel: String, password: String? = null): Boolean {
-        return channelManager.joinChannel(channel, password, meshService.myPeerID)
+    fun sendMessage(
+        content: String,
+        mentions: List<String>,
+        meshService: BluetoothMeshService,
+        viewModel: ChatViewModel? = null
+    ) {
+        val currentChannel = state.getCurrentChannelValue()
+        val selectedPrivatePeer = state.getSelectedPrivateChatPeerValue()
+        val senderNickname = state.getNicknameValue()
+        val myPeerID = meshService.myPeerID
+        
+        if (content.startsWith("/")) {
+            if (commandProcessor.processCommand(content, meshService, myPeerID, ::sendMessage, viewModel)) {
+                return
+            }
+        }
+        
+        val message = dogechatMessage(
+            sender = senderNickname,
+            content = content,
+            timestamp = Date(),
+            isRelay = false,
+            senderPeerID = myPeerID,
+            mentions = if (mentions.isNotEmpty()) mentions else null,
+            channel = currentChannel,
+            isPrivate = selectedPrivatePeer != null,
+            recipientNickname = selectedPrivatePeer?.let { getPeerNickname(it, meshService) }
+        )
+        
+        when {
+            selectedPrivatePeer != null -> {
+                privateChatManager.sendPrivateMessage(
+                    content,
+                    selectedPrivatePeer,
+                    message.recipientNickname,
+                    senderNickname,
+                    myPeerID
+                ) { cont, peerID, recipNick, msgId ->
+                    meshService.sendPrivateMessage(cont, peerID, recipNick, msgId)
+                }
+            }
+            currentChannel != null -> {
+                if (channelManager.isChannelPasswordProtected(currentChannel) && channelManager.hasChannelKey(currentChannel)) {
+                    channelManager.sendEncryptedChannelMessage(
+                        content,
+                        mentions,
+                        currentChannel,
+                        senderNickname,
+                        myPeerID,
+                        onEncryptedPayload = { payload ->
+                            meshService.broadcastMessage(payload)
+                        },
+                        onFallback = {
+                            val fallbackMessage = dogechatMessage(
+                                sender = "system",
+                                content = "encryption failed - sending unencrypted",
+                                timestamp = Date(),
+                                isRelay = false
+                            )
+                            messageManager.addMessage(fallbackMessage)
+                            meshService.broadcastMessage(message.toBinaryPayload() ?: return@sendEncryptedChannelMessage)
+                        }
+                    )
+                } else {
+                    meshService.broadcastMessage(message.toBinaryPayload() ?: return)
+                    channelManager.addChannelMessage(currentChannel, message, myPeerID)
+                }
+            }
+            else -> {
+                meshService.broadcastMessage(message.toBinaryPayload() ?: return)
+                messageManager.addMessage(message)
+            }
+        }
+    }
+    
+    // MARK: - Channel Operations
+    
+    fun joinChannel(channel: String, password: String? = null) {
+        channelManager.joinChannel(channel, password, meshService.myPeerID)
+    }
+    
+    fun leaveChannel(channel: String) {
+        channelManager.leaveChannel(channel)
     }
     
     fun switchToChannel(channel: String?) {
         channelManager.switchToChannel(channel)
     }
     
-    fun leaveChannel(channel: String) {
-        channelManager.leaveChannel(channel)
-        meshService.sendMessage("left $channel")
+    fun setChannelPassword(channel: String, password: String) {
+        channelManager.setChannelPassword(channel, password)
     }
     
-    // MARK: - Private Chat Management (delegated)
+    // MARK: - Private Chat Operations
     
     fun startPrivateChat(peerID: String) {
-        val success = privateChatManager.startPrivateChat(peerID, meshService)
-        if (success) {
-            // Notify notification manager about current private chat
-            setCurrentPrivateChatPeer(peerID)
-            // Clear notifications for this sender since user is now viewing the chat
-            clearNotificationsForSender(peerID)
-        }
+        privateChatManager.startPrivateChat(peerID, meshService)
     }
     
     fun endPrivateChat() {
         privateChatManager.endPrivateChat()
-        // Notify notification manager that no private chat is active
-        setCurrentPrivateChatPeer(null)
-    }
-    
-    // MARK: - Message Sending
-    
-    fun sendMessage(content: String) {
-        if (content.isEmpty()) return
-        
-        // Check for commands
-        if (content.startsWith("/")) {
-            commandProcessor.processCommand(content, meshService, meshService.myPeerID) { messageContent, mentions, channel ->
-                meshService.sendMessage(messageContent, mentions, channel)
-            }
-            return
-        }
-        
-        val mentions = messageManager.parseMentions(content, meshService.getPeerNicknames().values.toSet(), state.getNicknameValue())
-        val channels = messageManager.parseChannels(content)
-        
-        // Auto-join mentioned channels
-        channels.forEach { channel ->
-            if (!state.getJoinedChannelsValue().contains(channel)) {
-                joinChannel(channel)
-            }
-        }
-        
-        val selectedPeer = state.getSelectedPrivateChatPeerValue()
-        val currentChannelValue = state.getCurrentChannelValue()
-        
-        if (selectedPeer != null) {
-            // Send private message
-            val recipientNickname = meshService.getPeerNicknames()[selectedPeer]
-            privateChatManager.sendPrivateMessage(
-                content, 
-                selectedPeer, 
-                recipientNickname,
-                state.getNicknameValue(),
-                meshService.myPeerID
-            ) { messageContent, peerID, recipientNicknameParam, messageId ->
-                meshService.sendPrivateMessage(messageContent, peerID, recipientNicknameParam, messageId)
-            }
-        } else {
-            // Send public/channel message
-            val message = dogechatMessage(
-                sender = state.getNicknameValue() ?: meshService.myPeerID,
-                content = content,
-                timestamp = Date(),
-                isRelay = false,
-                senderPeerID = meshService.myPeerID,
-                mentions = if (mentions.isNotEmpty()) mentions else null,
-                channel = currentChannelValue
-            )
-            
-            if (currentChannelValue != null) {
-                channelManager.addChannelMessage(currentChannelValue, message, meshService.myPeerID)
-                
-                // Check if encrypted channel
-                if (channelManager.hasChannelKey(currentChannelValue)) {
-                    channelManager.sendEncryptedChannelMessage(
-                        content, 
-                        mentions, 
-                        currentChannelValue, 
-                        state.getNicknameValue(),
-                        meshService.myPeerID,
-                        onEncryptedPayload = { encryptedData ->
-                            // This would need proper mesh service integration
-                            meshService.sendMessage(content, mentions, currentChannelValue)
-                        },
-                        onFallback = {
-                            meshService.sendMessage(content, mentions, currentChannelValue)
-                        }
-                    )
-                } else {
-                    meshService.sendMessage(content, mentions, currentChannelValue)
-                }
-            } else {
-                messageManager.addMessage(message)
-                meshService.sendMessage(content, mentions, null)
-            }
-        }
-    }
-    
-    // MARK: - Utility Functions
-    
-    fun getPeerIDForNickname(nickname: String): String? {
-        return meshService.getPeerNicknames().entries.find { it.value == nickname }?.key
     }
     
     fun toggleFavorite(peerID: String) {
-        Log.d("ChatViewModel", "toggleFavorite called for peerID: $peerID")
         privateChatManager.toggleFavorite(peerID)
-        
-        // Log current state after toggle
-        logCurrentFavoriteState()
     }
     
-    private fun logCurrentFavoriteState() {
-        Log.i("ChatViewModel", "=== CURRENT FAVORITE STATE ===")
-        Log.i("ChatViewModel", "LiveData favorite peers: ${favoritePeers.value}")
-        Log.i("ChatViewModel", "DataManager favorite peers: ${dataManager.favoritePeers}")
-        Log.i("ChatViewModel", "Peer fingerprints: ${privateChatManager.getAllPeerFingerprints()}")
-        Log.i("ChatViewModel", "==============================")
+    fun blockPeer(peerID: String) {
+        privateChatManager.blockPeer(peerID, meshService)
     }
     
-    /**
-     * Initialize session state monitoring for reactive UI updates
-     */
-    private fun initializeSessionStateMonitoring() {
-        viewModelScope.launch {
-            while (true) {
-                delay(1000) // Check session states every second
-                updateReactiveStates()
-            }
-        }
+    fun unblockPeer(peerID: String) {
+        privateChatManager.unblockPeer(peerID, meshService)
     }
     
-    /**
-     * Update reactive states for all connected peers (session states, fingerprints, nicknames, RSSI)
-     */
-    private fun updateReactiveStates() {
-        val currentPeers = state.getConnectedPeersValue()
-        
-        // Update session states
-        val sessionStates = currentPeers.associateWith { peerID ->
-            meshService.getSessionState(peerID).toString()
-        }
-        state.setPeerSessionStates(sessionStates)
-        // Update fingerprint mappings from centralized manager
-        val fingerprints = privateChatManager.getAllPeerFingerprints()
-        state.setPeerFingerprints(fingerprints)
-
-        val nicknames = meshService.getPeerNicknames()
-        state.setPeerNicknames(nicknames)
-
-        val rssiValues = meshService.getPeerRSSI()
-        state.setPeerRSSI(rssiValues)
-    }
-    
-    // MARK: - Debug and Troubleshooting
-    
-    fun getDebugStatus(): String {
-        return meshService.getDebugStatus()
-    }
-    
-    // Note: Mesh service restart is now handled by MainActivity
-    // This function is no longer needed
-    
-    fun setAppBackgroundState(inBackground: Boolean) {
-        // Forward to notification manager for notification logic
-        notificationManager.setAppBackgroundState(inBackground)
-    }
-    
-    fun setCurrentPrivateChatPeer(peerID: String?) {
-        // Update notification manager with current private chat peer
-        notificationManager.setCurrentPrivateChatPeer(peerID)
-    }
-    
-    fun clearNotificationsForSender(peerID: String) {
-        // Clear notifications when user opens a chat
-        notificationManager.clearNotificationsForSender(peerID)
-    }
-    
-    // MARK: - Command Autocomplete (delegated)
-    
-    fun updateCommandSuggestions(input: String) {
-        commandProcessor.updateCommandSuggestions(input)
-    }
-    
-    fun selectCommandSuggestion(suggestion: CommandSuggestion): String {
-        return commandProcessor.selectCommandSuggestion(suggestion)
-    }
-    
-    // MARK: - Mention Autocomplete
-    
-    fun updateMentionSuggestions(input: String) {
-        commandProcessor.updateMentionSuggestions(input, meshService)
-    }
-    
-    fun selectMentionSuggestion(nickname: String, currentText: String): String {
-        return commandProcessor.selectMentionSuggestion(nickname, currentText)
-    }
-    
-    // MARK: - BluetoothMeshDelegate Implementation (delegated)
+    // MARK: - Mesh Delegate Callbacks (via handler)
     
     override fun didReceiveMessage(message: dogechatMessage) {
         meshDelegateHandler.didReceiveMessage(message)
@@ -384,12 +301,12 @@ class ChatViewModel(
         meshDelegateHandler.didReceiveChannelLeave(channel, fromPeer)
     }
     
-    override fun didReceiveDeliveryAck(ack: DeliveryAck) {
-        meshDelegateHandler.didReceiveDeliveryAck(ack)
+    override fun didReceiveDeliveryAck(messageID: String, recipientPeerID: String) {
+        meshDelegateHandler.didReceiveDeliveryAck(messageID, recipientPeerID)
     }
     
-    override fun didReceiveReadReceipt(receipt: ReadReceipt) {
-        meshDelegateHandler.didReceiveReadReceipt(receipt)
+    override fun didReceiveReadReceipt(messageID: String, recipientPeerID: String) {
+        meshDelegateHandler.didReceiveReadReceipt(messageID, recipientPeerID)
     }
     
     override fun decryptChannelMessage(encryptedContent: ByteArray, channel: String): String? {
@@ -403,8 +320,6 @@ class ChatViewModel(
     override fun isFavorite(peerID: String): Boolean {
         return meshDelegateHandler.isFavorite(peerID)
     }
-    
-    // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager
     
     // MARK: - Emergency Clear
     
@@ -425,6 +340,9 @@ class ChatViewModel(
         
         // Clear all notifications
         notificationManager.clearAllNotifications()
+        
+        // Clear geohash message history
+        nostrGeohashService.clearGeohashMessageHistory()
         
         // Reset nickname
         val newNickname = "anon${Random.nextInt(1000, 9999)}"
@@ -472,6 +390,47 @@ class ChatViewModel(
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error clearing cryptographic data: ${e.message}")
         }
+    }
+    
+    /**
+     * Get participant count for a specific geohash (5-minute activity window)
+     */
+    fun geohashParticipantCount(geohash: String): Int {
+        return nostrGeohashService.geohashParticipantCount(geohash)
+    }
+    
+    /**
+     * Begin sampling multiple geohashes for participant activity
+     */
+    fun beginGeohashSampling(geohashes: List<String>) {
+        nostrGeohashService.beginGeohashSampling(geohashes)
+    }
+    
+    /**
+     * End geohash sampling
+     */
+    fun endGeohashSampling() {
+        nostrGeohashService.endGeohashSampling()
+    }
+    
+    /**
+     * Check if a geohash person is teleported (iOS-compatible)
+     */
+    fun isPersonTeleported(pubkeyHex: String): Boolean {
+        return nostrGeohashService.isPersonTeleported(pubkeyHex)
+    }
+    
+    /**
+     * Start geohash DM with pubkey hex (iOS-compatible)
+     */
+    fun startGeohashDM(pubkeyHex: String) {
+        nostrGeohashService.startGeohashDM(pubkeyHex) { convKey ->
+            startPrivateChat(convKey)
+        }
+    }
+    
+    fun selectLocationChannel(channel: com.dogechat.android.geohash.ChannelID) {
+        nostrGeohashService.selectLocationChannel(channel)
     }
     
     // MARK: - Navigation Management
@@ -527,5 +486,32 @@ class ChatViewModel(
             // No special navigation state - let system handle (usually exits app)
             else -> false
         }
+    }
+    
+    // MARK: - iOS-Compatible Color System
+    
+    /**
+     * Get consistent color for a mesh peer by ID (iOS-compatible)
+     */
+    fun colorForMeshPeer(peerID: String, isDark: Boolean): androidx.compose.ui.graphics.Color {
+        // Try to get stable Noise key, fallback to peer ID
+        val seed = "noise:${peerID.lowercase()}"
+        return colorForPeerSeed(seed, isDark).copy()
+    }
+    
+    /**
+     * Get consistent color for a Nostr pubkey (iOS-compatible)
+     */
+    fun colorForNostrPubkey(pubkeyHex: String, isDark: Boolean): androidx.compose.ui.graphics.Color {
+        return nostrGeohashService.colorForNostrPubkey(pubkeyHex, isDark)
+    }
+    
+    // MARK: - Cleanup
+    
+    private fun cleanupDisconnectedPeers() {
+        val connectedPeers = state.getConnectedPeersValue()
+        val myPeerID = meshService.myPeerID
+        channelManager.cleanupDisconnectedMembers(connectedPeers, myPeerID)
+        privateChatManager.cleanupDisconnectedPeer(myPeerID)
     }
 }

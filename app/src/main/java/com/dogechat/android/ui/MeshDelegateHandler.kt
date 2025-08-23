@@ -1,7 +1,7 @@
 package com.dogechat.android.ui
 
-import androidx.lifecycle.LifecycleCoroutineScope
 import com.dogechat.android.mesh.BluetoothMeshDelegate
+import com.dogechat.android.mesh.BluetoothMeshService
 import com.dogechat.android.model.dogechatMessage
 import com.dogechat.android.model.DeliveryAck
 import com.dogechat.android.model.DeliveryStatus
@@ -22,7 +22,7 @@ class MeshDelegateHandler(
     private val coroutineScope: CoroutineScope,
     private val onHapticFeedback: () -> Unit,
     private val getMyPeerID: () -> String,
-    private val getMeshService: () -> Any
+    private val getMeshService: () -> BluetoothMeshService
 ) : BluetoothMeshDelegate {
 
     override fun didReceiveMessage(message: dogechatMessage) {
@@ -103,15 +103,15 @@ class MeshDelegateHandler(
         }
     }
     
-    override fun didReceiveDeliveryAck(ack: DeliveryAck) {
+    override fun didReceiveDeliveryAck(messageID: String, recipientPeerID: String) {
         coroutineScope.launch {
-            messageManager.updateMessageDeliveryStatus(ack.originalMessageID, DeliveryStatus.Delivered(ack.recipientNickname, ack.timestamp))
+            messageManager.updateMessageDeliveryStatus(messageID, DeliveryStatus.Delivered(recipientPeerID, Date()))
         }
     }
     
-    override fun didReceiveReadReceipt(receipt: ReadReceipt) {
+    override fun didReceiveReadReceipt(messageID: String, recipientPeerID: String) {
         coroutineScope.launch {
-            messageManager.updateMessageDeliveryStatus(receipt.originalMessageID, DeliveryStatus.Read(receipt.readerNickname, receipt.timestamp))
+            messageManager.updateMessageDeliveryStatus(messageID, DeliveryStatus.Read(recipientPeerID, Date()))
         }
     }
     
