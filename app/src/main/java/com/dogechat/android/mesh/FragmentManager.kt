@@ -1,7 +1,7 @@
 package com.dogechat.android.mesh
 
 import android.util.Log
-import com.dogechat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.protocol.MessagePadding
 import com.dogechat.android.model.FragmentPayload
@@ -47,7 +47,7 @@ class FragmentManager {
      * Create fragments from a large packet - 100% iOS Compatible
      * Matches iOS sendFragmentedPacket() implementation exactly
      */
-    fun createFragments(packet: BitchatPacket): List<BitchatPacket> {
+    fun createFragments(packet: DogechatPacket): List<DogechatPacket> {
         val encoded = packet.toBinaryData() ?: return emptyList()
         
         // Fragment the unpadded frame; each fragment will be encoded (and padded) independently - iOS fix
@@ -58,7 +58,7 @@ class FragmentManager {
             return listOf(packet) // No fragmentation needed
         }
         
-        val fragments = mutableListOf<BitchatPacket>()
+        val fragments = mutableListOf<DogechatPacket>()
         
         // iOS: let fragmentID = Data((0..<8).map { _ in UInt8.random(in: 0...255) })
         val fragmentID = FragmentPayload.generateFragmentID()
@@ -85,7 +85,7 @@ class FragmentManager {
             )
             
             // iOS: MessageType.fragment.rawValue (single fragment type)
-            val fragmentPacket = BitchatPacket(
+            val fragmentPacket = DogechatPacket(
                 type = MessageType.FRAGMENT.value,
                 ttl = packet.ttl,
                 senderID = packet.senderID,
@@ -105,7 +105,7 @@ class FragmentManager {
      * Handle incoming fragment - 100% iOS Compatible  
      * Matches iOS handleFragment() implementation exactly
      */
-    fun handleFragment(packet: BitchatPacket): BitchatPacket? {
+    fun handleFragment(packet: DogechatPacket): DogechatPacket? {
         // iOS: guard packet.payload.count > 13 else { return }
         if (packet.payload.size < FragmentPayload.HEADER_SIZE) {
             Log.w(TAG, "Fragment packet too small: ${packet.payload.size}")
@@ -155,7 +155,7 @@ class FragmentManager {
                 }
                 
                 // Decode the original packet bytes we reassembled, so flags/compression are preserved - iOS fix
-                val originalPacket = BitchatPacket.fromBinaryData(reassembledData.toByteArray())
+                val originalPacket = DogechatPacket.fromBinaryData(reassembledData.toByteArray())
                 if (originalPacket != null) {
                     // iOS cleanup: incomingFragments.removeValue(forKey: fragmentID)
                     incomingFragments.remove(fragmentIDString)
@@ -267,5 +267,5 @@ class FragmentManager {
  * Delegate interface for fragment manager callbacks
  */
 interface FragmentManagerDelegate {
-    fun onPacketReassembled(packet: BitchatPacket)
+    fun onPacketReassembled(packet: DogechatPacket)
 }

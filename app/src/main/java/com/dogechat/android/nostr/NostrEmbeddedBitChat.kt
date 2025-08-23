@@ -4,20 +4,20 @@ import android.util.Base64
 import android.util.Log
 import com.dogechat.android.model.PrivateMessagePacket
 import com.dogechat.android.model.NoisePayloadType
-import com.dogechat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import java.util.*
 
 /**
- * BitChat-over-Nostr Adapter
+ * Dogechat-over-Nostr Adapter
  * Direct port from iOS implementation for 100% compatibility
  */
-object NostrEmbeddedBitChat {
+object NostrEmbeddedDogechat {
     
-    private const val TAG = "NostrEmbeddedBitChat"
+    private const val TAG = "NostrEmbeddedDogechat"
     
     /**
-     * Build a `dogechat1:` base64url-encoded BitChat packet carrying a private message for Nostr DMs.
+     * Build a `dogechat1:` base64url-encoded Dogechat packet carrying a private message for Nostr DMs.
      */
     fun encodePMForNostr(
         content: String,
@@ -38,7 +38,7 @@ object NostrEmbeddedBitChat {
             // Determine 8-byte recipient ID to embed
             val recipientIDHex = normalizeRecipientPeerID(recipientPeerID)
             
-            val packet = BitchatPacket(
+            val packet = DogechatPacket(
                 version = 1u,
                 type = MessageType.NOISE_ENCRYPTED.value,
                 senderID = hexStringToByteArray(senderPeerID),
@@ -58,7 +58,7 @@ object NostrEmbeddedBitChat {
     }
     
     /**
-     * Build a `dogechat1:` base64url-encoded BitChat packet carrying a delivery/read ack for Nostr DMs.
+     * Build a `dogechat1:` base64url-encoded Dogechat packet carrying a delivery/read ack for Nostr DMs.
      */
     fun encodeAckForNostr(
         type: NoisePayloadType,
@@ -78,7 +78,7 @@ object NostrEmbeddedBitChat {
             
             val recipientIDHex = normalizeRecipientPeerID(recipientPeerID)
             
-            val packet = BitchatPacket(
+            val packet = DogechatPacket(
                 version = 1u,
                 type = MessageType.NOISE_ENCRYPTED.value,
                 senderID = hexStringToByteArray(senderPeerID),
@@ -115,7 +115,7 @@ object NostrEmbeddedBitChat {
             val messageIDBytes = messageID.toByteArray(Charsets.UTF_8)
             System.arraycopy(messageIDBytes, 0, payload, 1, messageIDBytes.size)
             
-            val packet = BitchatPacket(
+            val packet = DogechatPacket(
                 version = 1u,
                 type = MessageType.NOISE_ENCRYPTED.value,
                 senderID = hexStringToByteArray(senderPeerID),
@@ -150,7 +150,7 @@ object NostrEmbeddedBitChat {
             payload[0] = NoisePayloadType.PRIVATE_MESSAGE.value.toByte()
             System.arraycopy(tlv, 0, payload, 1, tlv.size)
             
-            val packet = BitchatPacket(
+            val packet = DogechatPacket(
                 version = 1u,
                 type = MessageType.NOISE_ENCRYPTED.value,
                 senderID = hexStringToByteArray(senderPeerID),

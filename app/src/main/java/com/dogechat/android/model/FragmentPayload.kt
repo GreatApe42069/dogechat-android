@@ -6,7 +6,7 @@ import com.dogechat.android.protocol.MessageType
  * FragmentPayload - 100% iOS-compatible fragment payload structure
  * 
  * This class handles the encoding and decoding of fragment payloads exactly
- * as implemented in iOS bitchat SimplifiedBluetoothService.
+ * as implemented in iOS Dogechat SimplifiedBluetoothService.
  * 
  * Fragment payload structure (matching iOS):
  * - 8 bytes: Fragment ID (random bytes)
