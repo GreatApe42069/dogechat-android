@@ -1,10 +1,10 @@
 package com.dogechat.android.mesh
 
 import android.util.Log
-import com.dogechat.android.model.BitchatMessage
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.IdentityAnnouncement
 import com.dogechat.android.model.RoutedPacket
-import com.dogechat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.*
@@ -79,8 +79,8 @@ class MessageHandler(private val myPeerID: String) {
                     if (privateMessage != null) {
                         Log.d(TAG, "🔓 Decrypted TLV PM from $peerID: ${privateMessage.content.take(30)}...")
                         
-                        // Create BitchatMessage - use local system time for incoming messages
-                        val message = BitchatMessage(
+                        // Create DogechatMessage - use local system time for incoming messages
+                        val message = DogechatMessage(
                             id = privateMessage.messageID,
                             sender = delegate?.getPeerNickname(peerID) ?: "Unknown",
                             content = privateMessage.content,
@@ -144,7 +144,7 @@ class MessageHandler(private val myPeerID: String) {
             }
             
             // Create NOISE_ENCRYPTED packet exactly like iOS
-            val packet = BitchatPacket(
+            val packet = DogechatPacket(
                 version = 1u,
                 type = MessageType.NOISE_ENCRYPTED.value,
                 senderID = hexStringToByteArray(myPeerID),
@@ -263,7 +263,7 @@ class MessageHandler(private val myPeerID: String) {
                 Log.d(TAG, "Generated handshake response for $peerID (${response.size} bytes)")
                 
                 // Send response using same packet type (simplified iOS approach)
-                val responsePacket = BitchatPacket(
+                val responsePacket = DogechatPacket(
                     version = 1u,
                     type = MessageType.NOISE_HANDSHAKE.value,
                     senderID = hexStringToByteArray(myPeerID),
@@ -330,7 +330,7 @@ class MessageHandler(private val myPeerID: String) {
         
         try {
             // Parse message
-            val message = BitchatMessage(
+            val message = DogechatMessage(
                 sender = delegate?.getPeerNickname(peerID) ?: "unknown",
                 content = String(packet.payload, Charsets.UTF_8),
                 senderPeerID = peerID,
@@ -347,7 +347,7 @@ class MessageHandler(private val myPeerID: String) {
     /**
      * Handle (decrypted) private message addressed to us
      */
-    private suspend fun handlePrivateMessage(packet: BitchatPacket, peerID: String) {
+    private suspend fun handlePrivateMessage(packet: DogechatPacket, peerID: String) {
         try {
             // Verify signature if present
             if (packet.signature != null && !delegate?.verifySignature(packet, peerID)!!) {
@@ -356,7 +356,7 @@ class MessageHandler(private val myPeerID: String) {
             }
 
             // Parse message
-            val message = BitchatMessage(
+            val message = DogechatMessage(
                 sender = delegate?.getPeerNickname(peerID) ?: "unknown",
                 content = String(packet.payload, Charsets.UTF_8),
                 senderPeerID = peerID,
@@ -443,12 +443,12 @@ interface MessageHandlerDelegate {
     fun updatePeerInfo(peerID: String, nickname: String, noisePublicKey: ByteArray, signingPublicKey: ByteArray, isVerified: Boolean): Boolean
     
     // Packet operations
-    fun sendPacket(packet: BitchatPacket)
+    fun sendPacket(packet: DogechatPacket)
     fun relayPacket(routed: RoutedPacket)
     fun getBroadcastRecipient(): ByteArray
     
     // Cryptographic operations
-    fun verifySignature(packet: BitchatPacket, peerID: String): Boolean
+    fun verifySignature(packet: DogechatPacket, peerID: String): Boolean
     fun encryptForPeer(data: ByteArray, recipientPeerID: String): ByteArray?
     fun decryptFromPeer(encryptedData: ByteArray, senderPeerID: String): ByteArray?
     fun verifyEd25519Signature(signature: ByteArray, data: ByteArray, publicKey: ByteArray): Boolean
@@ -464,7 +464,7 @@ interface MessageHandlerDelegate {
     fun decryptChannelMessage(encryptedContent: ByteArray, channel: String): String?
 
     // Callbacks
-    fun onMessageReceived(message: BitchatMessage)
+    fun onMessageReceived(message: DogechatMessage)
     fun onChannelLeave(channel: String, fromPeer: String)
     fun onDeliveryAckReceived(messageID: String, peerID: String)
     fun onReadReceiptReceived(messageID: String, peerID: String)

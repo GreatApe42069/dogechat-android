@@ -85,7 +85,7 @@
 //
 //    // MARK: - Message Storage
 //
-//    suspend fun saveMessage(message: BitchatMessage, forChannel: String) = withContext(Dispatchers.IO) {
+//    suspend fun saveMessage(message: DogechatMessage, forChannel: String) = withContext(Dispatchers.IO) {
 //        if (!isChannelBookmarked(forChannel)) {
 //            Log.w(TAG, "Attempted to save message for non-bookmarked channel: $forChannel")
 //            return@withContext
@@ -117,7 +117,7 @@
 //        }
 //    }
 //
-//    suspend fun loadMessagesForChannel(channel: String): List<BitchatMessage> = withContext(Dispatchers.IO) {
+//    suspend fun loadMessagesForChannel(channel: String): List<DogechatMessage> = withContext(Dispatchers.IO) {
 //        if (!isChannelBookmarked(channel)) {
 //            Log.d(TAG, "Channel $channel not bookmarked, returning empty list")
 //            return@withContext emptyList()
@@ -167,7 +167,7 @@
 //        return File(retentionDir, "channel_${sanitizedChannel}.dat")
 //    }
 //
-//    private fun loadMessagesFromFile(file: File): List<BitchatMessage> {
+//    private fun loadMessagesFromFile(file: File): List<DogechatMessage> {
 //        if (!file.exists()) {
 //            return emptyList()
 //        }
@@ -176,7 +176,7 @@
 //            FileInputStream(file).use { fis ->
 //                ObjectInputStream(fis).use { ois ->
 //                    @Suppress("UNCHECKED_CAST")
-//                    ois.readObject() as List<BitchatMessage>
+//                    ois.readObject() as List<DogechatMessage>
 //                }
 //            }
 //        } catch (e: Exception) {
@@ -185,7 +185,7 @@
 //        }
 //    }
 //
-//    private fun saveMessagesToFile(file: File, messages: List<BitchatMessage>) {
+//    private fun saveMessagesToFile(file: File, messages: List<DogechatMessage>) {
 //        FileOutputStream(file).use { fos ->
 //            ObjectOutputStream(fos).use { oos ->
 //                oos.writeObject(messages)

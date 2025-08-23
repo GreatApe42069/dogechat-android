@@ -5,7 +5,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.dogechat.android.mesh.BluetoothMeshService
-import com.dogechat.android.model.BitchatMessage
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.ui.ChatState
 import com.dogechat.android.ui.MessageManager
 import com.dogechat.android.ui.MeshDelegateHandler
@@ -80,7 +80,7 @@ class NostrGeohashService(
     
     // MARK: - Geohash Message History Properties
     
-    private val geohashMessageHistory = mutableMapOf<String, MutableList<BitchatMessage>>() // geohash -> messages
+    private val geohashMessageHistory = mutableMapOf<String, MutableList<DogechatMessage>>() // geohash -> messages
     private val maxGeohashMessages = 1000 // Maximum messages per geohash
     
     // MARK: - Location Channel Management Properties
@@ -184,7 +184,7 @@ class NostrGeohashService(
                 Log.i(TAG, "📤 Sent geohash message to ${channel.geohash}: ${content.take(50)}")
                 
                 // Add local echo message
-                val localMessage = BitchatMessage(
+                val localMessage = DogechatMessage(
                     sender = nickname ?: myPeerID,
                     content = content,
                     timestamp = Date(),
@@ -247,7 +247,7 @@ class NostrGeohashService(
             
             val (content, senderPubkey, rumorTimestamp) = decryptResult
             
-            // Expect embedded BitChat packet content
+            // Expect embedded Dogechat packet content
             if (!content.startsWith("dogechat1:")) {
                 Log.d(TAG, "Ignoring non-embedded Nostr DM content")
                 return
@@ -256,13 +256,13 @@ class NostrGeohashService(
             val base64Content = content.removePrefix("dogechat1:")
             val packetData = base64URLDecode(base64Content)
             if (packetData == null) {
-                Log.e(TAG, "Failed to decode base64url BitChat packet")
+                Log.e(TAG, "Failed to decode base64url Dogechat packet")
                 return
             }
             
-            val packet = com.dogechat.android.protocol.BitchatPacket.fromBinaryData(packetData)
+            val packet = com.dogechat.android.protocol.DogechatPacket.fromBinaryData(packetData)
             if (packet == null) {
-                Log.e(TAG, "Failed to parse embedded BitChat packet from Nostr DM")
+                Log.e(TAG, "Failed to parse embedded Dogechat packet from Nostr DM")
                 return
             }
             
@@ -351,8 +351,8 @@ class NostrGeohashService(
                 // Check if viewing this chat
                 val isViewingThisChat = state.getSelectedPrivateChatPeerValue() == targetPeerID
                 
-                // Create BitchatMessage
-                val message = BitchatMessage(
+                // Create DogechatMessage
+                val message = DogechatMessage(
                     id = messageId,
                     sender = senderNickname,
                     content = messageContent,
@@ -417,7 +417,7 @@ class NostrGeohashService(
         val action = if (isFavorite) "favorited" else "unfavorited"
         
         // Show system message
-        val systemMessage = BitchatMessage(
+        val systemMessage = DogechatMessage(
             sender = "system",
             content = "$senderNickname $action you",
             timestamp = Date(),
@@ -451,7 +451,7 @@ class NostrGeohashService(
     /**
      * Store a message in geohash history
      */
-    private fun storeGeohashMessage(geohash: String, message: BitchatMessage) {
+    private fun storeGeohashMessage(geohash: String, message: DogechatMessage) {
         val messages = geohashMessageHistory.getOrPut(geohash) { mutableListOf() }
         messages.add(message)
         messages.sortBy { it.timestamp }
@@ -989,7 +989,7 @@ class NostrGeohashService(
             // Note: mentions parsing needs peer nicknames parameter
             // val mentions = messageManager.parseMentions(content, peerNicknames, nickname)
             
-            val message = BitchatMessage(
+            val message = DogechatMessage(
                 id = event.id,
                 sender = senderName,
                 content = content,
@@ -1047,12 +1047,12 @@ class NostrGeohashService(
             
             val (content, senderPubkey, rumorTimestamp) = decryptResult
             
-            // Only process BitChat embedded messages
+            // Only process Dogechat embedded messages
             if (!content.startsWith("dogechat1:")) return
             
             val base64Content = content.removePrefix("dogechat1:")
             val packetData = base64URLDecode(base64Content) ?: return
-            val packet = com.dogechat.android.protocol.BitchatPacket.fromBinaryData(packetData) ?: return
+            val packet = com.dogechat.android.protocol.DogechatPacket.fromBinaryData(packetData) ?: return
             
             if (packet.type != com.dogechat.android.protocol.MessageType.NOISE_ENCRYPTED.value) return
             
@@ -1082,7 +1082,7 @@ class NostrGeohashService(
                     val senderName = displayNameForNostrPubkey(senderPubkey)
                     val isViewingThisChat = state.getSelectedPrivateChatPeerValue() == convKey
                     
-                    val message = BitchatMessage(
+                    val message = DogechatMessage(
                         id = messageId,
                         sender = senderName,
                         content = pm.content,
