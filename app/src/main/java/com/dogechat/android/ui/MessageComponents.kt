@@ -31,13 +31,37 @@ fun MessagesList(
     messages: List<dogechatMessage>,
     currentUserNickname: String,
     meshService: BluetoothMeshService,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    forceScrollToBottom: Boolean = false
 ) {
     val listState = rememberLazyListState()
     
-    // Auto-scroll to bottom when new messages arrive
+    // Track if this is the first time messages are being loaded
+    var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
+    
+    // Smart scroll: auto-scroll to bottom for initial load, then only when user is at or near the bottom
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
+            val layoutInfo = listState.layoutInfo
+            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            val totalItems = layoutInfo.totalItemsCount
+            
+            // Always scroll to bottom on first load, or when user is near the bottom
+            val isFirstLoad = !hasScrolledToInitialPosition
+            val isNearBottom = lastVisibleIndex >= totalItems - 3
+            
+            if (isFirstLoad || isNearBottom) {
+                listState.animateScrollToItem(messages.size - 1)
+                if (isFirstLoad) {
+                    hasScrolledToInitialPosition = true
+                }
+            }
+        }
+    }
+    
+    // Force scroll to bottom when requested (e.g., when user sends a message)
+    LaunchedEffect(forceScrollToBottom) {
+        if (forceScrollToBottom && messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
         }
     }

@@ -15,8 +15,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Permission explanation screen shown before requesting permissions
- * Explains why dogechat needs each permission and reassures users about privacy
+ * Permission explanation screen shown before requesting permissions.
+ * Explains why Đogechat needs each permission and reassures users about privacy.
+ * Upstream enhancements merged: added clarity for geohash/Nostr features.
  */
 @Composable
 fun PermissionExplanationScreen(
@@ -39,6 +40,7 @@ fun PermissionExplanationScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
+
             // Header
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -53,11 +55,11 @@ fun PermissionExplanationScreen(
                     ),
                     textAlign = TextAlign.Center
                 )
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Text(
-                    text = "Such Đecentralized Much Mesh Messaging over Bluetooth....Such LFG!!!",
+                    text = "Such Đecentralized Much Mesh Messaging over Bluetooth....So Wow!",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.7f)
@@ -90,19 +92,19 @@ fun PermissionExplanationScreen(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Such Privacy Your Much Protected",
+                            text = "Such Privacy, Your Much Protected",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colorScheme.onSurface
                             )
                         )
                     }
-                    
+
                     Text(
-                        text = "• dogechat doesn't track you or collect personal data\n" +
+                        text = "• Đogechat doesn't track you or collect personal data\n" +
                                 "• No servers, no internet required, no data logging\n" +
-                                "• Location permission is only used by Android for Bluetooth scanning\n" +
-                                "• Your messages stay on your device and peer devices only....So Wow",
+                                "• Location permission is only used for Bluetooth scanning & geohash-based channels (if you enable them)\n" +
+                                "• Your messages stay on your device and peer devices only....Such LFG",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -114,7 +116,7 @@ fun PermissionExplanationScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "To work properly, dogechat Much needs Such permissions:",
+                text = "To work properly, Đogechat much needs such permissions:",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Medium,
                     color = colorScheme.onSurface
@@ -188,7 +190,7 @@ private fun PermissionCategoryCard(
                     color = getPermissionIconColor(category.type),
                     modifier = Modifier.size(24.dp)
                 )
-                
+
                 Text(
                     text = category.type.nameValue,
                     style = MaterialTheme.typography.titleSmall.copy(
@@ -197,7 +199,7 @@ private fun PermissionCategoryCard(
                     )
                 )
             }
-            
+
             Text(
                 text = category.description,
                 style = MaterialTheme.typography.bodySmall.copy(
@@ -219,7 +221,7 @@ private fun PermissionCategoryCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "dogechat does NOT use GPS or track location",
+                        text = "Đogechat does NOT track or store your location",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Medium,
@@ -246,7 +248,7 @@ private fun getPermissionIconColor(permissionType: PermissionType): Color {
     return when (permissionType) {
         PermissionType.NEARBY_DEVICES -> Color(0xFF2196F3) // Blue
         PermissionType.PRECISE_LOCATION -> Color(0xFFFF9800) // Orange
-        PermissionType.NOTIFICATIONS -> Color(0xFFFFFF00) // yellow
+        PermissionType.NOTIFICATIONS -> Color(0xFFFFFF00) // Yellow
         PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
         PermissionType.OTHER -> Color(0xFF9C27B0) // Purple
     }

@@ -102,21 +102,36 @@ fun SidebarOverlay(
                             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         }
                     }
-
+                    
+                    // People section - switch between mesh and geohash lists (iOS-compatible)
                     item {
-                        PeopleSection(
-                            connectedPeers = connectedPeers,
-                            peerNicknames = peerNicknames,
-                            peerRSSI = peerRSSI,
-                            nickname = nickname,
-                            colorScheme = colorScheme,
-                            selectedPrivatePeer = selectedPrivatePeer,
-                            viewModel = viewModel,
-                            onPrivateChatStart = { peerID ->
-                                viewModel.startPrivateChat(peerID)
-                                onDismiss()
+                        val selectedLocationChannel by viewModel.selectedLocationChannel.observeAsState()
+                        
+                        when (selectedLocationChannel) {
+                            is com.dogechat.android.geohash.ChannelID.Location -> {
+                                // Show geohash people list when in location channel
+                                GeohashPeopleList(
+                                    viewModel = viewModel,
+                                    onTapPerson = onDismiss
+                                )
                             }
-                        )
+                            else -> {
+                                // Show mesh peer list when in mesh channel (default)
+                                PeopleSection(
+                                    connectedPeers = connectedPeers,
+                                    peerNicknames = peerNicknames,
+                                    peerRSSI = peerRSSI,
+                                    nickname = nickname,
+                                    colorScheme = colorScheme,
+                                    selectedPrivatePeer = selectedPrivatePeer,
+                                    viewModel = viewModel,
+                                    onPrivateChatStart = { peerID ->
+                                        viewModel.startPrivateChat(peerID)
+                                        onDismiss()
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -142,81 +157,53 @@ private fun SidebarHeader() {
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             ),
-            color = colorScheme.onSurface
+            color = colorScheme.primary
         )
-        Spacer(modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
-fun ChannelsSection(
+private fun ChannelsSection(
     channels: List<String>,
     currentChannel: String?,
     colorScheme: ColorScheme,
     onChannelClick: (String) -> Unit,
     onLeaveChannel: (String) -> Unit,
-    unreadChannelMessages: Map<String, Int> = emptyMap()
+    unreadChannelMessages: Map<String, Int>
 ) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Filled.People,
-                contentDescription = null,
-                modifier = Modifier.size(10.dp),
-                tint = colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = stringResource(id = R.string.channels).uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = colorScheme.onSurface.copy(alpha = 0.6f),
-                fontWeight = FontWeight.Bold
-            )
-        }
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Text(
+            text = "Channels",
+            style = MaterialTheme.typography.labelLarge,
+            color = colorScheme.primary
+        )
 
-        channels.forEach { channel ->
-            val isSelected = channel == currentChannel
-            val unreadCount = unreadChannelMessages[channel] ?: 0
+        Spacer(modifier = Modifier.height(8.dp))
 
+        channels.sorted().forEach { channel ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onChannelClick(channel) }
-                    .background(
-                        if (isSelected) colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        else Color.Transparent
-                    )
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                    .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                UnreadBadge(
-                    count = unreadCount,
-                    colorScheme = colorScheme,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-
                 Text(
                     text = channel,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (isSelected) colorScheme.primary else colorScheme.onSurface,
-                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                    color = if (channel == currentChannel) colorScheme.primary else colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
 
-                IconButton(
-                    onClick = { onLeaveChannel(channel) },
-                    modifier = Modifier.size(24.dp)
-                ) {
+                if (unreadChannelMessages[channel] ?: 0 > 0) {
+                    UnreadBadge(count = unreadChannelMessages[channel] ?: 0, colorScheme = colorScheme)
+                }
+
+                IconButton(onClick = { onLeaveChannel(channel) }) {
                     Icon(
-                        imageVector = Icons.Filled.Close,
+                        imageVector = Icons.Default.Close,
                         contentDescription = "Leave channel",
-                        modifier = Modifier.size(14.dp),
-                        tint = colorScheme.onSurface.copy(alpha = 0.5f)
+                        tint = Color.Red
                     )
                 }
             }
@@ -225,7 +212,7 @@ fun ChannelsSection(
 }
 
 @Composable
-fun PeopleSection(
+private fun PeopleSection(
     connectedPeers: List<String>,
     peerNicknames: Map<String, String>,
     peerRSSI: Map<String, Int>,
@@ -235,79 +222,43 @@ fun PeopleSection(
     viewModel: ChatViewModel,
     onPrivateChatStart: (String) -> Unit
 ) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Filled.People,
-                contentDescription = "People section",
-                modifier = Modifier.size(16.dp),
-                tint = colorScheme.onSurface.copy(alpha = 0.6f)
+    val hasUnreadPrivateMessages by viewModel.hasUnreadPrivateMessages.observeAsState(emptySet())
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Text(
+            text = "People",
+            style = MaterialTheme.typography.labelLarge,
+            color = colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Sort peers: favorites first, then alphabetically
+        val sortedPeers = connectedPeers.sortedWith(compareByDescending<String> { 
+            privateChatManager.isFavorite(it) 
+        }.thenBy { 
+            peerNicknames[it] ?: it 
+        })
+
+        sortedPeers.forEach { peerID ->
+            val isFavorite = privateChatManager.isFavorite(peerID)
+            val hasUnreadDM = hasUnreadPrivateMessages.contains(peerID)
+
+            PeerItem(
+                peerID = peerID,
+                displayName = if (peerID == nickname) "You" else (peerNicknames[peerID] ?: peerID),
+                signalStrength = convertRSSIToSignalStrength(peerRSSI[peerID]),
+                isSelected = peerID == selectedPrivatePeer,
+                isFavorite = isFavorite,
+                hasUnreadDM = hasUnreadDM,
+                colorScheme = colorScheme,
+                viewModel = viewModel,
+                onItemClick = { onPrivateChatStart(peerID) },
+                onToggleFavorite = {
+                    viewModel.toggleFavorite(peerID)
+                },
+                unreadCount = if (hasUnreadDM) 1 else 0
             )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = stringResource(id = R.string.people).uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = colorScheme.onSurface.copy(alpha = 0.6f),
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        if (connectedPeers.isEmpty()) {
-            Text(
-                text = stringResource(id = R.string.no_one_connected),
-                style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-            )
-        } else {
-            val hasUnreadPrivateMessages by viewModel.unreadPrivateMessages
-                .observeAsState(initial = emptySet<String>())
-
-            val favoritePeers by viewModel.favoritePeers
-                .observeAsState(initial = emptySet<String>())
-
-            val peerFingerprints by viewModel.peerFingerprints
-                .observeAsState(initial = emptyMap<String, String>())
-
-            val peerFavoriteStates = remember(favoritePeers, peerFingerprints, connectedPeers) {
-                connectedPeers.associateWith { peerID ->
-                    val fingerprint = peerFingerprints[peerID]
-                    fingerprint != null && favoritePeers.contains(fingerprint)
-                }
-            }
-
-            val sortedPeers = connectedPeers.sortedWith(
-                compareBy<String> { !hasUnreadPrivateMessages.contains(it) }
-                    .thenBy { !(peerFavoriteStates[it] == true) }
-                    .thenBy {
-                        val name = if (it == nickname) "You" else (peerNicknames[it] ?: it)
-                        name.lowercase()
-                    }
-            )
-
-            sortedPeers.forEach { peerID ->
-                val isFavorite = peerFavoriteStates[peerID] ?: false
-
-                PeerItem(
-                    peerID = peerID,
-                    displayName = if (peerID == nickname) "You" else (peerNicknames[peerID] ?: peerID),
-                    signalStrength = convertRSSIToSignalStrength(peerRSSI[peerID]),
-                    isSelected = peerID == selectedPrivatePeer,
-                    isFavorite = isFavorite,
-                    hasUnreadDM = hasUnreadPrivateMessages.contains(peerID),
-                    colorScheme = colorScheme,
-                    onItemClick = { onPrivateChatStart(peerID) },
-                    onToggleFavorite = {
-                        viewModel.toggleFavorite(peerID)
-                    },
-                    unreadCount = if (hasUnreadPrivateMessages.contains(peerID)) 1 else 0
-                )
-            }
         }
     }
 }
@@ -321,10 +272,20 @@ private fun PeerItem(
     isFavorite: Boolean,
     hasUnreadDM: Boolean,
     colorScheme: ColorScheme,
+    viewModel: ChatViewModel,
     onItemClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     unreadCount: Int = 0
 ) {
+    // Split display name for hashtag suffix support (iOS-compatible)
+    val (baseName, suffix) = com.dogechat.android.ui.splitSuffix(displayName)
+    val isMe = displayName == "You" || peerID == viewModel.nickname.value
+    
+    // Get consistent peer color (iOS-compatible)
+    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
+    val assignedColor = viewModel.colorForMeshPeer(peerID, isDark)
+    val baseColor = if (isMe) Color(0xFFFF9500) else assignedColor
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -336,32 +297,66 @@ private fun PeerItem(
             .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Show unread badge or signal strength  
         if (hasUnreadDM) {
-            UnreadBadge(count = unreadCount, colorScheme = colorScheme)
+            // Show mail icon for unread DMs (iOS orange)
+            Icon(
+                imageVector = Icons.Filled.Email,
+                contentDescription = "Unread message",
+                modifier = Modifier.size(16.dp),
+                tint = Color(0xFFFF9500) // iOS orange
+            )
         } else {
             SignalStrengthIndicator(signalStrength = signalStrength, colorScheme = colorScheme)
         }
 
         Spacer(modifier = Modifier.width(8.dp))
-
-        Text(
-            text = displayName,
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (isSelected) colorScheme.primary else colorScheme.onSurface,
-            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-            modifier = Modifier.weight(1f)
-        )
-
-        IconButton(onClick = onToggleFavorite, modifier = Modifier.size(24.dp)) {
+        
+        // Display name with iOS-style color and hashtag suffix support
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Base name with peer-specific color
+            Text(
+                text = baseName,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 14.sp,
+                    fontWeight = if (isMe) FontWeight.Bold else FontWeight.Normal
+                ),
+                color = baseColor
+            )
+            
+            // Hashtag suffix in lighter shade (iOS-style)
+            if (suffix.isNotEmpty()) {
+                Text(
+                    text = suffix,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp
+                    ),
+                    color = baseColor.copy(alpha = 0.6f)
+                )
+            }
+        }
+        
+        // Favorite star with proper filled/outlined states
+        IconButton(
+            onClick = onToggleFavorite,
+            modifier = Modifier.size(24.dp)
+        ) {
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
                 contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
                 modifier = Modifier.size(16.dp),
-                tint = if (isFavorite) Color(0xFFFFD700) else Color(0x87878700)
+                tint = if (isFavorite) Color(0xFFFFD700) else Color(0xFF4CAF50)
             )
         }
     }
 }
+
+
 
 @Composable
 private fun SignalStrengthIndicator(signalStrength: Int, colorScheme: ColorScheme) {
@@ -413,5 +408,83 @@ private fun convertRSSIToSignalStrength(rssi: Int?): Int {
         rssi >= -85 -> 50
         rssi >= -100 -> 25
         else -> 0
+    }
+}
+
+@Composable
+fun GeohashPeopleList(
+    viewModel: ChatViewModel,
+    onTapPerson: () -> Unit
+) {
+    val geohashPeople by viewModel.geohashPeople.observeAsState(emptyList())
+    val colorScheme = MaterialTheme.colorScheme
+    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Text(
+            text = "Geohash People",
+            style = MaterialTheme.typography.labelLarge,
+            color = colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        geohashPeople.sortedBy { it.displayName }.forEach { person ->
+            val baseColor = viewModel.colorForNostrPubkey(person.pubkeyHex, isDark)
+            val (baseName, suffix) = splitSuffix(person.displayName)
+            val isTeleported = viewModel.isPersonTeleported(person.pubkeyHex)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { 
+                        viewModel.startGeohashDM(person.pubkeyHex)
+                        onTapPerson()
+                    }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isTeleported) {
+                    Icon(
+                        imageVector = Icons.Default.PinDrop,
+                        contentDescription = "Teleported",
+                        tint = baseColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                } else {
+                    SignalStrengthIndicator(signalStrength = 100, colorScheme = colorScheme) // Full for geohash
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = baseName,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp
+                        ),
+                        color = baseColor
+                    )
+                    
+                    if (suffix.isNotEmpty()) {
+                        Text(
+                            text = suffix,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp
+                            ),
+                            color = baseColor.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                // No favorite for geohash people
+            }
+        }
     }
 }

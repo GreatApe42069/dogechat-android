@@ -2,7 +2,9 @@ package com.dogechat.android.ui
 
 import android.util.Log
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -92,6 +94,12 @@ fun NicknameEditor(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val focusManager = LocalFocusManager.current
+    val scrollState = rememberScrollState()
+    
+    // Auto-scroll to end when text changes (simulates cursor following)
+    LaunchedEffect(value) {
+        scrollState.animateScrollTo(scrollState.maxValue)
+    }
     
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -111,13 +119,16 @@ fun NicknameEditor(
                 fontFamily = FontFamily.Monospace
             ),
             cursorBrush = SolidColor(colorScheme.primary),
+            singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(
                 onDone = { 
                     focusManager.clearFocus()
                 }
             ),
-            modifier = Modifier.widthIn(max = 100.dp)
+            modifier = Modifier
+                .widthIn(max = 120.dp)
+                .horizontalScroll(scrollState)
         )
     }
 }
@@ -129,10 +140,29 @@ fun PeerCounter(
     hasUnreadChannels: Map<String, Int>,
     hasUnreadPrivateMessages: Set<String>,
     isConnected: Boolean,
+    selectedLocationChannel: com.dogechat.android.geohash.ChannelID?,
+    geohashPeople: List<GeoPerson>,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    
+    // Compute channel-aware people count and color (matches iOS logic exactly)
+    val (peopleCount, countColor) = when (selectedLocationChannel) {
+        is com.dogechat.android.geohash.ChannelID.Location -> {
+            // Geohash channel: show geohash participants
+            val count = geohashPeople.size
+            val green = Color(0xFF00C851) // Standard green
+            Pair(count, if (count > 0) green else Color.Gray)
+        }
+        is com.dogechat.android.geohash.ChannelID.Mesh,
+        null -> {
+            // Mesh channel: show Bluetooth-connected peers (excluding self)
+            val count = connectedPeers.size
+            val meshBlue = Color(0xFF007AFF) // iOS-style blue for mesh
+            Pair(count, if (isConnected && count > 0) meshBlue else Color.Gray)
+        }
+    }
     
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -166,215 +196,52 @@ fun PeerCounter(
         }
         
         Icon(
-            imageVector = Icons.Default.Group,
+            imageVector = Icons.Filled.People,
             contentDescription = "Connected peers",
             modifier = Modifier.size(16.dp),
-            tint = if (isConnected) Color(0xFFFFFF00) else Color.Red
+            tint = countColor
         )
+        
         Spacer(modifier = Modifier.width(4.dp))
+        
         Text(
-            text = "${connectedPeers.size}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (isConnected) Color(0xFFFFFF00) else Color.Red,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
-        )
-        
-        if (joinedChannels.isNotEmpty()) {
-            Text(
-                text = " · ⧉ ${joinedChannels.size}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isConnected) Color(0xFFFFFF00) else Color.Red,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
-
-@Composable
-fun ChatHeaderContent(
-    selectedPrivatePeer: String?,
-    currentChannel: String?,
-    nickname: String,
-    viewModel: ChatViewModel,
-    onBackClick: () -> Unit,
-    onSidebarClick: () -> Unit,
-    onTripleClick: () -> Unit,
-    onShowAppInfo: () -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    when {
-        selectedPrivatePeer != null -> {
-            // Private chat header - Fully reactive state tracking
-            val favoritePeers by viewModel.favoritePeers.observeAsState(emptySet())
-            val peerFingerprints by viewModel.peerFingerprints.observeAsState(emptyMap())
-            val peerSessionStates by viewModel.peerSessionStates.observeAsState(emptyMap())
-            val peerNicknames by viewModel.peerNicknames.observeAsState(emptyMap())
-            
-            // Reactive favorite computation - no more static lookups!
-            val isFavorite = isFavoriteReactive(
-                peerID = selectedPrivatePeer,
-                peerFingerprints = peerFingerprints,
-                favoritePeers = favoritePeers
-            )
-            val sessionState = peerSessionStates[selectedPrivatePeer]
-            
-            Log.d("ChatHeader", "Header recomposing: peer=$selectedPrivatePeer, isFav=$isFavorite, sessionState=$sessionState")
-            
-            PrivateChatHeader(
-                peerID = selectedPrivatePeer,
-                peerNicknames = peerNicknames,
-                isFavorite = isFavorite,
-                sessionState = sessionState,
-                onBackClick = onBackClick,
-                onToggleFavorite = { viewModel.toggleFavorite(selectedPrivatePeer) }
-            )
-        }
-        currentChannel != null -> {
-            // Channel header
-            ChannelHeader(
-                channel = currentChannel,
-                onBackClick = onBackClick,
-                onLeaveChannel = { viewModel.leaveChannel(currentChannel) },
-                onSidebarClick = onSidebarClick
-            )
-        }
-        else -> {
-            // Main header
-            MainHeader(
-                nickname = nickname,
-                onNicknameChange = viewModel::setNickname,
-                onTitleClick = onShowAppInfo,
-                onTripleTitleClick = onTripleClick,
-                onSidebarClick = onSidebarClick,
-                viewModel = viewModel
-            )
-        }
-    }
-}
-
-@Composable
-private fun PrivateChatHeader(
-    peerID: String,
-    peerNicknames: Map<String, String>,
-    isFavorite: Boolean,
-    sessionState: String?,
-    onBackClick: () -> Unit,
-    onToggleFavorite: () -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    val peerNickname = peerNicknames[peerID] ?: peerID
-    
-    Box(modifier = Modifier.fillMaxWidth()) {
-        // Back button - positioned all the way to the left with minimal margin
-        Button(
-            onClick = onBackClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = colorScheme.primary
+            text = peopleCount.toString(),
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = countColor,
+                fontWeight = if (peopleCount > 0) FontWeight.Bold else FontWeight.Normal
             ),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp), // Reduced horizontal padding
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = (-8).dp) // Move even further left to minimize margin
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    modifier = Modifier.size(16.dp),
-                    tint = colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "back",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.primary
-                )
-            }
-        }
-        
-        // Title - perfectly centered regardless of other elements
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.align(Alignment.Center)
-        ) {
-            
-            Text(
-                text = peerNickname,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFFF9500) // Orange
-            )
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            NoiseSessionIcon(
-                sessionState = sessionState,
-                modifier = Modifier.size(14.dp)
-            )
-
-        }
-        
-        // Favorite button - positioned on the right
-        IconButton(
-            onClick = {
-                Log.d("ChatHeader", "Header toggle favorite: peerID=$peerID, currentFavorite=$isFavorite")
-                onToggleFavorite()
-            },
-            modifier = Modifier.align(Alignment.CenterEnd)
-        ) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
-                contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                modifier = Modifier.size(18.dp), // Slightly larger than sidebar icon
-                tint = if (isFavorite) Color(0xFFFFD700) else Color(0x87878700) // green or grey
-            )
-        }
+            fontSize = 16.sp
+        )
     }
 }
 
 @Composable
 private fun ChannelHeader(
-    channel: String,
+    channel: String?,
     onBackClick: () -> Unit,
-    onLeaveChannel: () -> Unit,
-    onSidebarClick: () -> Unit
+    onSidebarClick: () -> Unit,
+    onLeaveChannel: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     
-    Box(modifier = Modifier.fillMaxWidth()) {
-        // Back button - positioned all the way to the left with minimal margin
-        Button(
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .background(colorScheme.surfaceVariant.copy(alpha = 0.1f)),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Back button - positioned on the left
+        IconButton(
             onClick = onBackClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = colorScheme.primary
-            ),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp), // Reduced horizontal padding
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = (-8).dp) // Move even further left to minimize margin
+            modifier = Modifier.align(Alignment.CenterStart)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    modifier = Modifier.size(16.dp),
-                    tint = colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "back",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.primary
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = "Back",
+                tint = colorScheme.primary
+            )
         }
         
         // Title - perfectly centered regardless of other elements
@@ -408,6 +275,7 @@ private fun MainHeader(
     onTitleClick: () -> Unit,
     onTripleTitleClick: () -> Unit,
     onSidebarClick: () -> Unit,
+    onLocationChannelsClick: () -> Unit,
     viewModel: ChatViewModel
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -416,6 +284,8 @@ private fun MainHeader(
     val hasUnreadChannels by viewModel.unreadChannelMessages.observeAsState(emptyMap())
     val hasUnreadPrivateMessages by viewModel.unreadPrivateMessages.observeAsState(emptySet())
     val isConnected by viewModel.isConnected.observeAsState(false)
+    val selectedLocationChannel by viewModel.selectedLocationChannel.observeAsState()
+    val geohashPeople by viewModel.geohashPeople.observeAsState(emptyList())
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -444,13 +314,106 @@ private fun MainHeader(
             )
         }
         
-        PeerCounter(
-            connectedPeers = connectedPeers.filter { it != viewModel.meshService.myPeerID },
-            joinedChannels = joinedChannels,
-            hasUnreadChannels = hasUnreadChannels,
-            hasUnreadPrivateMessages = hasUnreadPrivateMessages,
-            isConnected = isConnected,
-            onClick = onSidebarClick
-        )
+        // Right section with location channels button and peer counter
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Unread indicator (like iOS)
+            if (hasUnreadPrivateMessages.isNotEmpty()) {
+                Button(
+                    onClick = { 
+                        // Open most relevant private chat (first unread)
+                        val firstUnread = hasUnreadPrivateMessages.firstOrNull()
+                        if (firstUnread != null) {
+                            viewModel.startPrivateChat(firstUnread)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = Color(0xFFFF9500)
+                    ),
+                    contentPadding = PaddingValues(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Email,
+                        contentDescription = "Open unread private chat",
+                        modifier = Modifier.size(12.dp),
+                        tint = Color(0xFFFF9500)
+                    )
+                }
+            }
+            
+            // Location channels button (matching iOS implementation)
+            LocationChannelsButton(
+                viewModel = viewModel,
+                onClick = onLocationChannelsClick
+            )
+            
+            PeerCounter(
+                connectedPeers = connectedPeers.filter { it != viewModel.meshService.myPeerID },
+                joinedChannels = joinedChannels,
+                hasUnreadChannels = hasUnreadChannels,
+                hasUnreadPrivateMessages = hasUnreadPrivateMessages,
+                isConnected = isConnected,
+                selectedLocationChannel = selectedLocationChannel,
+                geohashPeople = geohashPeople,
+                onClick = onSidebarClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun LocationChannelsButton(
+    viewModel: ChatViewModel,
+    onClick: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    
+    // Get current channel selection from location manager
+    val selectedChannel by viewModel.selectedLocationChannel.observeAsState()
+    val teleported by viewModel.isTeleported.observeAsState(false)
+    
+    val (badgeText, badgeColor) = when (selectedChannel) {
+        is com.dogechat.android.geohash.ChannelID.Mesh -> {
+            "#mesh" to Color(0xFF007AFF) // iOS blue for mesh
+        }
+        is com.dogechat.android.geohash.ChannelID.Location -> {
+            val geohash = (selectedChannel as com.dogechat.android.geohash.ChannelID.Location).channel.geohash
+            "#$geohash" to Color(0xFF00C851) // Green for location
+        }
+        null -> "#mesh" to Color(0xFF007AFF) // Default to mesh
+    }
+    
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Transparent,
+            contentColor = badgeColor
+        ),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = badgeText,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = FontFamily.Monospace
+                ),
+                color = badgeColor,
+                maxLines = 1
+            )
+            
+            // Teleportation indicator (like iOS)
+            if (teleported) {
+                Spacer(modifier = Modifier.width(2.dp))
+                Icon(
+                    imageVector = Icons.Default.PinDrop,
+                    contentDescription = "Teleported",
+                    modifier = Modifier.size(12.dp),
+                    tint = badgeColor
+                )
+            }
+        }
     }
 }
