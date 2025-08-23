@@ -1,4 +1,4 @@
-package com.bitchat.android.geohash
+package com.dogechat.android.geohash
 
 /**
  * Levels of location channels mapped to geohash precisions.

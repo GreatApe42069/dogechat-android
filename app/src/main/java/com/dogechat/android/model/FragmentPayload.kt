@@ -1,6 +1,6 @@
-package com.bitchat.android.model
+package com.dogechat.android.model
 
-import com.bitchat.android.protocol.MessageType
+import com.dogechat.android.protocol.MessageType
 
 /**
  * FragmentPayload - 100% iOS-compatible fragment payload structure

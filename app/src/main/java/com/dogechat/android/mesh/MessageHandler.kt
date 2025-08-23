@@ -1,12 +1,12 @@
-package com.bitchat.android.mesh
+package com.dogechat.android.mesh
 
 import android.util.Log
-import com.bitchat.android.model.BitchatMessage
-import com.bitchat.android.model.IdentityAnnouncement
-import com.bitchat.android.model.RoutedPacket
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
-import com.bitchat.android.util.toHexString
+import com.dogechat.android.model.BitchatMessage
+import com.dogechat.android.model.IdentityAnnouncement
+import com.dogechat.android.model.RoutedPacket
+import com.dogechat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.MessageType
+import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.*
 import java.util.*
 import kotlin.random.Random
@@ -64,7 +64,7 @@ class MessageHandler(private val myPeerID: String) {
             }
             
             // NEW: Use NoisePayload system exactly like iOS
-            val noisePayload = com.bitchat.android.model.NoisePayload.decode(decryptedData)
+            val noisePayload = com.dogechat.android.model.NoisePayload.decode(decryptedData)
             if (noisePayload == null) {
                 Log.w(TAG, "Failed to parse NoisePayload from $peerID")
                 return
@@ -73,9 +73,9 @@ class MessageHandler(private val myPeerID: String) {
             Log.d(TAG, "🔓 Decrypted NoisePayload type ${noisePayload.type} from $peerID")
             
             when (noisePayload.type) {
-                com.bitchat.android.model.NoisePayloadType.PRIVATE_MESSAGE -> {
+                com.dogechat.android.model.NoisePayloadType.PRIVATE_MESSAGE -> {
                     // Decode TLV private message exactly like iOS
-                    val privateMessage = com.bitchat.android.model.PrivateMessagePacket.decode(noisePayload.data)
+                    val privateMessage = com.dogechat.android.model.PrivateMessagePacket.decode(noisePayload.data)
                     if (privateMessage != null) {
                         Log.d(TAG, "🔓 Decrypted TLV PM from $peerID: ${privateMessage.content.take(30)}...")
                         
@@ -101,7 +101,7 @@ class MessageHandler(private val myPeerID: String) {
                     }
                 }
                 
-                com.bitchat.android.model.NoisePayloadType.DELIVERED -> {
+                com.dogechat.android.model.NoisePayloadType.DELIVERED -> {
                     // Handle delivery ACK exactly like iOS
                     val messageID = String(noisePayload.data, Charsets.UTF_8)
                     Log.d(TAG, "📬 Delivery ACK received from $peerID for message $messageID")
@@ -110,7 +110,7 @@ class MessageHandler(private val myPeerID: String) {
                     delegate?.onDeliveryAckReceived(messageID, peerID)
                 }
                 
-                com.bitchat.android.model.NoisePayloadType.READ_RECEIPT -> {
+                com.dogechat.android.model.NoisePayloadType.READ_RECEIPT -> {
                     // Handle read receipt exactly like iOS
                     val messageID = String(noisePayload.data, Charsets.UTF_8)
                     Log.d(TAG, "👁️ Read receipt received from $peerID for message $messageID")
@@ -131,8 +131,8 @@ class MessageHandler(private val myPeerID: String) {
     private suspend fun sendDeliveryAck(messageID: String, senderPeerID: String) {
         try {
             // Create ACK payload: [type byte] + [message ID] - exactly like iOS
-            val ackPayload = com.bitchat.android.model.NoisePayload(
-                type = com.bitchat.android.model.NoisePayloadType.DELIVERED,
+            val ackPayload = com.dogechat.android.model.NoisePayload(
+                type = com.dogechat.android.model.NoisePayloadType.DELIVERED,
                 data = messageID.toByteArray(Charsets.UTF_8)
             )
             

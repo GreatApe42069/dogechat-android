@@ -1,4 +1,4 @@
-package com.bitchat.android.geohash
+package com.dogechat.android.geohash
 
 /**
  * Lightweight Geohash encoder used for Location Channels.

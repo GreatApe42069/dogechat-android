@@ -1,11 +1,11 @@
-package com.bitchat.android.nostr
+package com.dogechat.android.nostr
 
 import android.util.Base64
 import android.util.Log
-import com.bitchat.android.model.PrivateMessagePacket
-import com.bitchat.android.model.NoisePayloadType
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
+import com.dogechat.android.model.PrivateMessagePacket
+import com.dogechat.android.model.NoisePayloadType
+import com.dogechat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.MessageType
 import java.util.*
 
 /**
@@ -17,7 +17,7 @@ object NostrEmbeddedBitChat {
     private const val TAG = "NostrEmbeddedBitChat"
     
     /**
-     * Build a `bitchat1:` base64url-encoded BitChat packet carrying a private message for Nostr DMs.
+     * Build a `dogechat1:` base64url-encoded BitChat packet carrying a private message for Nostr DMs.
      */
     fun encodePMForNostr(
         content: String,
@@ -50,7 +50,7 @@ object NostrEmbeddedBitChat {
             )
             
             val data = packet.toBinaryData() ?: return null
-            return "bitchat1:" + base64URLEncode(data)
+            return "dogechat1:" + base64URLEncode(data)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to encode PM for Nostr: ${e.message}")
             return null
@@ -58,7 +58,7 @@ object NostrEmbeddedBitChat {
     }
     
     /**
-     * Build a `bitchat1:` base64url-encoded BitChat packet carrying a delivery/read ack for Nostr DMs.
+     * Build a `dogechat1:` base64url-encoded BitChat packet carrying a delivery/read ack for Nostr DMs.
      */
     fun encodeAckForNostr(
         type: NoisePayloadType,
@@ -90,7 +90,7 @@ object NostrEmbeddedBitChat {
             )
             
             val data = packet.toBinaryData() ?: return null
-            return "bitchat1:" + base64URLEncode(data)
+            return "dogechat1:" + base64URLEncode(data)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to encode ACK for Nostr: ${e.message}")
             return null
@@ -98,7 +98,7 @@ object NostrEmbeddedBitChat {
     }
     
     /**
-     * Build a `bitchat1:` ACK (delivered/read) without an embedded recipient peer ID (geohash DMs).
+     * Build a `dogechat1:` ACK (delivered/read) without an embedded recipient peer ID (geohash DMs).
      */
     fun encodeAckForNostrNoRecipient(
         type: NoisePayloadType,
@@ -127,7 +127,7 @@ object NostrEmbeddedBitChat {
             )
             
             val data = packet.toBinaryData() ?: return null
-            return "bitchat1:" + base64URLEncode(data)
+            return "dogechat1:" + base64URLEncode(data)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to encode ACK for Nostr (no recipient): ${e.message}")
             return null
@@ -135,7 +135,7 @@ object NostrEmbeddedBitChat {
     }
     
     /**
-     * Build a `bitchat1:` payload without an embedded recipient peer ID (used for geohash DMs).
+     * Build a `dogechat1:` payload without an embedded recipient peer ID (used for geohash DMs).
      */
     fun encodePMForNostrNoRecipient(
         content: String,
@@ -162,7 +162,7 @@ object NostrEmbeddedBitChat {
             )
             
             val data = packet.toBinaryData() ?: return null
-            return "bitchat1:" + base64URLEncode(data)
+            return "dogechat1:" + base64URLEncode(data)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to encode PM for Nostr (no recipient): ${e.message}")
             return null

@@ -1,4 +1,4 @@
-package com.bitchat.android.protocol
+package com.dogechat.android.protocol
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize

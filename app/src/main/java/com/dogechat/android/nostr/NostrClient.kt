@@ -1,4 +1,4 @@
-package com.bitchat.android.nostr
+package com.dogechat.android.nostr
 
 import android.content.Context
 import android.util.Log

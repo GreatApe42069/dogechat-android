@@ -111,8 +111,8 @@ class ChatState {
     val showAppInfo: LiveData<Boolean> = _showAppInfo
     
     // Location channels state (for Nostr geohash features)
-    private val _selectedLocationChannel = MutableLiveData<com.bitchat.android.geohash.ChannelID?>(com.bitchat.android.geohash.ChannelID.Mesh)
-    val selectedLocationChannel: LiveData<com.bitchat.android.geohash.ChannelID?> = _selectedLocationChannel
+    private val _selectedLocationChannel = MutableLiveData<com.dogechat.android.geohash.ChannelID?>(com.dogechat.android.geohash.ChannelID.Mesh)
+    val selectedLocationChannel: LiveData<com.dogechat.android.geohash.ChannelID?> = _selectedLocationChannel
     
     private val _isTeleported = MutableLiveData<Boolean>(false)
     val isTeleported: LiveData<Boolean> = _isTeleported
@@ -281,7 +281,7 @@ class ChatState {
         _showAppInfo.value = show
     }
     
-    fun setSelectedLocationChannel(channel: com.bitchat.android.geohash.ChannelID?) {
+    fun setSelectedLocationChannel(channel: com.dogechat.android.geohash.ChannelID?) {
         _selectedLocationChannel.value = channel
     }
     
