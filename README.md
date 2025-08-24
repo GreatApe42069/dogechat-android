@@ -10,7 +10,7 @@
 
 A secure, Đecentralized, peer-to-peer messaging app that works over Bluetooth mesh networks. No internet required, no servers, no phone numbers - just pure encrypted communication.
 
-This is the **Android port** of the original [bitchat iOS app](https://github.com/jackjackdoges/bitchat), and fork of the [original bitchat-android repository](https://github.com/permissionlesstech/bitchat-android) maintaining 100% protocol compatibility for cross-platform communication.
+This is the **Android port** of the original [Dogechat iOS app](https://github.com/jackjackdoges/Dogechat), and fork of the [original Dogechat-android repository](https://github.com/permissionlesstech/Dogechat-android) maintaining 100% protocol compatibility for cross-platform communication.
 
 ## Install Đogechat
 
@@ -316,12 +316,12 @@ This software is Open-source, Đecentralized, an FREE to use, Đonations are acc
 - **Bug Reports**: [Create an issue](../../issues) with device info and logs
 - **Feature Requests**: [Start a discussion](https://github.com/orgs/greatape42069/discussions)
 - **Security Issues**: Email security concerns privately
-- **Android Compatibility**: Cross-reference with [original bitchat Android repo](https://github.com/permissionlesstech/bitchat-android)
+- **Android Compatibility**: Cross-reference with [original Dogechat Android repo](https://github.com/permissionlesstech/Dogechat-android)
 
-For Android-specific issues, please refer to the [original bitchat-android repository](https://github.com/permissionlesstech/bitchat-android).
-- **iOS Compatibility**: Cross-reference with [original iOS repo](https://github.com/jackjackdoges/bitchat)
+For Android-specific issues, please refer to the [original Dogechat-android repository](https://github.com/permissionlesstech/Dogechat-android).
+- **iOS Compatibility**: Cross-reference with [original iOS repo](https://github.com/jackjackdoges/Dogechat)
 
-For iOS-specific issues, please refer to the [original iOS bitchat repository](https://github.com/jackjackdoges/bitchat).
+For iOS-specific issues, please refer to the [original iOS Dogechat repository](https://github.com/jackjackdoges/Dogechat).
 
 
 ![image](https://github.com/user-attachments/assets/92ad2d4c-b3b1-4464-b9c0-708038634770)

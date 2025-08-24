@@ -1,7 +1,7 @@
 package com.dogechat.android.mesh
 
 import android.util.Log
-import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.protocol.SpecialRecipients
 import kotlinx.coroutines.*
@@ -26,7 +26,7 @@ class StoreForwardManager {
      * Data class for stored messages
      */
     private data class StoredMessage(
-        val packet: dogechatPacket,
+        val packet: DogechatPacket,
         val timestamp: Long,
         val messageID: String,
         val isForFavorite: Boolean
@@ -51,7 +51,7 @@ class StoreForwardManager {
     /**
      * Cache message for offline delivery
      */
-    fun cacheMessage(packet: dogechatPacket, messageID: String) {
+    fun cacheMessage(packet: DogechatPacket, messageID: String) {
         // Skip certain message types (same as iOS)
         if (packet.type == MessageType.NOISE_HANDSHAKE.value ||
             packet.type == MessageType.NOISE_ENCRYPTED.value ||
@@ -312,5 +312,5 @@ class StoreForwardManager {
 interface StoreForwardManagerDelegate {
     fun isFavorite(peerID: String): Boolean
     fun isPeerOnline(peerID: String): Boolean
-    fun sendPacket(packet: dogechatPacket)
+    fun sendPacket(packet: DogechatPacket)
 }

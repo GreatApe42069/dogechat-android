@@ -2,7 +2,7 @@ package com.dogechat.android.ui
 
 import com.dogechat.android.mesh.BluetoothMeshDelegate
 import com.dogechat.android.mesh.BluetoothMeshService
-import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.DeliveryAck
 import com.dogechat.android.model.DeliveryStatus
 import com.dogechat.android.model.ReadReceipt
@@ -25,7 +25,7 @@ class MeshDelegateHandler(
     private val getMeshService: () -> BluetoothMeshService
 ) : BluetoothMeshDelegate {
 
-    override fun didReceiveMessage(message: dogechatMessage) {
+    override fun didReceiveMessage(message: DogechatMessage) {
         coroutineScope.launch {
             // FIXED: Deduplicate messages from dual connection paths
             val messageKey = messageManager.generateMessageKey(message)
