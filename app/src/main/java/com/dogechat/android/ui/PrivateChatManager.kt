@@ -1,6 +1,6 @@
 package com.dogechat.android.ui
 
-import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.DeliveryStatus
 import com.dogechat.android.mesh.PeerFingerprintManager
 import com.dogechat.android.mesh.BluetoothMeshService
@@ -36,14 +36,14 @@ class PrivateChatManager(
     private val fingerprintManager = PeerFingerprintManager.getInstance()
 
     // Track received private messages that need read receipts
-    private val unreadReceivedMessages = mutableMapOf<String, MutableList<dogechatMessage>>()
+    private val unreadReceivedMessages = mutableMapOf<String, MutableList<DogechatMessage>>()
 
     // MARK: - Private Chat Lifecycle
 
     fun startPrivateChat(peerID: String, meshService: BluetoothMeshService): Boolean {
         if (isPeerBlocked(peerID)) {
             val peerNickname = getPeerNickname(peerID, meshService)
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "cannot start chat with $peerNickname: user is blocked.",
                 timestamp = Date(),
@@ -83,7 +83,7 @@ class PrivateChatManager(
         onSendMessage: (String, String, String, String) -> Unit
     ): Boolean {
         if (isPeerBlocked(peerID)) {
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "cannot send message to $recipientNickname: user is blocked.",
                 timestamp = Date(),
@@ -93,7 +93,7 @@ class PrivateChatManager(
             return false
         }
 
-        val message = dogechatMessage(
+        val message = DogechatMessage(
             sender = senderNickname ?: myPeerID,
             content = content,
             timestamp = Date(),
@@ -179,7 +179,7 @@ class PrivateChatManager(
             }
             
             val peerNickname = getPeerNickname(peerID, meshService)
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "$peerNickname blocked",
                 timestamp = Date(),
@@ -198,7 +198,7 @@ class PrivateChatManager(
             state.setBlockedPeers(dataManager.blockedPeers.toSet())
             
             val peerNickname = getPeerNickname(peerID, meshService)
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "$peerNickname unblocked",
                 timestamp = Date(),
@@ -220,7 +220,7 @@ class PrivateChatManager(
 
     // MARK: - Message Handling
 
-    fun handleIncomingPrivateMessage(message: dogechatMessage) {
+    fun handleIncomingPrivateMessage(message: DogechatMessage) {
         message.senderPeerID?.let { senderPeerID ->
             messageManager.addPrivateMessage(senderPeerID, message)
             

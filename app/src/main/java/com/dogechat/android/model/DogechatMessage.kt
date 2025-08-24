@@ -42,10 +42,10 @@ sealed class DeliveryStatus : Parcelable {
 }
 
 /**
- * dogechatMessage - 100% compatible with iOS version
+ * DogechatMessage - 100% compatible with iOS version
  */
 @Parcelize
-data class dogechatMessage(
+data class DogechatMessage(
     val id: String = UUID.randomUUID().toString().uppercase(),
     val sender: String,
     val content: String,
@@ -65,7 +65,7 @@ data class dogechatMessage(
     /**
      * Convert message to binary payload format - exactly same as iOS version
      */
-    fun toBinaryPayload(): ByteArray? {
+    fun toBinaryData(): ByteArray? {
         try {
             val buffer = ByteBuffer.allocate(4096).apply { order(ByteOrder.BIG_ENDIAN) }
 
@@ -160,7 +160,7 @@ data class dogechatMessage(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
         
-        other as dogechatMessage
+        other as DogechatMessage
         
         if (id != other.id) return false
         if (sender != other.sender) return false
@@ -201,3 +201,4 @@ data class dogechatMessage(
         return result
     }
 }
+

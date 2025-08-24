@@ -6,7 +6,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.mesh.BluetoothMeshService
 import androidx.compose.material3.ColorScheme
 import com.dogechat.android.ui.theme.ThemeColors
@@ -36,7 +36,7 @@ fun getRSSIColor(rssi: Int): Color {
  * Timestamp at END, peer colors, hashtag suffix handling
  */
 fun formatMessageAsAnnotatedString(
-    message: dogechatMessage,
+    message: DogechatMessage,
     currentUserNickname: String,
     meshService: BluetoothMeshService,
     colorScheme: ColorScheme,
@@ -135,7 +135,7 @@ fun formatMessageAsAnnotatedString(
 /**
  * Get color for peer based on peer ID (iOS-compatible deterministic colors)
  */
-fun getPeerColor(message: dogechatMessage, isDark: Boolean): Color {
+fun getPeerColor(message: DogechatMessage, isDark: Boolean): Color {
     val seed = message.senderPeerID ?: message.sender
     return colorForPeerSeed(seed, isDark)
 }

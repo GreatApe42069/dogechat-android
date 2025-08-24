@@ -178,7 +178,13 @@ class MainActivity : ComponentActivity() {
                     locationStatusManager.requestEnableLocation()
                 },
                 onRetry = { checkLocationAndProceed() },
-                isLoading = isLocationLoading
+                isLoading = isLocationLoading,
+                // added fallback for newer signature that expects an 'onReady'
+                onReady = { 
+                    // called when location system reports it's ready — continue onboarding
+                    mainViewModel.updateLocationLoading(false)
+                    checkLocationAndProceed()
+                }
             )
             OnboardingState.BATTERY_OPTIMIZATION_CHECK -> BatteryOptimizationScreen(
                 status = batteryOptimizationStatus,
@@ -428,7 +434,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Wire up mesh delegate -> chatViewModel and start services
-                meshService.delegate = chatViewModel
+                meshService.delegate = chatViewModel as com.dogechat.android.mesh.BluetoothMeshDelegate
                 meshService.startServices()
 
                 // Handle notification intent

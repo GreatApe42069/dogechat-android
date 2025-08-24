@@ -8,7 +8,7 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.os.ParcelUuid
 import android.util.Log
-import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -423,7 +423,7 @@ class BluetoothGattClientManager(
             override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
                 val value = characteristic.value
                 Log.i(TAG, "Client: Received packet from ${gatt.device.address}, size: ${value.size} bytes")
-                val packet = dogechatPacket.fromBinaryData(value)
+                val packet = DogechatPacket.fromBinaryData(value)
                 if (packet != null) {
                     val peerID = packet.senderID.take(8).toByteArray().joinToString("") { "%02x".format(it) }
                     Log.d(TAG, "Client: Parsed packet type ${packet.type} from $peerID")

@@ -168,15 +168,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1] - 2025-07-08
 
 ### Added
-- Initial release of bitchat Android client
+- Initial release of Dogechat Android client
 - Basic mesh networking functionality
 - Core messaging features
-- Protocol compatibility with iOS bitchat client
+- Protocol compatibility with iOS Dogechat client
 
-[Unreleased]: https://github.com/permissionlesstech/bitchat-android/compare/0.5.1...HEAD
-[0.5.1]: https://github.com/permissionlesstech/bitchat-android/compare/0.5...0.5.1
-[0.5]: https://github.com/permissionlesstech/bitchat-android/compare/0.4...0.5
-[0.4]: https://github.com/permissionlesstech/bitchat-android/compare/0.3...0.4
-[0.3]: https://github.com/permissionlesstech/bitchat-android/compare/0.2...0.3
-[0.2]: https://github.com/permissionlesstech/bitchat-android/compare/0.1...0.2
-[0.1]: https://github.com/permissionlesstech/bitchat-android/releases/tag/0.1
+[Unreleased]: https://github.com/permissionlesstech/Dogechat-android/compare/0.5.1...HEAD
+[0.5.1]: https://github.com/permissionlesstech/Dogechat-android/compare/0.5...0.5.1
+[0.5]: https://github.com/permissionlesstech/Dogechat-android/compare/0.4...0.5
+[0.4]: https://github.com/permissionlesstech/Dogechat-android/compare/0.3...0.4
+[0.3]: https://github.com/permissionlesstech/Dogechat-android/compare/0.2...0.3
+[0.2]: https://github.com/permissionlesstech/Dogechat-android/compare/0.1...0.2
+[0.1]: https://github.com/permissionlesstech/Dogechat-android/releases/tag/0.1

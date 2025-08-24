@@ -4,7 +4,7 @@ import android.bluetooth.*
 import android.content.Context
 import android.util.Log
 import com.dogechat.android.model.RoutedPacket
-import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import kotlinx.coroutines.*
 
 /**
@@ -13,34 +13,34 @@ import kotlinx.coroutines.*
  * Coordinates smaller, focused components for better maintainability
  */
 class BluetoothConnectionManager(
-    private val context: Context, 
+    private val context: Context,
     private val myPeerID: String,
     private val fragmentManager: FragmentManager? = null
 ) : PowerManagerDelegate {
-    
+
     companion object {
         private const val TAG = "BluetoothConnectionManager"
     }
-    
+
     // Core Bluetooth components
-    private val bluetoothManager: BluetoothManager = 
+    private val bluetoothManager: BluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
-    
+
     // Power management
     private val powerManager = PowerManager(context)
-    
+
     // Coroutines
     private val connectionScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    
+
     // Component managers
     private val permissionManager = BluetoothPermissionManager(context)
     private val connectionTracker = BluetoothConnectionTracker(connectionScope, powerManager)
     private val packetBroadcaster = BluetoothPacketBroadcaster(connectionScope, connectionTracker, fragmentManager)
-    
+
     // Delegate for component managers to call back to main manager
     private val componentDelegate = object : BluetoothConnectionManagerDelegate {
-        override fun onPacketReceived(packet: dogechatPacket, peerID: String, device: BluetoothDevice?) {
+        override fun onPacketReceived(packet: DogechatPacket, peerID: String, device: BluetoothDevice?) {
             Log.d(TAG, "onPacketReceived: Packet received from ${device?.address} ($peerID)")
             device?.let { bluetoothDevice ->
                 // if connection does not have a peerID yet, we assume that the first package
@@ -60,125 +60,115 @@ class BluetoothConnectionManager(
 
             delegate?.onPacketReceived(packet, peerID, device)
         }
-        
+
         override fun onDeviceConnected(device: BluetoothDevice) {
             delegate?.onDeviceConnected(device)
         }
-        
+
         override fun onRSSIUpdated(deviceAddress: String, rssi: Int) {
             delegate?.onRSSIUpdated(deviceAddress, rssi)
         }
     }
-    
+
     private val serverManager = BluetoothGattServerManager(
         context, connectionScope, connectionTracker, permissionManager, powerManager, componentDelegate
     )
     private val clientManager = BluetoothGattClientManager(
         context, connectionScope, connectionTracker, permissionManager, powerManager, componentDelegate
     )
-    
+
     // Service state
     private var isActive = false
-    
+
     // Delegate for callbacks
     var delegate: BluetoothConnectionManagerDelegate? = null
-    
+
     // Public property for address-peer mapping
     val addressPeerMap get() = connectionTracker.addressPeerMap
-    
+
     init {
         powerManager.delegate = this
     }
-    
+
     /**
      * Start all Bluetooth services with power optimization
      */
     fun startServices(): Boolean {
         Log.i(TAG, "Starting power-optimized Bluetooth services...")
-        
+
         if (!permissionManager.hasBluetoothPermissions()) {
             Log.e(TAG, "Missing Bluetooth permissions")
             return false
         }
-        
+
         if (bluetoothAdapter?.isEnabled != true) {
             Log.e(TAG, "Bluetooth is not enabled")
             return false
         }
-        
+
         try {
             isActive = true
-
-        // set the adapter's name to our 8-character peerID for iOS privacy, TODO: Make this configurable
-        // try {
-        //     if (bluetoothAdapter?.name != myPeerID) {
-        //         bluetoothAdapter?.name = myPeerID
-        //         Log.d(TAG, "Set Bluetooth adapter name to peerID: $myPeerID for iOS compatibility.")
-        //     }
-        // } catch (se: SecurityException) {
-        //     Log.e(TAG, "Missing BLUETOOTH_CONNECT permission to set adapter name.", se)
-        // }
 
             // Start all component managers
             connectionScope.launch {
                 // Start connection tracker first
                 connectionTracker.start()
-                
+
                 // Start power manager
                 powerManager.start()
-                
+
                 // Start server manager
                 if (!serverManager.start()) {
                     Log.e(TAG, "Failed to start server manager")
                     this@BluetoothConnectionManager.isActive = false
                     return@launch
                 }
-                
+
                 // Start client manager
                 if (!clientManager.start()) {
                     Log.e(TAG, "Failed to start client manager")
                     this@BluetoothConnectionManager.isActive = false
                     return@launch
                 }
-                
+
                 Log.i(TAG, "Bluetooth services started successfully")
             }
-            
+
             return true
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start Bluetooth services: ${e.message}")
             isActive = false
             return false
         }
     }
-    
+
     /**
      * Stop all Bluetooth services with proper cleanup
      */
     fun stopServices() {
         Log.i(TAG, "Stopping power-optimized Bluetooth services")
-        
+
         isActive = false
-        
+
         connectionScope.launch {
             // Stop component managers
             clientManager.stop()
             serverManager.stop()
-            
+
             // Stop power manager
             powerManager.stop()
-            
+
             // Stop connection tracker
             connectionTracker.stop()
-            
+
             // Cancel the coroutine scope
             connectionScope.cancel()
-            
+
             Log.i(TAG, "All Bluetooth services stopped")
         }
     }
-    
+
     /**
      * Set app background state for power optimization
      */
@@ -192,19 +182,19 @@ class BluetoothConnectionManager(
      */
     fun broadcastPacket(routed: RoutedPacket) {
         if (!isActive) return
-        
+
         packetBroadcaster.broadcastPacket(
             routed,
             serverManager.getGattServer(),
             serverManager.getCharacteristic()
         )
     }
-    
+
     /**
      * Get connected device count
      */
     fun getConnectedDeviceCount(): Int = connectionTracker.getConnectedDeviceCount()
-    
+
     /**
      * Get debug information including power management
      */
@@ -222,19 +212,19 @@ class BluetoothConnectionManager(
             appendLine(connectionTracker.getDebugInfo())
         }
     }
-    
+
     // MARK: - PowerManagerDelegate Implementation
-    
+
     override fun onPowerModeChanged(newMode: PowerManager.PowerMode) {
         Log.i(TAG, "Power mode changed to: $newMode")
-        
+
         connectionScope.launch {
             // Avoid rapid scan restarts by checking if we need to change scan behavior
             val wasUsingDutyCycle = powerManager.shouldUseDutyCycle()
-            
+
             // Update advertising with new power settings
             serverManager.restartAdvertising()
-            
+
             // Only restart scanning if the duty cycle behavior changed
             val nowUsingDutyCycle = powerManager.shouldUseDutyCycle()
             if (wasUsingDutyCycle != nowUsingDutyCycle) {
@@ -243,16 +233,16 @@ class BluetoothConnectionManager(
             } else {
                 Log.d(TAG, "Duty cycle behavior unchanged, keeping existing scan state")
             }
-            
+
             // Enforce connection limits
             connectionTracker.enforceConnectionLimits()
         }
     }
-    
+
     override fun onScanStateChanged(shouldScan: Boolean) {
         clientManager.onScanStateChanged(shouldScan)
     }
-    
+
     // MARK: - Private Implementation - All moved to component managers
 }
 
@@ -260,7 +250,7 @@ class BluetoothConnectionManager(
  * Delegate interface for Bluetooth connection manager callbacks
  */
 interface BluetoothConnectionManagerDelegate {
-    fun onPacketReceived(packet: dogechatPacket, peerID: String, device: BluetoothDevice?)
+    fun onPacketReceived(packet: DogechatPacket, peerID: String, device: BluetoothDevice?)
     fun onDeviceConnected(device: BluetoothDevice)
     fun onRSSIUpdated(deviceAddress: String, rssi: Int)
 }

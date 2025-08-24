@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
-import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DogechatMessage
 
 /**
  * Centralized state definitions and data classes for the chat system
@@ -24,8 +24,8 @@ data class CommandSuggestion(
 class ChatState {
     
     // Core messages and peer state
-    private val _messages = MutableLiveData<List<dogechatMessage>>(emptyList())
-    val messages: LiveData<List<dogechatMessage>> = _messages
+    private val _messages = MutableLiveData<List<DogechatMessage>>(emptyList())
+    val messages: LiveData<List<DogechatMessage>> = _messages
     
     private val _connectedPeers = MutableLiveData<List<String>>(emptyList())
     val connectedPeers: LiveData<List<String>> = _connectedPeers
@@ -37,8 +37,8 @@ class ChatState {
     val isConnected: LiveData<Boolean> = _isConnected
     
     // Private chats
-    private val _privateChats = MutableLiveData<Map<String, List<dogechatMessage>>>(emptyMap())
-    val privateChats: LiveData<Map<String, List<dogechatMessage>>> = _privateChats
+    private val _privateChats = MutableLiveData<Map<String, List<DogechatMessage>>>(emptyMap())
+    val privateChats: LiveData<Map<String, List<DogechatMessage>>> = _privateChats
     
     private val _selectedPrivateChatPeer = MutableLiveData<String?>(null)
     val selectedPrivateChatPeer: LiveData<String?> = _selectedPrivateChatPeer
@@ -53,8 +53,8 @@ class ChatState {
     private val _currentChannel = MutableLiveData<String?>(null)
     val currentChannel: LiveData<String?> = _currentChannel
     
-    private val _channelMessages = MutableLiveData<Map<String, List<dogechatMessage>>>(emptyMap())
-    val channelMessages: LiveData<Map<String, List<dogechatMessage>>> = _channelMessages
+    private val _channelMessages = MutableLiveData<Map<String, List<DogechatMessage>>>(emptyMap())
+    val channelMessages: LiveData<Map<String, List<DogechatMessage>>> = _channelMessages
     
     private val _unreadChannelMessages = MutableLiveData<Map<String, Int>>(emptyMap())
     val unreadChannelMessages: LiveData<Map<String, Int>> = _unreadChannelMessages
@@ -171,7 +171,7 @@ class ChatState {
     fun getGeohashParticipantCountsValue() = _geohashParticipantCounts.value ?: emptyMap()
     
     // Setters for state updates
-    fun setMessages(messages: List<dogechatMessage>) {
+    fun setMessages(messages: List<DogechatMessage>) {
         _messages.value = messages
     }
     
@@ -187,7 +187,7 @@ class ChatState {
         _isConnected.value = connected
     }
     
-    fun setPrivateChats(chats: Map<String, List<dogechatMessage>>) {
+    fun setPrivateChats(chats: Map<String, List<DogechatMessage>>) {
         _privateChats.value = chats
     }
     
@@ -207,7 +207,7 @@ class ChatState {
         _currentChannel.value = channel
     }
     
-    fun setChannelMessages(messages: Map<String, List<dogechatMessage>>) {
+    fun setChannelMessages(messages: Map<String, List<DogechatMessage>>) {
         _channelMessages.value = messages
     }
     
