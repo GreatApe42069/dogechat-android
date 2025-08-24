@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DogechatMessage
 import java.util.*
 
 /**
@@ -190,7 +190,7 @@ class ChannelManager(
                 System.arraycopy(iv, 0, combined, 0, iv.size)
                 System.arraycopy(encryptedData, 0, combined, iv.size, encryptedData.size)
                 
-                val encryptedMessage = dogechatMessage(
+                val encryptedMessage = DogechatMessage(
                     sender = senderNickname ?: myPeerID,
                     content = "",
                     timestamp = Date(),
@@ -203,7 +203,7 @@ class ChannelManager(
                 )
                 
                 // Send encrypted message via mesh
-                encryptedMessage.toBinaryPayload()?.let { messageData ->
+                encryptedMessage.toBinaryData()?.let { messageData ->
                     onEncryptedPayload(messageData)
                 } ?: onFallback()
                 
@@ -216,7 +216,7 @@ class ChannelManager(
     
     // MARK: - Channel Management
     
-    fun addChannelMessage(channel: String, message: dogechatMessage, senderPeerID: String?) {
+    fun addChannelMessage(channel: String, message: DogechatMessage, senderPeerID: String?) {
         messageManager.addChannelMessage(channel, message)
         
         // Track as channel member
@@ -299,3 +299,4 @@ class ChannelManager(
         retentionEnabledChannels.clear()
     }
 }
+

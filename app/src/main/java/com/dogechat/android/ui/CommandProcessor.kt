@@ -1,6 +1,6 @@
 package com.dogechat.android.ui
 
-import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.mesh.BluetoothMeshService
 import java.util.*
 
@@ -59,7 +59,7 @@ class CommandProcessor(
             val password = if (parts.size > 2) parts[2] else null
             val success = channelManager.joinChannel(channel, password, myPeerID)
             if (success) {
-                val systemMessage = dogechatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "joined channel $channel",
                     timestamp = Date(),
@@ -68,7 +68,7 @@ class CommandProcessor(
                 messageManager.addMessage(systemMessage)
             }
         } else {
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "usage: /join <channel>",
                 timestamp = Date(),
@@ -101,7 +101,7 @@ class CommandProcessor(
                             sendPrivateMessageVia(meshService, content, peerIdParam, recipientNicknameParam, messageId)
                         }
                     } else {
-                        val systemMessage = dogechatMessage(
+                        val systemMessage = DogechatMessage(
                             sender = "system",
                             content = "started private chat with $targetName",
                             timestamp = Date(),
@@ -111,7 +111,7 @@ class CommandProcessor(
                     }
                 }
             } else {
-                val systemMessage = dogechatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "user '$targetName' not found. they may be offline or using a different nickname.",
                     timestamp = Date(),
@@ -120,7 +120,7 @@ class CommandProcessor(
                 messageManager.addMessage(systemMessage)
             }
         } else {
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "usage: /msg <nickname> [message]",
                 timestamp = Date(),
@@ -161,7 +161,7 @@ class CommandProcessor(
             Pair(peerList, "online users")
         }
         
-        val systemMessage = dogechatMessage(
+        val systemMessage = DogechatMessage(
             sender = "system",
             content = "$contextDescription: $peerList",
             timestamp = Date(),
@@ -172,7 +172,7 @@ class CommandProcessor(
     
     private fun handleClearCommand() {
         messageManager.clearAllMessages()
-        val systemMessage = dogechatMessage(
+        val systemMessage = DogechatMessage(
             sender = "system",
             content = "chat history cleared",
             timestamp = Date(),
@@ -187,7 +187,7 @@ class CommandProcessor(
             val password = parts[1]
             if (channelManager.isChannelCreator(currentChannel, myPeerID)) {
                 channelManager.setChannelPassword(currentChannel, password)
-                val systemMessage = dogechatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "channel password set",
                     timestamp = Date(),
@@ -195,7 +195,7 @@ class CommandProcessor(
                 )
                 messageManager.addMessage(systemMessage)
             } else {
-                val systemMessage = dogechatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "only channel creator can set password",
                     timestamp = Date(),
@@ -204,7 +204,7 @@ class CommandProcessor(
                 messageManager.addMessage(systemMessage)
             }
         } else {
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "usage: /pass <password>",
                 timestamp = Date(),
@@ -220,7 +220,7 @@ class CommandProcessor(
             val peerID = getPeerIDForNickname(targetName, meshService)
             if (peerID != null) {
                 privateChatManager.blockPeer(peerID, meshService)
-                val systemMessage = dogechatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "$targetName blocked",
                     timestamp = Date(),
@@ -228,7 +228,7 @@ class CommandProcessor(
                 )
                 messageManager.addMessage(systemMessage)
             } else {
-                val systemMessage = dogechatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "user '$targetName' not found",
                     timestamp = Date(),
@@ -240,7 +240,7 @@ class CommandProcessor(
             // List blocked peers
             val blockedPeers = privateChatManager.getBlockedPeers(meshService)
             val blockedList = if (blockedPeers.isEmpty()) "none" else blockedPeers.joinToString(", ")
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "blocked users: $blockedList",
                 timestamp = Date(),
@@ -256,7 +256,7 @@ class CommandProcessor(
             val peerID = getPeerIDForNickname(targetName, meshService)
             if (peerID != null) {
                 privateChatManager.unblockPeer(peerID, meshService)
-                val systemMessage = dogechatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "$targetName unblocked",
                     timestamp = Date(),
@@ -264,7 +264,7 @@ class CommandProcessor(
                 )
                 messageManager.addMessage(systemMessage)
             } else {
-                val systemMessage = dogechatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "user '$targetName' not found",
                     timestamp = Date(),
@@ -273,7 +273,7 @@ class CommandProcessor(
                 messageManager.addMessage(systemMessage)
             }
         } else {
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "usage: /unblock <nickname>",
                 timestamp = Date(),
@@ -296,7 +296,7 @@ class CommandProcessor(
             val actionMessage = "${state.getNicknameValue()} $actionVerb $target $actionSuffix"
             onSendMessage(actionMessage, emptyList(), null)
         } else {
-            val systemMessage = dogechatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "usage: ${parts[0]} <nickname>",
                 timestamp = Date(),
@@ -310,7 +310,7 @@ class CommandProcessor(
         val allChannels = channelManager.getJoinedChannelsList()
         val channelList = if (allChannels.isEmpty()) "none" else "joined channels: ${allChannels.joinToString(", ")}"
         
-        val systemMessage = dogechatMessage(
+        val systemMessage = DogechatMessage(
             sender = "system",
             content = channelList,
             timestamp = Date(),
@@ -320,7 +320,7 @@ class CommandProcessor(
     }
     
     private fun handleUnknownCommand(cmd: String) {
-        val systemMessage = dogechatMessage(
+        val systemMessage = DogechatMessage(
             sender = "system",
             content = "unknown command: $cmd. type / to see available commands.",
             timestamp = Date(),

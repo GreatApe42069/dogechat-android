@@ -4,13 +4,13 @@ import android.content.Context
 import android.util.Log
 import com.dogechat.android.crypto.EncryptionService
 import com.dogechat.android.protocol.MessagePadding
-import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.HandshakeRequest
 import com.dogechat.android.model.RoutedPacket
 import com.dogechat.android.model.DeliveryAck
 import com.dogechat.android.model.ReadReceipt
 import com.dogechat.android.model.NoiseIdentityAnnouncement
-import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.protocol.SpecialRecipients
 import com.dogechat.android.util.toHexString
@@ -137,7 +137,7 @@ class BluetoothMeshService(private val context: Context) {
 
             override fun sendHandshakeResponse(peerID: String, response: ByteArray) {
                 // Send Noise handshake response
-                val responsePacket = dogechatPacket(
+                val responsePacket = DogechatPacket(
                     version = 1u,
                     type = MessageType.NOISE_HANDSHAKE_RESP.value,
                     senderID = hexStringToByteArray(myPeerID),
@@ -161,7 +161,7 @@ class BluetoothMeshService(private val context: Context) {
                 return peerManager.isPeerActive(peerID)
             }
 
-            override fun sendPacket(packet: dogechatPacket) {
+            override fun sendPacket(packet: DogechatPacket) {
                 connectionManager.broadcastPacket(RoutedPacket(packet))
             }
         }
@@ -194,7 +194,7 @@ class BluetoothMeshService(private val context: Context) {
             }
 
             // Packet operations
-            override fun sendPacket(packet: dogechatPacket) {
+            override fun sendPacket(packet: DogechatPacket) {
                 connectionManager.broadcastPacket(RoutedPacket(packet))
             }
 
@@ -207,7 +207,7 @@ class BluetoothMeshService(private val context: Context) {
             }
 
             // Cryptographic operations
-            override fun verifySignature(packet: dogechatPacket, peerID: String): Boolean {
+            override fun verifySignature(packet: DogechatPacket, peerID: String): Boolean {
                 return securityManager.verifySignature(packet, peerID)
             }
 
@@ -234,7 +234,7 @@ class BluetoothMeshService(private val context: Context) {
                     val handshakeData = encryptionService.initiateHandshake(peerID)
 
                     if (handshakeData != null) {
-                        val packet = dogechatPacket(
+                        val packet = DogechatPacket(
                             version = 1u,
                             type = MessageType.NOISE_HANDSHAKE_INIT.value,
                             senderID = hexStringToByteArray(myPeerID),
@@ -284,12 +284,12 @@ class BluetoothMeshService(private val context: Context) {
                 return delegate?.decryptChannelMessage(encryptedContent, channel)
             }
 
-            override fun sendDeliveryAck(message: dogechatMessage, senderPeerID: String) {
+            override fun sendDeliveryAck(message: DogechatMessage, senderPeerID: String) {
                 this@BluetoothMeshService.sendDeliveryAck(message, senderPeerID)
             }
 
             // Callbacks
-            override fun onMessageReceived(message: dogechatMessage) {
+            override fun onMessageReceived(message: DogechatMessage) {
                 delegate?.didReceiveMessage(message)
             }
 
@@ -308,7 +308,7 @@ class BluetoothMeshService(private val context: Context) {
 
         // PacketProcessor delegates
         packetProcessor.delegate = object : PacketProcessorDelegate {
-              override fun validatePacketSecurity(packet: dogechatPacket, peerID: String): Boolean {
+              override fun validatePacketSecurity(packet: DogechatPacket, peerID: String): Boolean {
                   return securityManager.validatePacket(packet, peerID)
               }
 
@@ -353,7 +353,7 @@ class BluetoothMeshService(private val context: Context) {
                 serviceScope.launch { messageHandler.handleLeave(routed) }
             }
 
-            override fun handleFragment(packet: dogechatPacket): dogechatPacket? {
+            override fun handleFragment(packet: DogechatPacket): DogechatPacket? {
                 return fragmentManager.handleFragment(packet)
             }
 
@@ -381,7 +381,7 @@ class BluetoothMeshService(private val context: Context) {
 
         // BluetoothConnectionManager delegates
         connectionManager.delegate = object : BluetoothConnectionManagerDelegate {
-            override fun onPacketReceived(packet: dogechatPacket, peerID: String, device: android.bluetooth.BluetoothDevice?) {
+            override fun onPacketReceived(packet: DogechatPacket, peerID: String, device: android.bluetooth.BluetoothDevice?) {
                 packetProcessor.processPacket(RoutedPacket(packet, peerID, device?.address))
             }
 
@@ -486,7 +486,7 @@ fun startServices() {
         serviceScope.launch {
             val nickname = delegate?.getNickname() ?: myPeerID
 
-            val message = dogechatMessage(
+            val message = DogechatMessage(
                 sender = nickname,
                 content = content,
                 timestamp = Date(),
@@ -496,11 +496,11 @@ fun startServices() {
                 channel = channel
             )
 
-            message.toBinaryPayload()?.let { messageData ->
+            message.toBinaryData()?.let { messageData ->
                 // Sign the message: TODO: NOT SIGNED
                 // val signature = securityManager.signPacket(messageData)
 
-                val packet = dogechatPacket(
+                val packet = DogechatPacket(
                     version = 1u,
                     type = MessageType.MESSAGE.value,
                     senderID = hexStringToByteArray(myPeerID),
@@ -526,7 +526,7 @@ fun startServices() {
 
         val nickname = delegate?.getNickname() ?: myPeerID
 
-        val message = dogechatMessage(
+        val message = DogechatMessage(
             id = messageID ?: UUID.randomUUID().toString(),
             sender = nickname,
             content = content,
@@ -537,11 +537,11 @@ fun startServices() {
             senderPeerID = myPeerID
         )
 
-        message.toBinaryPayload()?.let { messageData ->
+        message.toBinaryData()?.let { messageData ->
             try {
 
                 // Create inner packet with the padded message data
-                val innerPacket = dogechatPacket(
+                val innerPacket = DogechatPacket(
                     type = MessageType.MESSAGE.value,
                     senderID = hexStringToByteArray(myPeerID),
                     recipientID = hexStringToByteArray(recipientPeerID),
@@ -568,7 +568,7 @@ fun startServices() {
     /**
      * Send delivery acknowledgment for a received private message
      */
-    fun sendDeliveryAck(message: dogechatMessage, senderPeerID: String) {
+    fun sendDeliveryAck(message: DogechatMessage, senderPeerID: String) {
         val nickname = delegate?.getNickname() ?: myPeerID
         val ack = DeliveryAck(
             originalMessageID = message.id,
@@ -589,7 +589,7 @@ fun startServices() {
             }
 
             // Create inner packet with the delivery ACK data
-            val packet = dogechatPacket(
+            val packet = DogechatPacket(
                 type = MessageType.NOISE_ENCRYPTED.value,
                 senderID = hexStringToByteArray(myPeerID),
                 recipientID = hexStringToByteArray(senderPeerID),
@@ -632,7 +632,7 @@ fun startServices() {
                 }
 
                 // Create inner packet with the delivery ACK data
-                val packet = dogechatPacket(
+                val packet = DogechatPacket(
                     type = MessageType.NOISE_ENCRYPTED.value,
                     senderID = hexStringToByteArray(myPeerID),
                     recipientID = hexStringToByteArray(recipientPeerID),
@@ -654,10 +654,10 @@ fun startServices() {
     }
 
     /**
-     * Encrypt a dogechatPacket and broadcast it as a NOISE_ENCRYPTED message
+     * Encrypt a DogechatPacket and broadcast it as a NOISE_ENCRYPTED message
      * This is the correct protocol implementation - encrypt the entire packet, not just the payload
      */
-    private fun encryptAndBroadcastNoisePacket(innerPacket: dogechatPacket, recipientPeerID: String) {
+    private fun encryptAndBroadcastNoisePacket(innerPacket: DogechatPacket, recipientPeerID: String) {
         serviceScope.launch {
             try {
                 // Serialize the inner packet to binary data
@@ -672,7 +672,7 @@ fun startServices() {
 
                 if (encryptedPayload != null) {
                     // Create the outer NOISE_ENCRYPTED packet
-                    val outerPacket = dogechatPacket(
+                    val outerPacket = DogechatPacket(
                         type = MessageType.NOISE_ENCRYPTED.value,
                         senderID = hexStringToByteArray(myPeerID),
                         recipientID = hexStringToByteArray(recipientPeerID),
@@ -704,7 +704,7 @@ fun startServices() {
         serviceScope.launch {
             val nickname = delegate?.getNickname() ?: myPeerID
 
-            val announcePacket = dogechatPacket(
+            val announcePacket = DogechatPacket(
                 type = MessageType.ANNOUNCE.value,
                 ttl = MAX_TTL,
                 senderID = myPeerID, // STRING required by repo here
@@ -722,7 +722,7 @@ fun startServices() {
         if (peerManager.hasAnnouncedToPeer(peerID)) return
 
         val nickname = delegate?.getNickname() ?: myPeerID
-        val packet = dogechatPacket(
+        val packet = DogechatPacket(
             type = MessageType.ANNOUNCE.value,
             ttl = MAX_TTL,
             senderID = myPeerID, // STRING required by repo here
@@ -746,7 +746,7 @@ fun startServices() {
                 if (announcement != null) {
                     val announcementData = announcement.toBinaryData()
 
-                    val packet = dogechatPacket(
+                    val packet = DogechatPacket(
                         type = MessageType.NOISE_IDENTITY_ANNOUNCE.value,
                         ttl = MAX_TTL,
                         senderID = myPeerID, // STRING required by repo here
@@ -782,7 +782,7 @@ fun startServices() {
                 val requestData = request.toBinaryData()
 
                 // Create packet for handshake request
-                val packet = dogechatPacket(
+                val packet = DogechatPacket(
                     version = 1u,
                     type = MessageType.HANDSHAKE_REQUEST.value,
                     senderID = hexStringToByteArray(myPeerID),
@@ -855,7 +855,7 @@ fun startServices() {
      */
     private fun sendLeaveAnnouncement() {
         val nickname = delegate?.getNickname() ?: myPeerID
-        val packet = dogechatPacket(
+        val packet = DogechatPacket(
             type = MessageType.LEAVE.value,
             ttl = MAX_TTL,
             senderID = myPeerID, // STRING required by repo here
@@ -1048,7 +1048,7 @@ fun startServices() {
  * Delegate interface for mesh service callbacks (maintains exact same interface)
  */
 interface BluetoothMeshDelegate {
-    fun didReceiveMessage(message: dogechatMessage)
+    fun didReceiveMessage(message: DogechatMessage)
     fun didUpdatePeerList(peers: List<String>)
     fun didReceiveChannelLeave(channel: String, fromPeer: String)
     fun didReceiveDeliveryAck(ack: DeliveryAck)
@@ -1058,3 +1058,4 @@ interface BluetoothMeshDelegate {
     fun isFavorite(peerID: String): Boolean
     // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager
 }
+
