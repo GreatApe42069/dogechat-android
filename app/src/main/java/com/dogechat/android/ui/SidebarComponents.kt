@@ -2,22 +2,17 @@ package com.dogechat.android.ui
 
 import com.dogechat.android.R
 import android.util.Log
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,7 +21,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.statusBarsPadding
+import com.dogechat.android.ui.theme.BASE_FONT_SIZE
+
+
+/**
+ * Sidebar components for ChatScreen
+ * Extracted from ChatScreen.kt for better organization
+ */
 
 @Composable
 fun SidebarOverlay(
@@ -37,14 +38,14 @@ fun SidebarOverlay(
     val colorScheme = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
 
-    val connectedPeers by viewModel.connectedPeers.observeAsState(initial = emptyList<String>())
-    val joinedChannels by viewModel.joinedChannels.observeAsState(initial = emptySet<String>())
-    val currentChannel by viewModel.currentChannel.observeAsState(initial = null)
-    val selectedPrivatePeer by viewModel.selectedPrivateChatPeer.observeAsState(initial = null)
-    val nickname by viewModel.nickname.observeAsState(initial = "")
-    val unreadChannelMessages by viewModel.unreadChannelMessages.observeAsState(initial = emptyMap<String, Int>())
-    val peerNicknames by viewModel.peerNicknames.observeAsState(initial = emptyMap<String, String>())
-    val peerRSSI by viewModel.peerRSSI.observeAsState(initial = emptyMap<String, Int>())
+    val connectedPeers by viewModel.connectedPeers.observeAsState(emptyList())
+    val joinedChannels by viewModel.joinedChannels.observeAsState(emptyList())
+    val currentChannel by viewModel.currentChannel.observeAsState()
+    val selectedPrivatePeer by viewModel.selectedPrivateChatPeer.observeAsState()
+    val nickname by viewModel.nickname.observeAsState("")
+    val unreadChannelMessages by viewModel.unreadChannelMessages.observeAsState(emptyMap())
+    val peerNicknames by viewModel.peerNicknames.observeAsState(emptyMap())
+    val peerRSSI by viewModel.peerRSSI.observeAsState(emptyMap())
 
     Box(
         modifier = modifier
@@ -58,33 +59,36 @@ fun SidebarOverlay(
                 .align(Alignment.CenterEnd)
                 .clickable { /* Prevent dismissing when clicking sidebar */ }
         ) {
+            // Grey vertical bar for visual continuity (matches iOS)
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(1.dp)
                     .background(Color.Gray.copy(alpha = 0.3f))
             )
-
+            
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
                     .weight(1f)
                     .background(colorScheme.background.copy(alpha = 0.95f))
-                    .statusBarsPadding()
+                    .windowInsetsPadding(WindowInsets.statusBars) // Add status bar padding
             ) {
                 SidebarHeader()
 
                 HorizontalDivider()
-
+                
+                // Scrollable content
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Channels section
                     if (joinedChannels.isNotEmpty()) {
                         item {
                             ChannelsSection(
-                                channels = joinedChannels.toList(),
+                                channels = joinedChannels.toList(), // Convert Set to List
                                 currentChannel = currentChannel,
                                 colorScheme = colorScheme,
                                 onChannelClick = { channel ->
@@ -97,7 +101,7 @@ fun SidebarOverlay(
                                 unreadChannelMessages = unreadChannelMessages
                             )
                         }
-
+                        
                         item {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         }
@@ -142,10 +146,10 @@ fun SidebarOverlay(
 @Composable
 private fun SidebarHeader() {
     val colorScheme = MaterialTheme.colorScheme
-
+    
     Row(
         modifier = Modifier
-            .height(42.dp)
+            .height(42.dp) // Match reduced main header height
             .fillMaxWidth()
             .background(colorScheme.background.copy(alpha = 0.95f))
             .padding(horizontal = 12.dp),
@@ -157,53 +161,83 @@ private fun SidebarHeader() {
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             ),
-            color = colorScheme.primary
+            color = colorScheme.onSurface
         )
+        Spacer(modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun ChannelsSection(
+fun ChannelsSection(
     channels: List<String>,
     currentChannel: String?,
     colorScheme: ColorScheme,
     onChannelClick: (String) -> Unit,
     onLeaveChannel: (String) -> Unit,
-    unreadChannelMessages: Map<String, Int>
+    unreadChannelMessages: Map<String, Int> = emptyMap()
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(
-            text = "Channels",
-            style = MaterialTheme.typography.labelLarge,
-            color = colorScheme.primary
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        channels.sorted().forEach { channel ->
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person, // Using Person icon as placeholder
+                contentDescription = null,
+                modifier = Modifier.size(10.dp),
+                tint = colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(id = R.string.channels).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = colorScheme.onSurface.copy(alpha = 0.6f),
+                fontWeight = FontWeight.Bold
+            )
+        }
+        
+        channels.forEach { channel ->
+            val isSelected = channel == currentChannel
+            val unreadCount = unreadChannelMessages[channel] ?: 0
+            
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onChannelClick(channel) }
-                    .padding(vertical = 8.dp),
+                    .background(
+                        if (isSelected) colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        else Color.Transparent
+                    )
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Unread badge for channels
+                UnreadBadge(
+                    count = unreadCount,
+                    colorScheme = colorScheme,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                
                 Text(
-                    text = channel,
+                    text = channel, // Channel already contains the # prefix
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (channel == currentChannel) colorScheme.primary else colorScheme.onSurface,
+                    color = if (isSelected) colorScheme.primary else colorScheme.onSurface,
+                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                     modifier = Modifier.weight(1f)
                 )
-
-                if (unreadChannelMessages[channel] ?: 0 > 0) {
-                    UnreadBadge(count = unreadChannelMessages[channel] ?: 0, colorScheme = colorScheme)
-                }
-
-                IconButton(onClick = { onLeaveChannel(channel) }) {
+                
+                // Leave channel button
+                IconButton(
+                    onClick = { onLeaveChannel(channel) },
+                    modifier = Modifier.size(24.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Leave channel",
-                        tint = Color.Red
+                        modifier = Modifier.size(14.dp),
+                        tint = colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 }
             }
@@ -212,7 +246,7 @@ private fun ChannelsSection(
 }
 
 @Composable
-private fun PeopleSection(
+fun PeopleSection(
     connectedPeers: List<String>,
     peerNicknames: Map<String, String>,
     peerRSSI: Map<String, Int>,
@@ -222,43 +256,84 @@ private fun PeopleSection(
     viewModel: ChatViewModel,
     onPrivateChatStart: (String) -> Unit
 ) {
-    val hasUnreadPrivateMessages by viewModel.hasUnreadPrivateMessages.observeAsState(emptySet())
-
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(
-            text = "People",
-            style = MaterialTheme.typography.labelLarge,
-            color = colorScheme.primary
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Sort peers: favorites first, then alphabetically
-        val sortedPeers = connectedPeers.sortedWith(compareByDescending<String> { 
-            privateChatManager.isFavorite(it) 
-        }.thenBy { 
-            peerNicknames[it] ?: it 
-        })
-
-        sortedPeers.forEach { peerID ->
-            val isFavorite = privateChatManager.isFavorite(peerID)
-            val hasUnreadDM = hasUnreadPrivateMessages.contains(peerID)
-
-            PeerItem(
-                peerID = peerID,
-                displayName = if (peerID == nickname) "You" else (peerNicknames[peerID] ?: peerID),
-                signalStrength = convertRSSIToSignalStrength(peerRSSI[peerID]),
-                isSelected = peerID == selectedPrivatePeer,
-                isFavorite = isFavorite,
-                hasUnreadDM = hasUnreadDM,
-                colorScheme = colorScheme,
-                viewModel = viewModel,
-                onItemClick = { onPrivateChatStart(peerID) },
-                onToggleFavorite = {
-                    viewModel.toggleFavorite(peerID)
-                },
-                unreadCount = if (hasUnreadDM) 1 else 0
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Group, // Using Person icon for people
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = colorScheme.onSurface.copy(alpha = 0.6f)
             )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(id = R.string.people).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = colorScheme.onSurface.copy(alpha = 0.6f),
+                fontWeight = FontWeight.Bold
+            )
+        }
+        
+        if (connectedPeers.isEmpty()) {
+            Text(
+                text = stringResource(id = R.string.no_one_connected),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+        } else {
+            // Observe reactive state for favorites and fingerprints
+            val hasUnreadPrivateMessages by viewModel.unreadPrivateMessages.observeAsState(emptySet())
+            val privateChats by viewModel.privateChats.observeAsState(emptyMap())
+            val favoritePeers by viewModel.favoritePeers.observeAsState(emptySet())
+            val peerFingerprints by viewModel.peerFingerprints.observeAsState(emptyMap())
+            
+            // Reactive favorite computation for all peers
+            val peerFavoriteStates = remember(favoritePeers, peerFingerprints, connectedPeers) {
+                connectedPeers.associateWith { peerID ->
+                    // Reactive favorite computation - same as ChatHeader
+                    val fingerprint = peerFingerprints[peerID]
+                    fingerprint != null && favoritePeers.contains(fingerprint)
+                }
+            }
+            
+            Log.d("SidebarComponents", "Recomposing with ${favoritePeers.size} favorites, peer states: $peerFavoriteStates")
+ 
+            // Smart sorting: unread DMs first, then by most recent DM, then favorites, then alphabetical
+            val sortedPeers = connectedPeers.sortedWith(
+                compareBy<String> { !hasUnreadPrivateMessages.contains(it) } // Unread DM senders first
+                .thenByDescending { privateChats[it]?.maxByOrNull { msg -> msg.timestamp }?.timestamp?.time ?: 0L } // Most recent DM (convert Date to Long)
+                .thenBy { !(peerFavoriteStates[it] ?: false) } // Favorites first
+                .thenBy { (if (it == nickname) "You" else (peerNicknames[it] ?: it)).lowercase() } // Alphabetical
+            )
+            
+            sortedPeers.forEach { peerID ->
+                val isFavorite = peerFavoriteStates[peerID] ?: false
+                
+                PeerItem(
+                    peerID = peerID,
+                    displayName = if (peerID == nickname) "You" else (peerNicknames[peerID] ?: peerID),
+                    signalStrength = convertRSSIToSignalStrength(peerRSSI[peerID]),
+                    isSelected = peerID == selectedPrivatePeer,
+                    isFavorite = isFavorite,
+                    hasUnreadDM = hasUnreadPrivateMessages.contains(peerID),
+                    colorScheme = colorScheme,
+                    viewModel = viewModel,
+                    onItemClick = { onPrivateChatStart(peerID) },
+                    onToggleFavorite = { 
+                        Log.d("SidebarComponents", "Sidebar toggle favorite: peerID=$peerID, currentFavorite=$isFavorite")
+                        viewModel.toggleFavorite(peerID) 
+                    },
+                    unreadCount = privateChats[peerID]?.count { msg -> 
+                        // Count unread messages from this peer (messages not from the current user)
+                        msg.sender != nickname && hasUnreadPrivateMessages.contains(peerID)
+                    } ?: if (hasUnreadPrivateMessages.contains(peerID)) 1 else 0
+                )
+            }
         }
     }
 }
@@ -307,9 +382,13 @@ private fun PeerItem(
                 tint = Color(0xFFFF9500) // iOS orange
             )
         } else {
-            SignalStrengthIndicator(signalStrength = signalStrength, colorScheme = colorScheme)
+            // Signal strength indicators
+            SignalStrengthIndicator(
+                signalStrength = signalStrength,
+                colorScheme = colorScheme
+            )
         }
-
+        
         Spacer(modifier = Modifier.width(8.dp))
         
         // Display name with iOS-style color and hashtag suffix support
@@ -322,7 +401,7 @@ private fun PeerItem(
                 text = baseName,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 14.sp,
+                    fontSize = BASE_FONT_SIZE.sp,
                     fontWeight = if (isMe) FontWeight.Bold else FontWeight.Normal
                 ),
                 color = baseColor
@@ -334,7 +413,7 @@ private fun PeerItem(
                     text = suffix,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp
+                        fontSize = BASE_FONT_SIZE.sp
                     ),
                     color = baseColor.copy(alpha = 0.6f)
                 )
@@ -359,14 +438,19 @@ private fun PeerItem(
 
 
 @Composable
-private fun SignalStrengthIndicator(signalStrength: Int, colorScheme: ColorScheme) {
+private fun SignalStrengthIndicator(
+    signalStrength: Int,
+    colorScheme: ColorScheme
+) {
     Row(modifier = Modifier.width(24.dp)) {
         repeat(3) { index ->
-            val opacity = if (signalStrength >= (index + 1) * 33) 1f else 0.2f
+            val opacity = when {
+                signalStrength >= (index + 1) * 33 -> 1f
+                else -> 0.2f
+            }
             Box(
                 modifier = Modifier
-                    .width(3.dp)
-                    .height((4 + index * 2).dp)
+                    .size(width = 3.dp, height = (4 + index * 2).dp)
                     .background(
                         colorScheme.onSurface.copy(alpha = opacity),
                         RoundedCornerShape(1.dp)
@@ -377,12 +461,22 @@ private fun SignalStrengthIndicator(signalStrength: Int, colorScheme: ColorSchem
     }
 }
 
+/**
+ * Reusable unread badge component for both channels and private messages
+ */
 @Composable
-private fun UnreadBadge(count: Int, colorScheme: ColorScheme, modifier: Modifier = Modifier) {
+private fun UnreadBadge(
+    count: Int,
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier
+) {
     if (count > 0) {
         Box(
             modifier = modifier
-                .background(Color(0xFFFFD700), shape = RoundedCornerShape(10.dp))
+                .background(
+                    color = Color(0xFFFFD700), // Yellow color
+                    shape = RoundedCornerShape(10.dp)
+                )
                 .padding(horizontal = 2.dp, vertical = 0.dp)
                 .defaultMinSize(minWidth = 14.dp, minHeight = 14.dp),
             contentAlignment = Alignment.Center
@@ -393,98 +487,30 @@ private fun UnreadBadge(count: Int, colorScheme: ColorScheme, modifier: Modifier
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 ),
-                color = Color.Black
+                color = Color.Black // Black text on yellow background
             )
         }
     }
 }
 
+/**
+ * Convert RSSI value (dBm) to signal strength percentage (0-100)
+ * RSSI typically ranges from -30 (excellent) to -100 (very poor)
+ * Maps to 0-100 scale where:
+ * - 0-32: No signal (0 bars)
+ * - 33-65: Weak (1 bar) 
+ * - 66-98: Good (2 bars)
+ * - 99-100: Excellent (3 bars)
+ */
 private fun convertRSSIToSignalStrength(rssi: Int?): Int {
     if (rssi == null) return 0
+    
     return when {
-        rssi >= -40 -> 100
-        rssi >= -55 -> 85
-        rssi >= -70 -> 70
-        rssi >= -85 -> 50
-        rssi >= -100 -> 25
-        else -> 0
-    }
-}
-
-@Composable
-fun GeohashPeopleList(
-    viewModel: ChatViewModel,
-    onTapPerson: () -> Unit
-) {
-    val geohashPeople by viewModel.geohashPeople.observeAsState(emptyList())
-    val colorScheme = MaterialTheme.colorScheme
-    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
-
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(
-            text = "Geohash People",
-            style = MaterialTheme.typography.labelLarge,
-            color = colorScheme.primary
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        geohashPeople.sortedBy { it.displayName }.forEach { person ->
-            val baseColor = viewModel.colorForNostrPubkey(person.pubkeyHex, isDark)
-            val (baseName, suffix) = splitSuffix(person.displayName)
-            val isTeleported = viewModel.isPersonTeleported(person.pubkeyHex)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { 
-                        viewModel.startGeohashDM(person.pubkeyHex)
-                        onTapPerson()
-                    }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isTeleported) {
-                    Icon(
-                        imageVector = Icons.Default.PinDrop,
-                        contentDescription = "Teleported",
-                        tint = baseColor,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                } else {
-                    SignalStrengthIndicator(signalStrength = 100, colorScheme = colorScheme) // Full for geohash
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = baseName,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 14.sp
-                        ),
-                        color = baseColor
-                    )
-                    
-                    if (suffix.isNotEmpty()) {
-                        Text(
-                            text = suffix,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 14.sp
-                            ),
-                            color = baseColor.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-
-                // No favorite for geohash people
-            }
-        }
+        rssi >= -40 -> 100  // Excellent signal
+        rssi >= -55 -> 85   // Very good signal  
+        rssi >= -70 -> 70   // Good signal
+        rssi >= -85 -> 50   // Fair signal
+        rssi >= -100 -> 25  // Poor signal
+        else -> 0           // Very poor or no signal
     }
 }

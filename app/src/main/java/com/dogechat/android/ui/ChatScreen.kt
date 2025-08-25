@@ -4,26 +4,29 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.dogechat.android.model.DogechatMessage
 
 /**
- * Main ChatScreen - REFACTORED to use component-based architecture
- * This is now a coordinator that orchestrates the following UI components:
- * - ChatHeader: App bar, navigation, peer counter
- * - MessageComponents: Message display and formatting
- * - InputComponents: Message input and command suggestions
- * - SidebarComponents: Navigation drawer with channels and people
- * - DialogComponents: Password prompts and modals
- * - ChatUIUtils: Utility functions for formatting and colors
+ * Main ChatScreen - Coordinates all UI components in a modular way.
+ * Includes:
+ * - Header: navigation, info, and panic clear
+ * - MessagesList: displays messages
+ * - Input: text input, command/mention suggestions
+ * - Sidebar & Sheets: channel info, app info, user actions
  */
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
@@ -51,6 +54,10 @@ fun ChatScreen(viewModel: ChatViewModel) {
     var passwordInput by remember { mutableStateOf("") }
     var showLocationChannelsSheet by remember { mutableStateOf(false) }
     var forceScrollToBottom by remember { mutableStateOf(false) }
+    var showUserSheet by remember { mutableStateOf(false) }
+    var selectedUserForSheet by remember { mutableStateOf("") }
+    var selectedMessageForSheet by remember { mutableStateOf<DogechatMessage?>(null) }
+    var isScrolledUp by remember { mutableStateOf(false) }
 
     // Show password dialog when needed
     LaunchedEffect(showPasswordPrompt) {
@@ -67,32 +74,65 @@ fun ChatScreen(viewModel: ChatViewModel) {
         else -> messages
     }
 
-    // Use WindowInsets to handle keyboard properly
-    Box(modifier = Modifier.fillMaxSize()) {
+    // Layout root
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colorScheme.background)
+    ) {
         val headerHeight = 42.dp
-        
-        // Main content area that responds to keyboard/window insets
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colorScheme.background)
-                .windowInsetsPadding(WindowInsets.ime) // This handles keyboard insets
+                .windowInsetsPadding(WindowInsets.ime)
+                .windowInsetsPadding(WindowInsets.navigationBars)
         ) {
-            // Header spacer - creates space for the floating header
-            Spacer(modifier = Modifier.height(headerHeight))
+            Spacer(
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .height(headerHeight)
+            )
 
-            // Messages area - takes up available space, will compress when keyboard appears
             MessagesList(
                 messages = displayMessages,
                 currentUserNickname = nickname,
                 meshService = viewModel.meshService,
                 modifier = Modifier.weight(1f),
-                forceScrollToBottom = forceScrollToBottom
+                forceScrollToBottom = forceScrollToBottom,
+                onScrolledUpChanged = { isUp -> isScrolledUp = isUp },
+                onNicknameClick = { fullSenderName ->
+                    val (baseName, hashSuffix) = splitSuffix(fullSenderName)
+                    val selectedLocationChannel = viewModel.selectedLocationChannel.value
+                    val mentionText = if (
+                        selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location &&
+                        hashSuffix.isNotEmpty()
+                    ) {
+                        "@$baseName$hashSuffix"
+                    } else {
+                        "@$baseName"
+                    }
+                    val newText = when {
+                        messageText.text.isEmpty() -> "$mentionText "
+                        messageText.text.endsWith(" ") -> "${messageText.text}$mentionText "
+                        else -> "${messageText.text} $mentionText "
+                    }
+                    messageText = TextFieldValue(
+                        text = newText,
+                        selection = TextRange(newText.length)
+                    )
+                },
+                onMessageLongPress = { message ->
+                    val (baseName, _) = splitSuffix(message.sender)
+                    selectedUserForSheet = baseName
+                    selectedMessageForSheet = message
+                    showUserSheet = true
+                }
             )
-            // Input area - stays at bottom
+
             ChatInputSection(
                 messageText = messageText,
-                onMessageTextChange = { newText: TextFieldValue ->
+                onMessageTextChange = { newText ->
                     messageText = newText
                     viewModel.updateCommandSuggestions(newText.text)
                     viewModel.updateMentionSuggestions(newText.text)
@@ -101,21 +141,21 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     if (messageText.text.trim().isNotEmpty()) {
                         viewModel.sendMessage(messageText.text.trim())
                         messageText = TextFieldValue("")
-                        forceScrollToBottom = !forceScrollToBottom // Toggle to trigger scroll
+                        forceScrollToBottom = !forceScrollToBottom
                     }
                 },
                 showCommandSuggestions = showCommandSuggestions,
                 commandSuggestions = commandSuggestions,
                 showMentionSuggestions = showMentionSuggestions,
                 mentionSuggestions = mentionSuggestions,
-                onCommandSuggestionClick = { suggestion: CommandSuggestion ->
+                onCommandSuggestionClick = { suggestion ->
                     val commandText = viewModel.selectCommandSuggestion(suggestion)
                     messageText = TextFieldValue(
                         text = commandText,
                         selection = TextRange(commandText.length)
                     )
                 },
-                onMentionSuggestionClick = { mention: String ->
+                onMentionSuggestionClick = { mention ->
                     val mentionText = viewModel.selectMentionSuggestion(mention, messageText.text)
                     messageText = TextFieldValue(
                         text = mentionText,
@@ -129,7 +169,6 @@ fun ChatScreen(viewModel: ChatViewModel) {
             )
         }
 
-        // Floating header - positioned absolutely at top, ignores keyboard
         ChatFloatingHeader(
             headerHeight = headerHeight,
             selectedPrivatePeer = selectedPrivatePeer,
@@ -143,15 +182,21 @@ fun ChatScreen(viewModel: ChatViewModel) {
             onLocationChannelsClick = { showLocationChannelsSheet = true }
         )
 
-        val alpha by animateFloatAsState(
-            targetValue = if (showSidebar) 0.5f else 0f,
-            animationSpec = tween(
-                durationMillis = 300,
-                easing = EaseOutCubic
-            ), label = "overlayAlpha"
+        HorizontalDivider(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .offset(y = headerHeight)
+                .zIndex(1f),
+            color = colorScheme.outline.copy(alpha = 0.3f)
         )
 
-        // Only render the background if it's visible
+        val alpha by animateFloatAsState(
+            targetValue = if (showSidebar) 0.5f else 0f,
+            animationSpec = tween(300, easing = EaseOutCubic),
+            label = "overlayAlpha"
+        )
+
         if (alpha > 0f) {
             Box(
                 modifier = Modifier
@@ -163,15 +208,37 @@ fun ChatScreen(viewModel: ChatViewModel) {
         }
 
         AnimatedVisibility(
+            visible = isScrolledUp && !showSidebar,
+            enter = slideInVertically { it / 2 } + fadeIn(),
+            exit = slideOutVertically { it / 2 } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 64.dp)
+                .zIndex(1.5f)
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .windowInsetsPadding(WindowInsets.ime)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = colorScheme.background,
+                tonalElevation = 3.dp,
+                shadowElevation = 6.dp,
+                border = BorderStroke(2.dp, Color(0xFF00C851))
+            ) {
+                IconButton(onClick = { forceScrollToBottom = !forceScrollToBottom }) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowDownward,
+                        contentDescription = "Scroll to bottom",
+                        tint = Color(0xFF00C851)
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(
             visible = showSidebar,
-            enter = slideInHorizontally(
-                initialOffsetX = { it },
-                animationSpec = tween(300, easing = EaseOutCubic)
-            ) + fadeIn(animationSpec = tween(300)),
-            exit = slideOutHorizontally(
-                targetOffsetX = { it },
-                animationSpec = tween(250, easing = EaseInCubic)
-            ) + fadeOut(animationSpec = tween(250)),
+            enter = slideInHorizontally { it } + fadeIn(),
+            exit = slideOutHorizontally { it } + fadeOut(),
             modifier = Modifier.zIndex(2f)
         ) {
             SidebarOverlay(
@@ -182,7 +249,6 @@ fun ChatScreen(viewModel: ChatViewModel) {
         }
     }
 
-    // Dialogs and Sheets
     ChatDialogs(
         showPasswordDialog = showPasswordDialog,
         passwordPromptChannel = passwordPromptChannel,
@@ -205,6 +271,13 @@ fun ChatScreen(viewModel: ChatViewModel) {
         onAppInfoDismiss = { viewModel.hideAppInfo() },
         showLocationChannelsSheet = showLocationChannelsSheet,
         onLocationChannelsSheetDismiss = { showLocationChannelsSheet = false },
+        showUserSheet = showUserSheet,
+        onUserSheetDismiss = {
+            showUserSheet = false
+            selectedMessageForSheet = null
+        },
+        selectedUserForSheet = selectedUserForSheet,
+        selectedMessageForSheet = selectedMessageForSheet,
         viewModel = viewModel
     )
 }
@@ -227,30 +300,26 @@ private fun ChatInputSection(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = colorScheme.background,
-        shadowElevation = 8.dp
+        color = colorScheme.background
     ) {
         Column {
             HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.3f))
-            // Command suggestions box
+
             if (showCommandSuggestions && commandSuggestions.isNotEmpty()) {
                 CommandSuggestionsBox(
                     suggestions = commandSuggestions,
                     onSuggestionClick = onCommandSuggestionClick,
                     modifier = Modifier.fillMaxWidth()
                 )
-
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
             }
-            
-            // Mention suggestions box
+
             if (showMentionSuggestions && mentionSuggestions.isNotEmpty()) {
                 MentionSuggestionsBox(
                     suggestions = mentionSuggestions,
                     onSuggestionClick = onMentionSuggestionClick,
                     modifier = Modifier.fillMaxWidth()
                 )
-
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
             }
 
@@ -284,11 +353,9 @@ private fun ChatFloatingHeader(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(headerHeight)
             .zIndex(1f)
-            .windowInsetsPadding(WindowInsets.statusBars), // Only respond to status bar
-        color = colorScheme.background.copy(alpha = 0.95f),
-        shadowElevation = 8.dp
+            .windowInsetsPadding(WindowInsets.statusBars),
+        color = colorScheme.background
     ) {
         TopAppBar(
             title = {
@@ -311,18 +378,10 @@ private fun ChatFloatingHeader(
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent
-            )
+            ),
+            modifier = Modifier.height(headerHeight)
         )
     }
-
-    // Divider under header
-    HorizontalDivider(
-        modifier = Modifier
-            .fillMaxWidth()
-            .offset(y = headerHeight)
-            .zIndex(1f),
-        color = colorScheme.outline.copy(alpha = 0.3f)
-    )
 }
 
 @Composable
@@ -337,9 +396,12 @@ private fun ChatDialogs(
     onAppInfoDismiss: () -> Unit,
     showLocationChannelsSheet: Boolean,
     onLocationChannelsSheetDismiss: () -> Unit,
+    showUserSheet: Boolean,
+    onUserSheetDismiss: () -> Unit,
+    selectedUserForSheet: String,
+    selectedMessageForSheet: DogechatMessage?,
     viewModel: ChatViewModel
 ) {
-    // Password dialog
     PasswordPromptDialog(
         show = showPasswordDialog,
         channelName = passwordPromptChannel,
@@ -349,17 +411,25 @@ private fun ChatDialogs(
         onDismiss = onPasswordDismiss
     )
 
-    // App info dialog
-    AppInfoDialog(
-        show = showAppInfo,
+    AboutSheet(
+        isPresented = showAppInfo,
         onDismiss = onAppInfoDismiss
     )
-    
-    // Location channels sheet
+
     if (showLocationChannelsSheet) {
         LocationChannelsSheet(
             isPresented = showLocationChannelsSheet,
             onDismiss = onLocationChannelsSheetDismiss,
+            viewModel = viewModel
+        )
+    }
+
+    if (showUserSheet) {
+        ChatUserSheet(
+            isPresented = showUserSheet,
+            onDismiss = onUserSheetDismiss,
+            targetNickname = selectedUserForSheet,
+            selectedMessage = selectedMessageForSheet,
             viewModel = viewModel
         )
     }

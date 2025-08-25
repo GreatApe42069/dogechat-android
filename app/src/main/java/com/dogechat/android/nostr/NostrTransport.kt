@@ -86,7 +86,7 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val embedded = NostrEmbeddedDogechat.encodePMForNostr(
+                val embedded = NostrEmbeddedBitChat.encodePMForNostr(
                     content = content,
                     messageID = messageID,
                     recipientPeerID = to,
@@ -98,14 +98,16 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val event = NostrProtocol.createPrivateMessage(
+                val giftWraps = NostrProtocol.createPrivateMessage(
                     content = embedded,
                     recipientPubkey = recipientHex,
                     senderIdentity = senderIdentity
                 )
                 
-                Log.d(TAG, "NostrTransport: sending PM giftWrap id=${event.id.take(16)}...")
-                NostrRelayManager.getInstance(context).sendEvent(event)
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending PM giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send private message via Nostr: ${e.message}")
@@ -169,7 +171,7 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val ack = NostrEmbeddedDogechat.encodeAckForNostr(
+                val ack = NostrEmbeddedBitChat.encodeAckForNostr(
                     type = NoisePayloadType.READ_RECEIPT,
                     messageID = item.receipt.originalMessageID,
                     recipientPeerID = item.peerID,
@@ -182,14 +184,16 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val event = NostrProtocol.createPrivateMessage(
+                val giftWraps = NostrProtocol.createPrivateMessage(
                     content = ack,
                     recipientPubkey = recipientHex,
                     senderIdentity = senderIdentity
                 )
                 
-                Log.d(TAG, "NostrTransport: sending READ ack giftWrap id=${event.id.take(16)}...")
-                NostrRelayManager.getInstance(context).sendEvent(event)
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending READ ack giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
                 
                 scheduleNextReadAck()
                 
@@ -244,7 +248,7 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val embedded = NostrEmbeddedDogechat.encodePMForNostr(
+                val embedded = NostrEmbeddedBitChat.encodePMForNostr(
                     content = content,
                     messageID = UUID.randomUUID().toString(),
                     recipientPeerID = to,
@@ -256,14 +260,16 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val event = NostrProtocol.createPrivateMessage(
+                val giftWraps = NostrProtocol.createPrivateMessage(
                     content = embedded,
                     recipientPubkey = recipientHex,
                     senderIdentity = senderIdentity
                 )
                 
-                Log.d(TAG, "NostrTransport: sending favorite giftWrap id=${event.id.take(16)}...")
-                NostrRelayManager.getInstance(context).sendEvent(event)
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending favorite giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send favorite notification via Nostr: ${e.message}")
@@ -300,7 +306,7 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val ack = NostrEmbeddedDogechat.encodeAckForNostr(
+                val ack = NostrEmbeddedBitChat.encodeAckForNostr(
                     type = NoisePayloadType.DELIVERED,
                     messageID = messageID,
                     recipientPeerID = to,
@@ -312,14 +318,16 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val event = NostrProtocol.createPrivateMessage(
+                val giftWraps = NostrProtocol.createPrivateMessage(
                     content = ack,
                     recipientPubkey = recipientHex,
                     senderIdentity = senderIdentity
                 )
                 
-                Log.d(TAG, "NostrTransport: sending DELIVERED ack giftWrap id=${event.id.take(16)}...")
-                NostrRelayManager.getInstance(context).sendEvent(event)
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending DELIVERED ack giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send delivery ack via Nostr: ${e.message}")
@@ -338,7 +346,7 @@ class NostrTransport(
             try {
                 Log.d(TAG, "GeoDM: send DELIVERED -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}...")
                 
-                val embedded = NostrEmbeddedDogechat.encodeAckForNostrNoRecipient(
+                val embedded = NostrEmbeddedBitChat.encodeAckForNostrNoRecipient(
                     type = NoisePayloadType.DELIVERED,
                     messageID = messageID,
                     senderPeerID = senderPeerID
@@ -346,15 +354,17 @@ class NostrTransport(
                 
                 if (embedded == null) return@launch
                 
-                val event = NostrProtocol.createPrivateMessage(
+                val giftWraps = NostrProtocol.createPrivateMessage(
                     content = embedded,
                     recipientPubkey = toRecipientHex,
                     senderIdentity = fromIdentity
                 )
                 
-                // Register pending gift wrap for deduplication (like iOS)
-                NostrRelayManager.registerPendingGiftWrap(event.id)
-                NostrRelayManager.getInstance(context).sendEvent(event)
+                // Register pending gift wrap for deduplication and send all
+                giftWraps.forEach { event ->
+                    NostrRelayManager.registerPendingGiftWrap(event.id)
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send geohash delivery ack: ${e.message}")
@@ -371,7 +381,7 @@ class NostrTransport(
             try {
                 Log.d(TAG, "GeoDM: send READ -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}...")
                 
-                val embedded = NostrEmbeddedDogechat.encodeAckForNostrNoRecipient(
+                val embedded = NostrEmbeddedBitChat.encodeAckForNostrNoRecipient(
                     type = NoisePayloadType.READ_RECEIPT,
                     messageID = messageID,
                     senderPeerID = senderPeerID
@@ -379,15 +389,17 @@ class NostrTransport(
                 
                 if (embedded == null) return@launch
                 
-                val event = NostrProtocol.createPrivateMessage(
+                val giftWraps = NostrProtocol.createPrivateMessage(
                     content = embedded,
                     recipientPubkey = toRecipientHex,
                     senderIdentity = fromIdentity
                 )
                 
-                // Register pending gift wrap for deduplication (like iOS)
-                NostrRelayManager.registerPendingGiftWrap(event.id)
-                NostrRelayManager.getInstance(context).sendEvent(event)
+                // Register pending gift wrap for deduplication and send all
+                giftWraps.forEach { event ->
+                    NostrRelayManager.registerPendingGiftWrap(event.id)
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send geohash read receipt: ${e.message}")
@@ -409,8 +421,8 @@ class NostrTransport(
                 
                 Log.d(TAG, "GeoDM: send PM -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}...")
                 
-                // Build embedded Dogechat packet without recipient peer ID
-                val embedded = NostrEmbeddedDogechat.encodePMForNostrNoRecipient(
+                // Build embedded BitChat packet without recipient peer ID
+                val embedded = NostrEmbeddedBitChat.encodePMForNostrNoRecipient(
                     content = content,
                     messageID = messageID,
                     senderPeerID = senderPeerID
@@ -421,17 +433,17 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val event = NostrProtocol.createPrivateMessage(
+                val giftWraps = NostrProtocol.createPrivateMessage(
                     content = embedded,
                     recipientPubkey = toRecipientHex,
                     senderIdentity = fromIdentity
                 )
                 
-                Log.d(TAG, "NostrTransport: sending geohash PM giftWrap id=${event.id.take(16)}...")
-                
-                // Register pending gift wrap for deduplication (like iOS)
-                NostrRelayManager.registerPendingGiftWrap(event.id)
-                NostrRelayManager.getInstance(context).sendEvent(event)
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending geohash PM giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.registerPendingGiftWrap(event.id)
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send geohash private message: ${e.message}")

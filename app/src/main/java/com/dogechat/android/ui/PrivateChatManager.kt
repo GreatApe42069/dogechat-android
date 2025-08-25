@@ -164,28 +164,22 @@ class PrivateChatManager(
     fun blockPeer(peerID: String, meshService: BluetoothMeshService): Boolean {
         val fingerprint = fingerprintManager.getFingerprintForPeer(peerID)
         if (fingerprint != null) {
-            dataManager.addBlocked(fingerprint)
-            state.setBlockedPeers(dataManager.blockedPeers.toSet())
-            
-            // End private chat if blocked
-            if (state.getSelectedPrivateChatPeerValue() == peerID) {
-                endPrivateChat()
-            }
-            
-            // Remove from favorites if blocked
-            if (dataManager.isFavorite(fingerprint)) {
-                dataManager.removeFavorite(fingerprint)
-                state.setFavoritePeers(dataManager.favoritePeers.toSet())
-            }
-            
+            dataManager.addBlockedUser(fingerprint)
+
             val peerNickname = getPeerNickname(peerID, meshService)
             val systemMessage = DogechatMessage(
                 sender = "system",
-                content = "$peerNickname blocked",
+                content = "blocked user $peerNickname",
                 timestamp = Date(),
                 isRelay = false
             )
             messageManager.addMessage(systemMessage)
+
+            // End private chat if currently in one with this peer
+            if (state.getSelectedPrivateChatPeerValue() == peerID) {
+                endPrivateChat()
+            }
+
             return true
         }
         return false
@@ -193,14 +187,13 @@ class PrivateChatManager(
 
     fun unblockPeer(peerID: String, meshService: BluetoothMeshService): Boolean {
         val fingerprint = fingerprintManager.getFingerprintForPeer(peerID)
-        if (fingerprint != null) {
-            dataManager.removeBlocked(fingerprint)
-            state.setBlockedPeers(dataManager.blockedPeers.toSet())
-            
+        if (fingerprint != null && dataManager.isUserBlocked(fingerprint)) {
+            dataManager.removeBlockedUser(fingerprint)
+
             val peerNickname = getPeerNickname(peerID, meshService)
             val systemMessage = DogechatMessage(
                 sender = "system",
-                content = "$peerNickname unblocked",
+                content = "unblocked user $peerNickname",
                 timestamp = Date(),
                 isRelay = false
             )
@@ -210,11 +203,58 @@ class PrivateChatManager(
         return false
     }
 
-    fun getBlockedPeers(meshService: BluetoothMeshService): List<String> {
-        return dataManager.blockedPeers.mapNotNull { fingerprint ->
-            fingerprintManager.getPeerForFingerprint(fingerprint)?.let { peerID ->
-                getPeerNickname(peerID, meshService)
+    fun blockPeerByNickname(targetName: String, meshService: BluetoothMeshService): Boolean {
+        val peerID = getPeerIDForNickname(targetName, meshService)
+
+        if (peerID != null) {
+            return blockPeer(peerID, meshService)
+        } else {
+            val systemMessage = DogechatMessage(
+                sender = "system",
+                content = "user '$targetName' not found",
+                timestamp = Date(),
+                isRelay = false
+            )
+            messageManager.addMessage(systemMessage)
+            return false
+        }
+    }
+
+    fun unblockPeerByNickname(targetName: String, meshService: BluetoothMeshService): Boolean {
+        val peerID = getPeerIDForNickname(targetName, meshService)
+
+        if (peerID != null) {
+            val fingerprint = fingerprintManager.getFingerprintForPeer(peerID)
+            if (fingerprint != null && dataManager.isUserBlocked(fingerprint)) {
+                return unblockPeer(peerID, meshService)
+            } else {
+                val systemMessage = DogechatMessage(
+                    sender = "system",
+                    content = "user '$targetName' is not blocked",
+                    timestamp = Date(),
+                    isRelay = false
+                )
+                messageManager.addMessage(systemMessage)
+                return false
             }
+        } else {
+            val systemMessage = DogechatMessage(
+                sender = "system",
+                content = "user '$targetName' not found",
+                timestamp = Date(),
+                isRelay = false
+            )
+            messageManager.addMessage(systemMessage)
+            return false
+        }
+    }
+
+    fun listBlockedUsers(): String {
+        val blockedCount = dataManager.blockedUsers.size
+        return if (blockedCount == 0) {
+            "no blocked users"
+        } else {
+            "blocked users: $blockedCount fingerprints"
         }
     }
 
@@ -222,22 +262,43 @@ class PrivateChatManager(
 
     fun handleIncomingPrivateMessage(message: DogechatMessage) {
         message.senderPeerID?.let { senderPeerID ->
-            messageManager.addPrivateMessage(senderPeerID, message)
-            
-            // Track for read receipt if not already viewed
-            if (state.getSelectedPrivateChatPeerValue() != senderPeerID) {
+            if (!isPeerBlocked(senderPeerID)) {
+                // Add to private messages
+                messageManager.addPrivateMessage(senderPeerID, message)
+
+                // Track as unread for read receipt purposes
                 val unreadList = unreadReceivedMessages.getOrPut(senderPeerID) { mutableListOf() }
                 unreadList.add(message)
+
+                Log.d(
+                    TAG,
+                    "Added received message ${message.id} from $senderPeerID to unread list (${unreadList.size} unread)"
+                )
             }
         }
     }
 
+    /**
+     * Send read receipts for all unread messages from a specific peer
+     * Called when the user focuses on a private chat
+     */
     fun sendReadReceiptsForPeer(peerID: String, meshService: BluetoothMeshService) {
-        val unreadList = unreadReceivedMessages[peerID] ?: return
-        
+        val unreadList = unreadReceivedMessages[peerID]
+        if (unreadList.isNullOrEmpty()) {
+            Log.d(TAG, "No unread messages to send read receipts for peer $peerID")
+            return
+        }
+
+        Log.d(TAG, "Sending read receipts for ${unreadList.size} unread messages from $peerID")
+
+        // Send read receipt for each unread message - now using direct method call
         unreadList.forEach { message ->
-            message.id.let { messageID ->
-                meshService.sendReadReceipt(messageID, peerID)
+            try {
+                val myNickname = state.getNicknameValue() ?: "unknown"
+                meshService.sendReadReceipt(message.id, peerID, myNickname)
+                Log.d(TAG, "Sent read receipt for message ${message.id} to $peerID")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to send read receipt for message ${message.id}: ${e.message}")
             }
         }
 
@@ -290,6 +351,42 @@ class PrivateChatManager(
         }
 
     }
+
+//    /**
+//     * Legacy reflection-based implementation for backward compatibility
+//     */
+//    private fun establishNoiseSessionIfNeededLegacy(peerID: String, meshService: Any) {
+//        try {
+//            // Check if we already have an established Noise session with this peer
+//            val hasSessionMethod = meshService::class.java.getDeclaredMethod("hasEstablishedSession", String::class.java)
+//            val hasSession = hasSessionMethod.invoke(meshService, peerID) as Boolean
+//
+//            if (hasSession) {
+//                Log.d(TAG, "Noise session already established with $peerID")
+//                return
+//            }
+//
+//            Log.d(TAG, "No Noise session with $peerID, determining who should initiate handshake")
+//
+//            // Get our peer ID from mesh service for lexicographical comparison
+//            val myPeerIDField = meshService::class.java.getField("myPeerID")
+//            val myPeerID = myPeerIDField.get(meshService) as String
+//
+//            // Use lexicographical comparison to decide who initiates (same logic as MessageHandler)
+//            if (myPeerID < peerID) {
+//                // We should initiate the handshake
+//                Log.d(TAG, "Our peer ID lexicographically < target peer ID, initiating Noise handshake with $peerID")
+//                initiateHandshakeWithPeer(peerID, meshService)
+//            } else {
+//                // They should initiate, we send a Noise identity announcement
+//                Log.d(TAG, "Our peer ID lexicographically >= target peer ID, sending Noise identity announcement to prompt handshake from $peerID")
+//                sendNoiseIdentityAnnouncement(meshService)
+//            }
+//
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Failed to establish Noise session with $peerID: ${e.message}")
+//        }
+//    }
 
     /**
      * Initiate handshake with specific peer using the existing delegate pattern

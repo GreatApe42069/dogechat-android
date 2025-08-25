@@ -3,28 +3,26 @@ package com.dogechat.android.mesh
 import android.content.Context
 import android.util.Log
 import com.dogechat.android.crypto.EncryptionService
-import com.dogechat.android.protocol.MessagePadding
 import com.dogechat.android.model.DogechatMessage
-import com.dogechat.android.model.HandshakeRequest
+import com.dogechat.android.protocol.MessagePadding
 import com.dogechat.android.model.RoutedPacket
-import com.dogechat.android.model.DeliveryAck
-import com.dogechat.android.model.ReadReceipt
-import com.dogechat.android.model.NoiseIdentityAnnouncement
+import com.dogechat.android.model.IdentityAnnouncement
 import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.protocol.SpecialRecipients
 import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.*
 import java.util.*
+import kotlin.math.sign
 import kotlin.random.Random
 
 /**
  * Bluetooth mesh service - REFACTORED to use component-based architecture
  * 100% compatible with iOS version and maintains exact same UUIDs, packet format, and protocol logic
- *
+ * 
  * This is now a coordinator that orchestrates the following components:
  * - PeerManager: Peer lifecycle management
- * - FragmentManager: Message fragmentation and reassembly
+ * - FragmentManager: Message fragmentation and reassembly  
  * - SecurityManager: Security, duplicate detection, encryption
  * - StoreForwardManager: Offline message caching
  * - MessageHandler: Message type processing and relay logic
@@ -32,15 +30,15 @@ import kotlin.random.Random
  * - PacketProcessor: Incoming packet routing
  */
 class BluetoothMeshService(private val context: Context) {
-
+    
     companion object {
         private const val TAG = "BluetoothMeshService"
         private const val MAX_TTL: UByte = 7u
     }
-
+    
     // My peer identification - same format as iOS
     val myPeerID: String = generateCompatiblePeerID()
-
+    
     // Core components - each handling specific responsibilities
     private val encryptionService = EncryptionService(context)
     private val peerManager = PeerManager()
@@ -50,39 +48,34 @@ class BluetoothMeshService(private val context: Context) {
     private val messageHandler = MessageHandler(myPeerID)
     internal val connectionManager = BluetoothConnectionManager(context, myPeerID, fragmentManager) // Made internal for access
     private val packetProcessor = PacketProcessor(myPeerID)
-
+    
     // Service state management
     private var isActive = false
-
+    
     // Delegate for message callbacks (maintains same interface)
     var delegate: BluetoothMeshDelegate? = null
-
+    
     // Coroutines
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private var debugJob: Job? = null
-    private var announceJob: Job? = null
-
+    
     init {
         setupDelegates()
         messageHandler.packetProcessor = packetProcessor
-        // NOTE: Do NOT start periodic jobs here — they must start when the service is actually started.
+        //startPeriodicDebugLogging()
     }
-
+    
     /**
-     * Start periodic debug logging job (runs only when service is active)
+     * Start periodic debug logging every 10 seconds
      */
-    private fun startPeriodicDebugLoggingJob() {
-        debugJob = serviceScope.launch {
+    private fun startPeriodicDebugLogging() {
+        serviceScope.launch {
             while (isActive) {
                 try {
-                    delay(10_000) // 10 seconds
-                    if (isActive) {
+                    delay(10000) // 10 seconds
+                    if (isActive) { // Double-check before logging
                         val debugInfo = getDebugStatus()
                         Log.d(TAG, "=== PERIODIC DEBUG STATUS ===\n$debugInfo\n=== END DEBUG STATUS ===")
                     }
-                } catch (e: CancellationException) {
-                    // job cancelled, exit quietly
-                    break
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in periodic debug logging: ${e.message}")
                 }
@@ -91,26 +84,21 @@ class BluetoothMeshService(private val context: Context) {
     }
 
     /**
-     * Start periodic broadcast announce job (runs only when service is active)
+     * Send broadcast announcement every 30 seconds
      */
-    private fun startPeriodicAnnounceJob() {
-        announceJob = serviceScope.launch {
+    private fun sendPeriodicBroadcastAnnounce() {
+        serviceScope.launch {
             while (isActive) {
                 try {
-                    delay(30_000) // 30 seconds
-                    if (isActive) {
-                        sendBroadcastAnnounce()
-                        broadcastNoiseIdentityAnnouncement()
-                    }
-                } catch (e: CancellationException) {
-                    break
+                    delay(30000) // 30 seconds
+                    sendBroadcastAnnounce()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in periodic broadcast announce: ${e.message}")
                 }
             }
         }
     }
-
+    
     /**
      * Setup delegate connections between components
      */
@@ -121,7 +109,7 @@ class BluetoothMeshService(private val context: Context) {
                 delegate?.didUpdatePeerList(peerIDs)
             }
         }
-
+        
         // SecurityManager delegate for key exchange notifications
         securityManager.delegate = object : SecurityManagerDelegate {
             override fun onKeyExchangeCompleted(peerID: String, peerPublicKeyData: ByteArray) {
@@ -129,17 +117,17 @@ class BluetoothMeshService(private val context: Context) {
                 serviceScope.launch {
                     delay(100)
                     sendAnnouncementToPeer(peerID)
-
+                    
                     delay(1000)
                     storeForwardManager.sendCachedMessages(peerID)
                 }
             }
-
+            
             override fun sendHandshakeResponse(peerID: String, response: ByteArray) {
                 // Send Noise handshake response
-                val responsePacket = DogechatPacket(
+                val responsePacket = DogePacket(
                     version = 1u,
-                    type = MessageType.NOISE_HANDSHAKE_RESP.value,
+                    type = MessageType.NOISE_HANDSHAKE.value,
                     senderID = hexStringToByteArray(myPeerID),
                     recipientID = hexStringToByteArray(peerID),
                     timestamp = System.currentTimeMillis().toULong(),
@@ -150,84 +138,92 @@ class BluetoothMeshService(private val context: Context) {
                 Log.d(TAG, "Sent Noise handshake response to $peerID (${response.size} bytes)")
             }
         }
-
+        
         // StoreForwardManager delegates
         storeForwardManager.delegate = object : StoreForwardManagerDelegate {
             override fun isFavorite(peerID: String): Boolean {
                 return delegate?.isFavorite(peerID) ?: false
             }
-
+            
             override fun isPeerOnline(peerID: String): Boolean {
                 return peerManager.isPeerActive(peerID)
             }
-
+            
             override fun sendPacket(packet: DogechatPacket) {
                 connectionManager.broadcastPacket(RoutedPacket(packet))
             }
         }
-
+        
         // MessageHandler delegates
         messageHandler.delegate = object : MessageHandlerDelegate {
             // Peer management
             override fun addOrUpdatePeer(peerID: String, nickname: String): Boolean {
                 return peerManager.addOrUpdatePeer(peerID, nickname)
             }
-
+            
             override fun removePeer(peerID: String) {
                 peerManager.removePeer(peerID)
             }
-
+            
             override fun updatePeerNickname(peerID: String, nickname: String) {
                 peerManager.addOrUpdatePeer(peerID, nickname)
             }
-
+            
             override fun getPeerNickname(peerID: String): String? {
                 return peerManager.getPeerNickname(peerID)
             }
-
+            
             override fun getNetworkSize(): Int {
                 return peerManager.getActivePeerCount()
             }
-
+            
             override fun getMyNickname(): String? {
                 return delegate?.getNickname()
             }
-
+            
+            override fun getPeerInfo(peerID: String): PeerInfo? {
+                return peerManager.getPeerInfo(peerID)
+            }
+            
+            override fun updatePeerInfo(peerID: String, nickname: String, noisePublicKey: ByteArray, signingPublicKey: ByteArray, isVerified: Boolean): Boolean {
+                return peerManager.updatePeerInfo(peerID, nickname, noisePublicKey, signingPublicKey, isVerified)
+            }
+            
             // Packet operations
             override fun sendPacket(packet: DogechatPacket) {
                 connectionManager.broadcastPacket(RoutedPacket(packet))
             }
-
+            
             override fun relayPacket(routed: RoutedPacket) {
                 connectionManager.broadcastPacket(routed)
             }
-
+            
             override fun getBroadcastRecipient(): ByteArray {
                 return SpecialRecipients.BROADCAST
             }
-
+            
             // Cryptographic operations
             override fun verifySignature(packet: DogechatPacket, peerID: String): Boolean {
                 return securityManager.verifySignature(packet, peerID)
             }
-
+            
             override fun encryptForPeer(data: ByteArray, recipientPeerID: String): ByteArray? {
                 return securityManager.encryptForPeer(data, recipientPeerID)
             }
-
+            
             override fun decryptFromPeer(encryptedData: ByteArray, senderPeerID: String): ByteArray? {
                 return securityManager.decryptFromPeer(encryptedData, senderPeerID)
             }
-
+            
             override fun verifyEd25519Signature(signature: ByteArray, data: ByteArray, publicKey: ByteArray): Boolean {
                 return encryptionService.verifyEd25519Signature(signature, data, publicKey)
             }
-
+            
             // Noise protocol operations
             override fun hasNoiseSession(peerID: String): Boolean {
                 return encryptionService.hasEstablishedSession(peerID)
             }
-
+            
             override fun initiateNoiseHandshake(peerID: String) {
                 try {
                     // Initiate proper Noise handshake with specific peer
@@ -236,7 +232,7 @@ class BluetoothMeshService(private val context: Context) {
                     if (handshakeData != null) {
                         val packet = DogechatPacket(
                             version = 1u,
-                            type = MessageType.NOISE_HANDSHAKE_INIT.value,
+                            type = MessageType.NOISE_HANDSHAKE.value,
                             senderID = hexStringToByteArray(myPeerID),
                             recipientID = hexStringToByteArray(peerID),
                             timestamp = System.currentTimeMillis().toULong(),
@@ -249,155 +245,136 @@ class BluetoothMeshService(private val context: Context) {
                     } else {
                         Log.w(TAG, "Failed to generate Noise handshake data for $peerID")
                     }
-
+                    
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to initiate Noise handshake with $peerID: ${e.message}")
                 }
             }
+            
+            override fun processNoiseHandshakeMessage(payload: ByteArray, peerID: String): ByteArray? {
+                return try {
+                    encryptionService.processHandshakeMessage(payload, peerID)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to process handshake message from $peerID: ${e.message}")
+                    null
+                }
+            }
+            
+            override fun updatePeerIDBinding(newPeerID: String, nickname: String,
+                                           publicKey: ByteArray, previousPeerID: String?) {
 
-            override fun updatePeerIDBinding(
-                newPeerID: String,
-                nickname: String,
-                publicKey: ByteArray,
-                previousPeerID: String?
-            ) {
-
-                Log.d(
-                    TAG, "Updating peer ID binding: $newPeerID (was: $previousPeerID) with nickname: $nickname and public key: ${publicKey.toHexString().take(16)}..."
-                )
+                Log.d(TAG, "Updating peer ID binding: $newPeerID (was: $previousPeerID) with nickname: $nickname and public key: ${publicKey.toHexString().take(16)}...")
                 // Update peer mapping in the PeerManager for peer ID rotation support
                 peerManager.addOrUpdatePeer(newPeerID, nickname)
-
+                
                 // Store fingerprint for the peer via centralized fingerprint manager
                 val fingerprint = peerManager.storeFingerprintForPeer(newPeerID, publicKey)
-
+                
                 // If there was a previous peer ID, remove it to avoid duplicates
                 previousPeerID?.let { oldPeerID ->
                     peerManager.removePeer(oldPeerID)
                 }
-
+                
                 Log.d(TAG, "Updated peer ID binding: $newPeerID (was: $previousPeerID), fingerprint: ${fingerprint.take(16)}...")
             }
-
-            // Message operations
+            
+            // Message operations  
             override fun decryptChannelMessage(encryptedContent: ByteArray, channel: String): String? {
                 return delegate?.decryptChannelMessage(encryptedContent, channel)
             }
-
-            override fun sendDeliveryAck(message: DogechatMessage, senderPeerID: String) {
-                this@BluetoothMeshService.sendDeliveryAck(message, senderPeerID)
-            }
-
+            
             // Callbacks
             override fun onMessageReceived(message: DogechatMessage) {
                 delegate?.didReceiveMessage(message)
             }
-
+            
             override fun onChannelLeave(channel: String, fromPeer: String) {
                 delegate?.didReceiveChannelLeave(channel, fromPeer)
             }
-
-            override fun onDeliveryAckReceived(ack: DeliveryAck) {
-                delegate?.didReceiveDeliveryAck(ack)
+            
+            override fun onDeliveryAckReceived(messageID: String, peerID: String) {
+                delegate?.didReceiveDeliveryAck(messageID, peerID)
             }
-
-            override fun onReadReceiptReceived(receipt: ReadReceipt) {
-                delegate?.didReceiveReadReceipt(receipt)
+            
+            override fun onReadReceiptReceived(messageID: String, peerID: String) {
+                delegate?.didReceiveReadReceipt(messageID, peerID)
             }
         }
-
+        
         // PacketProcessor delegates
         packetProcessor.delegate = object : PacketProcessorDelegate {
-              override fun validatePacketSecurity(packet: DogechatPacket, peerID: String): Boolean {
-                  return securityManager.validatePacket(packet, peerID)
-              }
-
-              override fun updatePeerLastSeen(peerID: String) {
-                  peerManager.updatePeerLastSeen(peerID)
-              }
-
-              override fun getPeerNickname(peerID: String): String? {
-                  return peerManager.getPeerNickname(peerID)
-              }
-
+            override fun validatePacketSecurity(packet: DogechatPacket, peerID: String): Boolean {
+                return securityManager.validatePacket(packet, peerID)
+            }
+            
+            override fun updatePeerLastSeen(peerID: String) {
+                peerManager.updatePeerLastSeen(peerID)
+            }
+            
+            override fun getPeerNickname(peerID: String): String? {
+                return peerManager.getPeerNickname(peerID)
+            }
+            
             // Network information for relay manager
             override fun getNetworkSize(): Int {
                 return peerManager.getActivePeerCount()
             }
-
+            
             override fun getBroadcastRecipient(): ByteArray {
                 return SpecialRecipients.BROADCAST
             }
-
-            override fun handleNoiseHandshake(routed: RoutedPacket, step: Int): Boolean {
-                return runBlocking { securityManager.handleNoiseHandshake(routed, step) }
+            
+            override fun handleNoiseHandshake(routed: RoutedPacket): Boolean {
+                return runBlocking { securityManager.handleNoiseHandshake(routed) }
             }
-
+            
             override fun handleNoiseEncrypted(routed: RoutedPacket) {
                 serviceScope.launch { messageHandler.handleNoiseEncrypted(routed) }
             }
-
-            override fun handleNoiseIdentityAnnouncement(routed: RoutedPacket) {
-                serviceScope.launch { messageHandler.handleNoiseIdentityAnnouncement(routed) }
-            }
-
+            
             override fun handleAnnounce(routed: RoutedPacket) {
                 serviceScope.launch { messageHandler.handleAnnounce(routed) }
             }
-
+            
             override fun handleMessage(routed: RoutedPacket) {
                 serviceScope.launch { messageHandler.handleMessage(routed) }
             }
-
+            
             override fun handleLeave(routed: RoutedPacket) {
                 serviceScope.launch { messageHandler.handleLeave(routed) }
             }
-
+            
             override fun handleFragment(packet: DogechatPacket): DogechatPacket? {
                 return fragmentManager.handleFragment(packet)
             }
-
-            // Delivery ack handler - now matches repo signature (ByteArray)
-           fun handleDeliveryAck(packet: ByteArray) {
-               serviceScope.launch { messageHandler.handleDeliveryAck(packet) }
-           }
-
-           override fun handleReadReceipt(routed: RoutedPacket) {
-               serviceScope.launch { messageHandler.handleReadReceipt(routed) }
-           }
-
+            
             override fun sendAnnouncementToPeer(peerID: String) {
                 this@BluetoothMeshService.sendAnnouncementToPeer(peerID)
             }
-
+            
             override fun sendCachedMessages(peerID: String) {
                 storeForwardManager.sendCachedMessages(peerID)
             }
-
+            
             override fun relayPacket(routed: RoutedPacket) {
                 connectionManager.broadcastPacket(routed)
             }
         }
-
+        
         // BluetoothConnectionManager delegates
         connectionManager.delegate = object : BluetoothConnectionManagerDelegate {
             override fun onPacketReceived(packet: DogechatPacket, peerID: String, device: android.bluetooth.BluetoothDevice?) {
                 packetProcessor.processPacket(RoutedPacket(packet, peerID, device?.address))
             }
-
+            
             override fun onDeviceConnected(device: android.bluetooth.BluetoothDevice) {
                 // Send initial announcements after services are ready
                 serviceScope.launch {
                     delay(200)
                     sendBroadcastAnnounce()
                 }
-                // Send key exchange to newly connected device
-                serviceScope.launch {
-                    delay(400) // Ensure connection is stable
-                    broadcastNoiseIdentityAnnouncement()
-                }
             }
-
+            
             override fun onRSSIUpdated(deviceAddress: String, rssi: Int) {
                 // Find the peer ID for this device address and update RSSI in PeerManager
                 connectionManager.addressPeerMap[deviceAddress]?.let { peerID ->
@@ -406,37 +383,30 @@ class BluetoothMeshService(private val context: Context) {
             }
         }
     }
-
-/**
- * Start the mesh service
- */
-fun startServices() {
-    // Prevent double starts (defensive programming)
-    if (isActive) {
-        Log.w(TAG, "Mesh service already active, ignoring duplicate start request")
-        return
-    }
-
-    Log.i(TAG, "Starting Bluetooth mesh service with peer ID: $myPeerID")
-
-    if (connectionManager.startServices()) {
-        isActive = true
-
-        // start jobs that only run when active
-        startPeriodicDebugLoggingJob()
-        startPeriodicAnnounceJob()
-
-        // Upstream added a dedicated periodic broadcast starter for reliability:
-        try {
+    
+    /**
+     * Start the mesh service
+     */
+    fun startServices() {
+        // Prevent double starts (defensive programming)
+        if (isActive) {
+            Log.w(TAG, "Mesh service already active, ignoring duplicate start request")
+            return
+        }
+        
+        Log.i(TAG, "Starting Bluetooth mesh service with peer ID: $myPeerID")
+        
+        if (connectionManager.startServices()) {
+            isActive = true
+            
+            // Start periodic announcements for peer discovery and connectivity
             sendPeriodicBroadcastAnnounce()
             Log.d(TAG, "Started periodic broadcast announcements (every 30 seconds)")
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to start periodic broadcast announce: ${e.message}")
+        } else {
+            Log.e(TAG, "Failed to start Bluetooth services")
         }
-    } else {
-        Log.e(TAG, "Failed to start Bluetooth services")
     }
-}
+    
     /**
      * Stop all mesh services
      */
@@ -445,409 +415,276 @@ fun startServices() {
             Log.w(TAG, "Mesh service not active, ignoring stop request")
             return
         }
-
+        
         Log.i(TAG, "Stopping Bluetooth mesh service")
         isActive = false
-
-        // cancel periodic jobs immediately
-        debugJob?.cancel()
-        announceJob?.cancel()
-        debugJob = null
-        announceJob = null
-
+        
         // Send leave announcement
         sendLeaveAnnouncement()
-
+        
         serviceScope.launch {
-            try {
-                delay(200) // Give leave message time to send
-
-                // Stop all components
-                connectionManager.stopServices()
-                peerManager.shutdown()
-                fragmentManager.shutdown()
-                securityManager.shutdown()
-                storeForwardManager.shutdown()
-                messageHandler.shutdown()
-                packetProcessor.shutdown()
-            } finally {
-                // cancel the scope so all pending coroutines die
-                serviceScope.cancel()
-            }
+            delay(200) // Give leave message time to send
+            
+            // Stop all components
+            connectionManager.stopServices()
+            peerManager.shutdown()
+            fragmentManager.shutdown()
+            securityManager.shutdown()
+            storeForwardManager.shutdown()
+            messageHandler.shutdown()
+            packetProcessor.shutdown()
+            
+            serviceScope.cancel()
         }
     }
-
+    
     /**
      * Send public message
      */
     fun sendMessage(content: String, mentions: List<String> = emptyList(), channel: String? = null) {
         if (content.isEmpty()) return
-
+        
         serviceScope.launch {
-            val nickname = delegate?.getNickname() ?: myPeerID
-
-            val message = DogechatMessage(
-                sender = nickname,
-                content = content,
-                timestamp = Date(),
-                isRelay = false,
-                senderPeerID = myPeerID,
-                mentions = if (mentions.isNotEmpty()) mentions else null,
-                channel = channel
+            val packet = DogechatPacket(
+                version = 1u,
+                type = MessageType.MESSAGE.value,
+                senderID = hexStringToByteArray(myPeerID),
+                recipientID = SpecialRecipients.BROADCAST,
+                timestamp = System.currentTimeMillis().toULong(),
+                payload = content.toByteArray(Charsets.UTF_8),
+                signature = null,
+                ttl = MAX_TTL
             )
 
-            message.toBinaryData()?.let { messageData ->
-                // Sign the message: TODO: NOT SIGNED
-                // val signature = securityManager.signPacket(messageData)
-
-                val packet = DogechatPacket(
-                    version = 1u,
-                    type = MessageType.MESSAGE.value,
-                    senderID = hexStringToByteArray(myPeerID),
-                    recipientID = SpecialRecipients.BROADCAST,
-                    timestamp = System.currentTimeMillis().toULong(),
-                    payload = messageData,
-                    signature = null,
-                    ttl = MAX_TTL
-                )
-
-                // Send with random delay and retry for reliability
-                // delay(Random.nextLong(50, 500))
-                connectionManager.broadcastPacket(RoutedPacket(packet))
-            }
+            connectionManager.broadcastPacket(RoutedPacket(packet))
         }
     }
-
+    
     /**
-     * Send private message
+     * Send private message - SIMPLIFIED iOS-compatible version 
+     * Uses NoisePayloadType system exactly like iOS SimplifiedBluetoothService
      */
     fun sendPrivateMessage(content: String, recipientPeerID: String, recipientNickname: String, messageID: String? = null) {
-        if (content.isEmpty() || recipientPeerID.isEmpty() || recipientNickname.isEmpty()) return
-
-        val nickname = delegate?.getNickname() ?: myPeerID
-
-        val message = DogechatMessage(
-            id = messageID ?: UUID.randomUUID().toString(),
-            sender = nickname,
-            content = content,
-            timestamp = Date(),
-            isRelay = false,
-            isPrivate = true,
-            recipientNickname = recipientNickname,
-            senderPeerID = myPeerID
-        )
-
-        message.toBinaryData()?.let { messageData ->
-            try {
-
-                // Create inner packet with the padded message data
-                val innerPacket = DogechatPacket(
-                    type = MessageType.MESSAGE.value,
-                    senderID = hexStringToByteArray(myPeerID),
-                    recipientID = hexStringToByteArray(recipientPeerID),
-                    timestamp = System.currentTimeMillis().toULong(),
-                    payload = messageData,
-                    signature = null,
-                    ttl = MAX_TTL
-                )
-
-                // Cache for offline favorites
-                if (storeForwardManager.shouldCacheForPeer(recipientPeerID)) {
-                    storeForwardManager.cacheMessage(innerPacket, messageID ?: message.id)
-                }
-
-                // Use the new encrypt and broadcast function
-                encryptAndBroadcastNoisePacket(innerPacket, recipientPeerID)
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to send private message: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Send delivery acknowledgment for a received private message
-     */
-    fun sendDeliveryAck(message: DogechatMessage, senderPeerID: String) {
-        val nickname = delegate?.getNickname() ?: myPeerID
-        val ack = DeliveryAck(
-            originalMessageID = message.id,
-            recipientID = myPeerID,
-            recipientNickname = nickname,
-            hopCount = 0u.toUByte() // Will be calculated during relay
-        )
-
-        try {
-            val ackData = ack.encode() ?: return
-            val typeMarker = MessageType.DELIVERY_ACK.value.toByte()
-            val payloadWithMarker = byteArrayOf(typeMarker) + ackData
-            val encryptedPayload = securityManager.encryptForPeer(payloadWithMarker, senderPeerID)
-
-            if (encryptedPayload == null) {
-                Log.w(TAG, "Failed to encrypt delivery ACK for $senderPeerID")
-                return
-            }
-
-            // Create inner packet with the delivery ACK data
-            val packet = DogechatPacket(
-                type = MessageType.NOISE_ENCRYPTED.value,
-                senderID = hexStringToByteArray(myPeerID),
-                recipientID = hexStringToByteArray(senderPeerID),
-                timestamp = System.currentTimeMillis().toULong(),
-                payload = encryptedPayload,
-                signature = null,
-                ttl = 3u
-            )
-
-            // Use the new encrypt and broadcast function
-            connectionManager.broadcastPacket(RoutedPacket(packet))
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send delivery ACK: ${e.message}")
-        }
-    }
-
-    /**
-     * Send read receipt for a received private message
-     */
-    fun sendReadReceipt(messageID: String, recipientPeerID: String, readerNickname: String) {
+        if (content.isEmpty() || recipientPeerID.isEmpty()) return
+        if (!recipientPeerID.startsWith("nostr_") && recipientNickname.isEmpty()) return
+        
         serviceScope.launch {
-            // Create the read receipt
-            val receipt = ReadReceipt(
-                originalMessageID = messageID,
-                readerID = myPeerID,
-                readerNickname = readerNickname
-            )
-
-            try {
-                // Encode the receipt
-                val receiptData = receipt.encode()
-                val typeMarker = MessageType.READ_RECEIPT.value.toByte()
-                val payloadWithMarker = byteArrayOf(typeMarker) + receiptData
-                val encryptedPayload = securityManager.encryptForPeer(payloadWithMarker, recipientPeerID)
-
-                if (encryptedPayload == null) {
-                    Log.w(TAG, "Failed to encrypt delivery ACK for $recipientPeerID")
-                    return@launch
+            val finalMessageID = messageID ?: java.util.UUID.randomUUID().toString()
+            
+            Log.d(TAG, "📨 Sending PM to $recipientPeerID: ${content.take(30)}...")
+            
+            // Check if this is a Nostr contact (geohash DM)
+            if (recipientPeerID.startsWith("nostr_")) {
+                // Get NostrGeohashService instance and send via Nostr
+                try {
+                    val nostrGeohashService = com.dogechat.android.nostr.NostrGeohashService.getInstance(context.applicationContext as android.app.Application)
+                    nostrGeohashService.sendNostrGeohashDM(content, recipientPeerID, finalMessageID, myPeerID)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to send Nostr geohash DM: ${e.message}")
                 }
-
-                // Create inner packet with the delivery ACK data
-                val packet = DogechatPacket(
-                    type = MessageType.NOISE_ENCRYPTED.value,
-                    senderID = hexStringToByteArray(myPeerID),
-                    recipientID = hexStringToByteArray(recipientPeerID),
-                    timestamp = System.currentTimeMillis().toULong(),
-                    payload = encryptedPayload,
-                    signature = null,
-                    ttl = 3u
-                )
-
-                Log.d(TAG, "Sending read receipt for message $messageID to $recipientPeerID")
-
-                // Use the new encrypt and broadcast function
-                connectionManager.broadcastPacket(RoutedPacket(packet))
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to send read receipt for message $messageID: ${e.message}")
+                return@launch
             }
-        }
-    }
-
-    /**
-     * Encrypt a DogechatPacket and broadcast it as a NOISE_ENCRYPTED message
-     * This is the correct protocol implementation - encrypt the entire packet, not just the payload
-     */
-    private fun encryptAndBroadcastNoisePacket(innerPacket: DogechatPacket, recipientPeerID: String) {
-        serviceScope.launch {
-            try {
-                // Serialize the inner packet to binary data
-                val innerPacketData = innerPacket.toBinaryData()
-                if (innerPacketData == null) {
-                    Log.e(TAG, "Failed to serialize inner packet for encryption")
-                    return@launch
-                }
-
-                // Encrypt the serialized packet using Noise encryption
-                val encryptedPayload = securityManager.encryptForPeer(innerPacketData, recipientPeerID)
-
-                if (encryptedPayload != null) {
-                    // Create the outer NOISE_ENCRYPTED packet
-                    val outerPacket = DogechatPacket(
+            
+            // Check if we have an established Noise session
+            if (encryptionService.hasEstablishedSession(recipientPeerID)) {
+                try {
+                    // Create TLV-encoded private message exactly like iOS
+                    val privateMessage = com.dogechat.android.model.PrivateMessagePacket(
+                        messageID = finalMessageID,
+                        content = content
+                    )
+                    
+                    val tlvData = privateMessage.encode()
+                    if (tlvData == null) {
+                        Log.e(TAG, "Failed to encode private message with TLV")
+                        return@launch
+                    }
+                    
+                    // Create message payload with NoisePayloadType prefix: [type byte] + [TLV data]
+                    val messagePayload = com.dogechat.android.model.NoisePayload(
+                        type = com.dogechat.android.model.NoisePayloadType.PRIVATE_MESSAGE,
+                        data = tlvData
+                    )
+                    
+                    // Encrypt the payload
+                    val encrypted = encryptionService.encrypt(messagePayload.encode(), recipientPeerID)
+                    
+                    // Create NOISE_ENCRYPTED packet exactly like iOS
+                    val packet = DogechatPacket(
+                        version = 1u,
                         type = MessageType.NOISE_ENCRYPTED.value,
                         senderID = hexStringToByteArray(myPeerID),
                         recipientID = hexStringToByteArray(recipientPeerID),
                         timestamp = System.currentTimeMillis().toULong(),
-                        payload = encryptedPayload,
+                        payload = encrypted,
                         signature = null,
                         ttl = MAX_TTL
                     )
-
-                    // Broadcast the encrypted packet
-                    connectionManager.broadcastPacket(RoutedPacket(outerPacket))
-
-                    Log.d(TAG, "Encrypted and sent packet type ${innerPacket.type} to $recipientPeerID (${encryptedPayload.size} bytes encrypted)")
-                } else {
-                    Log.w(TAG, "Failed to encrypt packet for $recipientPeerID - no session available")
+                    
+                    connectionManager.broadcastPacket(RoutedPacket(packet))
+                    Log.d(TAG, "📤 Sent encrypted private message to $recipientPeerID (${encrypted.size} bytes)")
+                    
+                    // FIXED: Don't send didReceiveMessage for our own sent messages
+                    // This was causing self-notifications - iOS doesn't do this
+                    // The UI handles showing sent messages through its own message sending logic
+                    
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to encrypt private message for $recipientPeerID: ${e.message}")
                 }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to encrypt and broadcast Noise packet to $recipientPeerID: ${e.message}")
+            } else {
+                // Fire and forget - initiate handshake but don't queue exactly like iOS
+                Log.d(TAG, "🤝 No session with $recipientPeerID, initiating handshake")
+                messageHandler.delegate?.initiateNoiseHandshake(recipientPeerID)
+                
+                // FIXED: Don't send didReceiveMessage for our own sent messages
+                // The UI will handle showing the message in the chat interface
             }
         }
     }
-
+    
     /**
-     * Send broadcast announce
+     * Send read receipt for a received private message - NEW NoisePayloadType implementation
+     * Uses same encryption approach as iOS SimplifiedBluetoothService
+     */
+    fun sendReadReceipt(messageID: String, recipientPeerID: String, readerNickname: String) {
+        serviceScope.launch {
+            Log.d(TAG, "📖 Sending read receipt for message $messageID to $recipientPeerID")
+            
+            // Check if this is a Nostr contact (geohash DM)
+            if (recipientPeerID.startsWith("nostr_")) {
+                // Get NostrGeohashService instance and send read receipt via Nostr
+                try {
+                    val nostrGeohashService = com.dogechat.android.nostr.NostrGeohashService.getInstance(context.applicationContext as android.app.Application)
+                    nostrGeohashService.sendNostrGeohashReadReceipt(messageID, recipientPeerID, myPeerID)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to send Nostr geohash read receipt: ${e.message}")
+                }
+                return@launch
+            }
+            
+            try {
+                // Create read receipt payload using NoisePayloadType exactly like iOS
+                val readReceiptPayload = com.dogechat.android.model.NoisePayload(
+                    type = com.dogechat.android.model.NoisePayloadType.READ_RECEIPT,
+                    data = messageID.toByteArray(Charsets.UTF_8)
+                )
+                
+                // Encrypt the payload
+                val encrypted = encryptionService.encrypt(readReceiptPayload.encode(), recipientPeerID)
+                
+                // Create NOISE_ENCRYPTED packet exactly like iOS
+                val packet = DogechatPacket(
+                    version = 1u,
+                    type = MessageType.NOISE_ENCRYPTED.value,
+                    senderID = hexStringToByteArray(myPeerID),
+                    recipientID = hexStringToByteArray(recipientPeerID),
+                    timestamp = System.currentTimeMillis().toULong(),
+                    payload = encrypted,
+                    signature = null,
+                    ttl = 7u // Same TTL as iOS messageTTL
+                )
+                
+                connectionManager.broadcastPacket(RoutedPacket(packet))
+                Log.d(TAG, "📤 Sent read receipt to $recipientPeerID for message $messageID")
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send read receipt to $recipientPeerID: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Send broadcast announce with TLV-encoded identity announcement - exactly like iOS
      */
     fun sendBroadcastAnnounce() {
         Log.d(TAG, "Sending broadcast announce")
         serviceScope.launch {
             val nickname = delegate?.getNickname() ?: myPeerID
-
+            
+            // Get the static public key for the announcement
+            val staticKey = encryptionService.getStaticPublicKey()
+            if (staticKey == null) {
+                Log.e(TAG, "No static public key available for announcement")
+                return@launch
+            }
+            
+            // Get the signing public key for the announcement
+            val signingKey = encryptionService.getSigningPublicKey()
+            if (signingKey == null) {
+                Log.e(TAG, "No signing public key available for announcement")
+                return@launch
+            }
+            
+            // Create iOS-compatible IdentityAnnouncement with TLV encoding
+            val announcement = IdentityAnnouncement(nickname, staticKey, signingKey)
+            val tlvPayload = announcement.encode()
+            if (tlvPayload == null) {
+                Log.e(TAG, "Failed to encode announcement as TLV")
+                return@launch
+            }
+            
             val announcePacket = DogechatPacket(
                 type = MessageType.ANNOUNCE.value,
                 ttl = MAX_TTL,
-                senderID = myPeerID, // STRING required by repo here
-                payload = nickname.toByteArray()
+                senderID = myPeerID,
+                payload = tlvPayload
             )
-
-            connectionManager.broadcastPacket(RoutedPacket(announcePacket))
+            
+            // Sign the packet using our signing key (exactly like iOS)
+            val signedPacket = encryptionService.signData(announcePacket.toBinaryDataForSigning()!!)?.let { signature ->
+                announcePacket.copy(signature = signature)
+            } ?: announcePacket
+            
+            connectionManager.broadcastPacket(RoutedPacket(signedPacket))
+            Log.d(TAG, "Sent iOS-compatible signed TLV announce (${tlvPayload.size} bytes)")
         }
     }
-
+    
     /**
-     * Send announcement to specific peer
+     * Send announcement to specific peer with TLV-encoded identity announcement - exactly like iOS
      */
-    private fun sendAnnouncementToPeer(peerID: String) {
+    fun sendAnnouncementToPeer(peerID: String) {
         if (peerManager.hasAnnouncedToPeer(peerID)) return
-
+        
         val nickname = delegate?.getNickname() ?: myPeerID
+        
+        // Get the static public key for the announcement
+        val staticKey = encryptionService.getStaticPublicKey()
+        if (staticKey == null) {
+            Log.e(TAG, "No static public key available for peer announcement")
+            return
+        }
+        
+        // Get the signing public key for the announcement
+        val signingKey = encryptionService.getSigningPublicKey()
+        if (signingKey == null) {
+            Log.e(TAG, "No signing public key available for peer announcement")
+            return
+        }
+        
+        // Create iOS-compatible IdentityAnnouncement with TLV encoding
+        val announcement = IdentityAnnouncement(nickname, staticKey, signingKey)
+        val tlvPayload = announcement.encode()
+        if (tlvPayload == null) {
+            Log.e(TAG, "Failed to encode peer announcement as TLV")
+            return
+        }
+        
         val packet = DogechatPacket(
             type = MessageType.ANNOUNCE.value,
             ttl = MAX_TTL,
-            senderID = myPeerID, // STRING required by repo here
-            payload = nickname.toByteArray()
+            senderID = myPeerID,
+            payload = tlvPayload
         )
-
-        connectionManager.broadcastPacket(RoutedPacket(packet))
+        
+        // Sign the packet using our signing key (exactly like iOS)
+        val signedPacket = encryptionService.signData(packet.toBinaryDataForSigning()!!)?.let { signature ->
+            packet.copy(signature = signature)
+        } ?: packet
+        
+        connectionManager.broadcastPacket(RoutedPacket(signedPacket))
         peerManager.markPeerAsAnnouncedTo(peerID)
-    }
-
-    /**
-     * Send key exchange to newly connected device
-     */
-    fun broadcastNoiseIdentityAnnouncement() {
-        serviceScope.launch {
-            try {
-                val nickname = delegate?.getNickname() ?: myPeerID
-
-                // Create the identity announcement using proper binary format
-                val announcement = createNoiseIdentityAnnouncement(nickname, null)
-                if (announcement != null) {
-                    val announcementData = announcement.toBinaryData()
-
-                    val packet = DogechatPacket(
-                        type = MessageType.NOISE_IDENTITY_ANNOUNCE.value,
-                        ttl = MAX_TTL,
-                        senderID = myPeerID, // STRING required by repo here
-                        payload = announcementData,
-                    )
-
-                    connectionManager.broadcastPacket(RoutedPacket(packet))
-                    Log.d(TAG, "Sent NoiseIdentityAnnouncement (${announcementData.size} bytes)")
-                } else {
-                    Log.e(TAG, "Failed to create NoiseIdentityAnnouncement")
-                }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to send NoiseIdentityAnnouncement: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Send handshake request to target peer for pending messages
-     */
-    fun sendHandshakeRequest(targetPeerID: String, pendingCount: UByte) {
-        serviceScope.launch {
-            try {
-                // Create handshake request
-                val request = HandshakeRequest(
-                    requesterID = myPeerID,
-                    requesterNickname = delegate?.getNickname() ?: myPeerID,
-                    targetID = targetPeerID,
-                    pendingMessageCount = pendingCount
-                )
-
-                val requestData = request.toBinaryData()
-
-                // Create packet for handshake request
-                val packet = DogechatPacket(
-                    version = 1u,
-                    type = MessageType.HANDSHAKE_REQUEST.value,
-                    senderID = hexStringToByteArray(myPeerID),
-                    recipientID = hexStringToByteArray(targetPeerID),
-                    timestamp = System.currentTimeMillis().toULong(),
-                    payload = requestData,
-                    ttl = 6u
-                )
-
-                // Broadcast the packet (Android equivalent of both direct and relay attempts)
-                connectionManager.broadcastPacket(RoutedPacket(packet))
-                Log.d(TAG, "Sent handshake request to $targetPeerID (pending: $pendingCount, ${requestData.size} bytes)")
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to send handshake request to $targetPeerID: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Create a properly formatted NoiseIdentityAnnouncement exactly like iOS
-     */
-    private fun createNoiseIdentityAnnouncement(nickname: String, previousPeerID: String?): NoiseIdentityAnnouncement? {
-        return try {
-            // Get the static public key for Noise protocol
-            val staticKey = encryptionService.getStaticPublicKey()
-            if (staticKey == null) {
-                Log.e(TAG, "No static public key available for identity announcement")
-                return null
-            }
-
-            // Get the signing public key for Ed25519 signatures
-            val signingKey = encryptionService.getSigningPublicKey()
-            if (signingKey == null) {
-                Log.e(TAG, "No signing public key available for identity announcement")
-                return null
-            }
-
-            val now = Date()
-
-            // Create the binding data to sign (same format as iOS)
-            val timestampMs = now.time
-            // Use binary peer id bytes rather than UTF-8 hex string bytes
-            val bindingData = myPeerIDBytes() +
-                    staticKey +
-                    timestampMs.toString().toByteArray(Charsets.UTF_8)
-
-            // Sign the binding with our Ed25519 signing key
-            val signature = encryptionService.signData(bindingData) ?: ByteArray(0)
-
-            // Create the identity announcement
-            NoiseIdentityAnnouncement(
-                peerID = myPeerID,
-                publicKey = staticKey,
-                signingPublicKey = signingKey,
-                nickname = nickname,
-                timestamp = now,
-                previousPeerID = previousPeerID,
-                signature = signature
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to create NoiseIdentityAnnouncement: ${e.message}")
-            null
-        }
+        Log.d(TAG, "Sent iOS-compatible signed TLV peer announce to $peerID (${tlvPayload.size} bytes)")
     }
 
     /**
@@ -858,37 +695,37 @@ fun startServices() {
         val packet = DogechatPacket(
             type = MessageType.LEAVE.value,
             ttl = MAX_TTL,
-            senderID = myPeerID, // STRING required by repo here
+            senderID = myPeerID,
             payload = nickname.toByteArray()
         )
-
+        
         connectionManager.broadcastPacket(RoutedPacket(packet))
     }
-
+    
     /**
      * Get peer nicknames
      */
     fun getPeerNicknames(): Map<String, String> = peerManager.getAllPeerNicknames()
-
+    
     /**
-     * Get peer RSSI values
+     * Get peer RSSI values  
      */
     fun getPeerRSSI(): Map<String, Int> = peerManager.getAllPeerRSSI()
-
+    
     /**
-     * Check if we have an established Noise session with a peer
+     * Check if we have an established Noise session with a peer  
      */
     fun hasEstablishedSession(peerID: String): Boolean {
         return encryptionService.hasEstablishedSession(peerID)
     }
-
+    
     /**
      * Get session state for a peer (for UI state display)
      */
     fun getSessionState(peerID: String): com.dogechat.android.noise.NoiseSession.NoiseSessionState {
         return encryptionService.getSessionState(peerID)
     }
-
+    
     /**
      * Initiate Noise handshake with a specific peer (public API)
      */
@@ -896,7 +733,7 @@ fun startServices() {
         // Delegate to the existing implementation in the MessageHandler delegate
         messageHandler.delegate?.initiateNoiseHandshake(peerID)
     }
-
+    
     /**
      * Get peer fingerprint for identity management
      */
@@ -905,19 +742,39 @@ fun startServices() {
     }
 
     /**
+     * Get peer info for verification purposes
+     */
+    fun getPeerInfo(peerID: String): PeerInfo? {
+        return peerManager.getPeerInfo(peerID)
+    }
+
+    /**
+     * Update peer information with verification data
+     */
+    fun updatePeerInfo(
+        peerID: String,
+        nickname: String,
+        noisePublicKey: ByteArray,
+        signingPublicKey: ByteArray,
+        isVerified: Boolean
+    ): Boolean {
+        return peerManager.updatePeerInfo(peerID, nickname, noisePublicKey, signingPublicKey, isVerified)
+    }
+    
+    /**
      * Get our identity fingerprint
      */
     fun getIdentityFingerprint(): String {
         return encryptionService.getIdentityFingerprint()
     }
-
+    
     /**
      * Check if encryption icon should be shown for a peer
      */
     fun shouldShowEncryptionIcon(peerID: String): Boolean {
         return encryptionService.hasEstablishedSession(peerID)
     }
-
+    
     /**
      * Get all peers with established encrypted sessions
      */
@@ -926,21 +783,21 @@ fun startServices() {
         // This method is not critical for the session retention fix
         return emptyList()
     }
-
+    
     /**
      * Get device address for a specific peer ID
      */
     fun getDeviceAddressForPeer(peerID: String): String? {
         return connectionManager.addressPeerMap.entries.find { it.value == peerID }?.key
     }
-
+    
     /**
      * Get all device addresses mapped to their peer IDs
      */
     fun getDeviceAddressToPeerMapping(): Map<String, String> {
         return connectionManager.addressPeerMap.toMap()
     }
-
+    
     /**
      * Print device addresses for all connected peers
      */
@@ -973,7 +830,7 @@ fun startServices() {
             appendLine(packetProcessor.getDebugInfo())
         }
     }
-
+    
     /**
      * Generate peer ID compatible with iOS - exactly 8 bytes (16 hex characters)
      */
@@ -982,7 +839,7 @@ fun startServices() {
         Random.nextBytes(randomBytes)
         return randomBytes.joinToString("") { "%02x".format(it) }
     }
-
+    
     /**
      * Convert hex string peer ID to binary data (8 bytes) - exactly same as iOS
      */
@@ -990,7 +847,7 @@ fun startServices() {
         val result = ByteArray(8) { 0 } // Initialize with zeros, exactly 8 bytes
         var tempID = hexString
         var index = 0
-
+        
         while (tempID.length >= 2 && index < 8) {
             val hexByte = tempID.substring(0, 2)
             val byte = hexByte.toIntOrNull(16)?.toByte()
@@ -1000,17 +857,12 @@ fun startServices() {
             tempID = tempID.substring(2)
             index++
         }
-
+        
         return result
     }
-
-    /**
-     * Helper that returns myPeerID as the 8-byte binary representation
-     */
-    private fun myPeerIDBytes(): ByteArray = hexStringToByteArray(myPeerID)
-
+    
     // MARK: - Panic Mode Support
-
+    
     /**
      * Clear all internal mesh service data (for panic mode)
      */
@@ -1028,7 +880,7 @@ fun startServices() {
             Log.e(TAG, "❌ Error clearing mesh service internal data: ${e.message}")
         }
     }
-
+    
     /**
      * Clear all encryption and cryptographic data (for panic mode)
      */
@@ -1051,11 +903,10 @@ interface BluetoothMeshDelegate {
     fun didReceiveMessage(message: DogechatMessage)
     fun didUpdatePeerList(peers: List<String>)
     fun didReceiveChannelLeave(channel: String, fromPeer: String)
-    fun didReceiveDeliveryAck(ack: DeliveryAck)
-    fun didReceiveReadReceipt(receipt: ReadReceipt)
+    fun didReceiveDeliveryAck(messageID: String, recipientPeerID: String)
+    fun didReceiveReadReceipt(messageID: String, recipientPeerID: String)
     fun decryptChannelMessage(encryptedContent: ByteArray, channel: String): String?
     fun getNickname(): String?
     fun isFavorite(peerID: String): Boolean
     // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager
 }
-

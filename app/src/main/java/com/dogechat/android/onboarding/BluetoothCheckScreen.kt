@@ -98,7 +98,21 @@ private fun BluetoothDisabledContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
+<<<<<<< HEAD:app/src/main/java/com/dogechat/android/onboarding/BluetoothCheckScreen.kt
                     text = "dogechat needs Bluetooth to:",
+=======
+                    text = "Dogechat does NOT track your location.\n\nLocation services are required for Bluetooth scanning and for the Geohash chat feature.",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        color = colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Dogechat needs location services for:",
+>>>>>>> upstream/main:app/src/main/java/com/Dogechat/android/onboarding/LocationCheckScreen.kt
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface
@@ -108,10 +122,17 @@ private fun BluetoothDisabledContent(
                 )
                 
                 Text(
+<<<<<<< HEAD:app/src/main/java/com/dogechat/android/onboarding/BluetoothCheckScreen.kt
                     text = "• Discover nearby users\n" +
                             "• Create mesh network connections\n" +
                             "• Send and receive messages\n" +
                             "• Work without internet or servers",
+=======
+                    text = "• Bluetooth device scanning (Android requirement)\n" +
+                            "• Discovering nearby users on mesh network\n" +
+                            "• Geohash chat feature\n" +
+                            "• No tracking or location collection",
+>>>>>>> upstream/main:app/src/main/java/com/Dogechat/android/onboarding/LocationCheckScreen.kt
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)

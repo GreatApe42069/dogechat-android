@@ -5,6 +5,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -15,6 +17,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 import java.util.*
 
 /**
@@ -27,7 +30,7 @@ import java.util.*
  */
 data class GeoPerson(
     val id: String,           // pubkey hex (lowercased) - matches iOS
-    val displayName: String,  // nickname with #suffix - matches iOS  
+    val displayName: String,  // nickname with #suffix - matches iOS
     val lastSeen: Date        // activity timestamp - matches iOS
 )
 
@@ -38,14 +41,14 @@ fun GeohashPeopleList(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    
+
     // Observe geohash people from ChatViewModel
     val geohashPeople by viewModel.geohashPeople.observeAsState(emptyList())
     val selectedLocationChannel by viewModel.selectedLocationChannel.observeAsState()
     val isTeleported by viewModel.isTeleported.observeAsState(false)
     val nickname by viewModel.nickname.observeAsState("")
     val unreadPrivateMessages by viewModel.unreadPrivateMessages.observeAsState(emptySet())
-    
+
     Column {
         // Header matching iOS style
         Row(
@@ -70,14 +73,14 @@ fun GeohashPeopleList(
                 color = colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }
-        
+
         if (geohashPeople.isEmpty()) {
             // Empty state - matches iOS "nobody around..."
             Text(
                 text = "nobody around...",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 14.sp
+                    fontSize = BASE_FONT_SIZE.sp
                 ),
                 color = colorScheme.onSurface.copy(alpha = 0.5f),
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
@@ -101,7 +104,7 @@ fun GeohashPeopleList(
                     else -> null
                 }
             }
-            
+
             // Sort people: me first, then by lastSeen (matches iOS exactly)
             val orderedPeople = remember(geohashPeople, myHex) {
                 geohashPeople.sortedWith { a, b ->
@@ -112,9 +115,9 @@ fun GeohashPeopleList(
                     }
                 }
             }
-            
+
             val firstID = orderedPeople.firstOrNull()?.id
-            
+
             orderedPeople.forEach { person ->
                 GeohashPersonItem(
                     person = person,
@@ -128,9 +131,7 @@ fun GeohashPeopleList(
                     viewModel = viewModel,
                     onTap = {
                         if (person.id != myHex) {
-                            // TODO: Re-enable when NIP-17 geohash DM issues are fixed
-                            // Start geohash DM (iOS-compatible)
-                            // viewModel.startGeohashDM(person.id)
+                            viewModel.startGeohashDM(person.id)
                             onTapPerson()
                         }
                     }
@@ -178,13 +179,13 @@ private fun GeohashPersonItem(
                 isMe -> "face.smiling" to Color(0xFFFF9500) // Orange for me
                 else -> "face.smiling" to colorScheme.onSurface // Regular color for others
             }
-            
+
             // Use appropriate Material icon (closest match to iOS SF Symbols)
             val icon = when (iconName) {
-                "face.dashed" -> Icons.Default.Face // Use regular face icon (no dashed variant in Material)
-                else -> Icons.Default.Face
+                "face.dashed" -> Icons.Outlined.Explore
+                else -> Icons.Outlined.LocationOn
             }
-            
+
             Icon(
                 imageVector = icon,
                 contentDescription = if (isTeleported || isMyTeleported) "Teleported user" else "User",
@@ -192,17 +193,17 @@ private fun GeohashPersonItem(
                 tint = iconColor.copy(alpha = if (iconName == "face.dashed") 0.6f else 1.0f) // Make dashed faces slightly transparent
             )
         }
-        
+
         Spacer(modifier = Modifier.width(8.dp))
-        
+
         // Display name with suffix handling (matches iOS splitSuffix logic)
         val (baseName, suffix) = com.dogechat.android.ui.splitSuffix(person.displayName)
-        
+
         // Get consistent peer color (matches iOS color assignment exactly)
         val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
         val assignedColor = viewModel.colorForNostrPubkey(person.id, isDark)
         val baseColor = if (isMe) Color(0xFFFF9500) else assignedColor
-        
+
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
@@ -212,39 +213,37 @@ private fun GeohashPersonItem(
                 text = baseName,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 14.sp,
+                    fontSize = BASE_FONT_SIZE.sp,
                     fontWeight = if (isMe) FontWeight.Bold else FontWeight.Normal
                 ),
                 color = baseColor
             )
-            
+
             // Suffix (collision-resistant #abcd) in lighter shade
             if (suffix.isNotEmpty()) {
                 Text(
                     text = suffix,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp
+                        fontSize = BASE_FONT_SIZE.sp
                     ),
                     color = baseColor.copy(alpha = 0.6f)
                 )
             }
-            
+
             // "You" indicator for current user
             if (isMe) {
                 Text(
                     text = " (you)",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp
+                        fontSize = BASE_FONT_SIZE.sp
                     ),
                     color = baseColor
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.width(8.dp))
     }
 }
-
-
