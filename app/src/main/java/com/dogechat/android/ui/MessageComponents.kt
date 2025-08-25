@@ -1,4 +1,4 @@
-package com.dogechat.android.ui
+﻿package com.dogechat.android.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -36,14 +36,14 @@ import java.util.*
 
 @Composable
 fun MessagesList(
-    messages: List<BitchatMessage>,
+    messages: List<DogechatMessage>,
     currentUserNickname: String,
     meshService: BluetoothMeshService,
     modifier: Modifier = Modifier,
     forceScrollToBottom: Boolean = false,
     onScrolledUpChanged: ((Boolean) -> Unit)? = null,
     onNicknameClick: ((String) -> Unit)? = null,
-    onMessageLongPress: ((BitchatMessage) -> Unit)? = null
+    onMessageLongPress: ((DogechatMessage) -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     
@@ -110,11 +110,11 @@ fun MessagesList(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageItem(
-    message: BitchatMessage,
+    message: DogechatMessage,
     currentUserNickname: String,
     meshService: BluetoothMeshService,
     onNicknameClick: ((String) -> Unit)? = null,
-    onMessageLongPress: ((BitchatMessage) -> Unit)? = null
+    onMessageLongPress: ((DogechatMessage) -> Unit)? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val timeFormatter = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
@@ -175,13 +175,13 @@ fun MessageItem(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageTextWithClickableNicknames(
-    message: BitchatMessage,
+    message: DogechatMessage,
     currentUserNickname: String,
     meshService: BluetoothMeshService,
     colorScheme: ColorScheme,
     timeFormatter: SimpleDateFormat,
     onNicknameClick: ((String) -> Unit)?,
-    onMessageLongPress: ((BitchatMessage) -> Unit)?,
+    onMessageLongPress: ((DogechatMessage) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val annotatedText = formatMessageAsAnnotatedString(
@@ -265,7 +265,7 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
     when (status) {
         is DeliveryStatus.Sending -> {
             Text(
-                text = "○",
+                text = "â—‹",
                 fontSize = 10.sp,
                 color = colorScheme.primary.copy(alpha = 0.6f)
             )
@@ -273,7 +273,7 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
         is DeliveryStatus.Sent -> {
             // Use a subtle hollow marker for Sent; single check is reserved for Delivered (iOS parity)
             Text(
-                text = "○",
+                text = "â—‹",
                 fontSize = 10.sp,
                 color = colorScheme.primary.copy(alpha = 0.6f)
             )
@@ -281,14 +281,14 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
         is DeliveryStatus.Delivered -> {
             // Single check for Delivered (matches iOS expectations)
             Text(
-                text = "✓",
+                text = "âœ“",
                 fontSize = 10.sp,
                 color = colorScheme.primary.copy(alpha = 0.8f)
             )
         }
         is DeliveryStatus.Read -> {
             Text(
-                text = "✓✓",
+                text = "âœ“âœ“",
                 fontSize = 10.sp,
                 color = Color(0xFF007AFF), // Blue
                 fontWeight = FontWeight.Bold
@@ -296,17 +296,18 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
         }
         is DeliveryStatus.Failed -> {
             Text(
-                text = "⚠",
+                text = "âš ",
                 fontSize = 10.sp,
                 color = Color.Red.copy(alpha = 0.8f)
             )
         }
         is DeliveryStatus.PartiallyDelivered -> {
             Text(
-                text = "✓${status.reached}/${status.total}",
+                text = "âœ“${status.reached}/${status.total}",
                 fontSize = 10.sp,
                 color = colorScheme.primary.copy(alpha = 0.6f)
             )
         }
     }
 }
+
