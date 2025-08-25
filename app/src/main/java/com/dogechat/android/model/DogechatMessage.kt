@@ -65,12 +65,12 @@ data class DogechatMessage(
     /**
      * Convert message to binary payload format - exactly same as iOS version
      */
-    fun toBinaryData(): ByteArray? {
+    fun toBinaryPayload(): ByteArray? {
         try {
             val buffer = ByteBuffer.allocate(4096).apply { order(ByteOrder.BIG_ENDIAN) }
 
             // Message format:
-            // - Flags: 1 byte (flags for optional fields)
+            // - Flags: 1 byte (bit flags for optional fields)
             // - Timestamp: 8 bytes (milliseconds since epoch, big-endian)
             // - ID length: 1 byte + ID data
             // - Sender length: 1 byte + sender data
@@ -134,34 +134,174 @@ data class DogechatMessage(
                 buffer.put(peerBytes.take(255).toByteArray())
             }
 
-            mentions?.let { ments ->
-                buffer.put(minOf(ments.size, 255).toByte())
-                ments.take(255).forEach { mention ->
-                    val mentBytes = mention.toByteArray(Charsets.UTF_8)
-                    buffer.put(minOf(mentBytes.size, 255).toByte())
-                    buffer.put(mentBytes.take(255).toByteArray())
+            // Mentions array
+            mentions?.let { mentionList ->
+                buffer.put(minOf(mentionList.size, 255).toByte())
+                mentionList.take(255).forEach { mention ->
+                    val mentionBytes = mention.toByteArray(Charsets.UTF_8)
+                    buffer.put(minOf(mentionBytes.size, 255).toByte())
+                    buffer.put(mentionBytes.take(255).toByteArray())
                 }
             }
 
-            channel?.let { ch ->
-                val chBytes = ch.toByteArray(Charsets.UTF_8)
-                buffer.put(minOf(chBytes.size, 255).toByte())
-                buffer.put(chBytes.take(255).toByteArray())
+            // Channel hashtag
+            channel?.let { channelName ->
+                val channelBytes = channelName.toByteArray(Charsets.UTF_8)
+                buffer.put(minOf(channelBytes.size, 255).toByte())
+                buffer.put(channelBytes.take(255).toByteArray())
             }
 
-            buffer.flip()
-            return buffer.array().copyOf(buffer.limit())
+            val result = ByteArray(buffer.position())
+            buffer.rewind()
+            buffer.get(result)
+            return result
+
         } catch (e: Exception) {
             return null
+        }
+    }
+
+    companion object {
+        /**
+         * Parse message from binary payload - exactly same logic as iOS version
+         */
+        fun fromBinaryPayload(data: ByteArray): DogechatMessage? {
+            try {
+                if (data.size < 13) return null
+
+                val buffer = ByteBuffer.wrap(data).apply { order(ByteOrder.BIG_ENDIAN) }
+
+                // Flags
+                val flags = buffer.get().toUByte()
+                val isRelay = (flags and 0x01u) != 0u.toUByte()
+                val isPrivate = (flags and 0x02u) != 0u.toUByte()
+                val hasOriginalSender = (flags and 0x04u) != 0u.toUByte()
+                val hasRecipientNickname = (flags and 0x08u) != 0u.toUByte()
+                val hasSenderPeerID = (flags and 0x10u) != 0u.toUByte()
+                val hasMentions = (flags and 0x20u) != 0u.toUByte()
+                val hasChannel = (flags and 0x40u) != 0u.toUByte()
+                val isEncrypted = (flags and 0x80u) != 0u.toUByte()
+
+                // Timestamp
+                val timestampMillis = buffer.getLong()
+                val timestamp = Date(timestampMillis)
+
+                // ID
+                val idLength = buffer.get().toInt() and 0xFF
+                if (buffer.remaining() < idLength) return null
+                val idBytes = ByteArray(idLength)
+                buffer.get(idBytes)
+                val id = String(idBytes, Charsets.UTF_8)
+
+                // Sender
+                val senderLength = buffer.get().toInt() and 0xFF
+                if (buffer.remaining() < senderLength) return null
+                val senderBytes = ByteArray(senderLength)
+                buffer.get(senderBytes)
+                val sender = String(senderBytes, Charsets.UTF_8)
+
+                // Content
+                val contentLength = buffer.getShort().toInt() and 0xFFFF
+                if (buffer.remaining() < contentLength) return null
+
+                val content: String
+                val encryptedContent: ByteArray?
+
+                if (isEncrypted) {
+                    val encryptedBytes = ByteArray(contentLength)
+                    buffer.get(encryptedBytes)
+                    encryptedContent = encryptedBytes
+                    content = "" // Empty placeholder
+                } else {
+                    val contentBytes = ByteArray(contentLength)
+                    buffer.get(contentBytes)
+                    content = String(contentBytes, Charsets.UTF_8)
+                    encryptedContent = null
+                }
+
+                // Optional fields
+                val originalSender = if (hasOriginalSender && buffer.hasRemaining()) {
+                    val length = buffer.get().toInt() and 0xFF
+                    if (buffer.remaining() >= length) {
+                        val bytes = ByteArray(length)
+                        buffer.get(bytes)
+                        String(bytes, Charsets.UTF_8)
+                    } else null
+                } else null
+
+                val recipientNickname = if (hasRecipientNickname && buffer.hasRemaining()) {
+                    val length = buffer.get().toInt() and 0xFF
+                    if (buffer.remaining() >= length) {
+                        val bytes = ByteArray(length)
+                        buffer.get(bytes)
+                        String(bytes, Charsets.UTF_8)
+                    } else null
+                } else null
+
+                val senderPeerID = if (hasSenderPeerID && buffer.hasRemaining()) {
+                    val length = buffer.get().toInt() and 0xFF
+                    if (buffer.remaining() >= length) {
+                        val bytes = ByteArray(length)
+                        buffer.get(bytes)
+                        String(bytes, Charsets.UTF_8)
+                    } else null
+                } else null
+
+                // Mentions array
+                val mentions = if (hasMentions && buffer.hasRemaining()) {
+                    val mentionCount = buffer.get().toInt() and 0xFF
+                    val mentionList = mutableListOf<String>()
+                    repeat(mentionCount) {
+                        if (buffer.hasRemaining()) {
+                            val length = buffer.get().toInt() and 0xFF
+                            if (buffer.remaining() >= length) {
+                                val bytes = ByteArray(length)
+                                buffer.get(bytes)
+                                mentionList.add(String(bytes, Charsets.UTF_8))
+                            }
+                        }
+                    }
+                    if (mentionList.isNotEmpty()) mentionList else null
+                } else null
+
+                // Channel
+                val channel = if (hasChannel && buffer.hasRemaining()) {
+                    val length = buffer.get().toInt() and 0xFF
+                    if (buffer.remaining() >= length) {
+                        val bytes = ByteArray(length)
+                        buffer.get(bytes)
+                        String(bytes, Charsets.UTF_8)
+                    } else null
+                } else null
+
+                return DogechatMessage(
+                    id = id,
+                    sender = sender,
+                    content = content,
+                    timestamp = timestamp,
+                    isRelay = isRelay,
+                    originalSender = originalSender,
+                    isPrivate = isPrivate,
+                    recipientNickname = recipientNickname,
+                    senderPeerID = senderPeerID,
+                    mentions = mentions,
+                    channel = channel,
+                    encryptedContent = encryptedContent,
+                    isEncrypted = isEncrypted
+                )
+
+            } catch (e: Exception) {
+                return null
+            }
         }
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
-        
+
         other as DogechatMessage
-        
+
         if (id != other.id) return false
         if (sender != other.sender) return false
         if (content != other.content) return false

@@ -7,26 +7,26 @@ minSdk = "26"  # API 26 for proper BLE support
 targetSdk = "34"
 
 # AndroidX Core
-core-ktx = "1.13.1"
-lifecycle-runtime = "2.8.0"
-activity-compose = "1.9.0"
-appcompat = "1.7.0"
+core-ktx = "1.16.0"
+lifecycle-runtime = "2.9.1"
+activity-compose = "1.10.1"
+appcompat = "1.7.1"
 
 # Compose
-compose-bom = "2024.05.00"
+compose-bom = "2025.06.01"
 
 # Navigation
-navigation-compose = "2.7.7"
+navigation-compose = "2.9.1"
 
 # Accompanist
-accompanist-permissions = "0.34.0"
+accompanist-permissions = "0.37.3"
 
 # Cryptography
 bouncycastle = "1.81"
 tink-android = "1.10.0"
 
 # JSON
-gson = "2.10.1"
+gson = "2.13.1"
 
 # Coroutines
 kotlinx-coroutines = "1.7.3"
@@ -56,7 +56,7 @@ material = "1.12.0"
 constraintlayout = "2.2.0"
 
 # Dogecoin
-bitcoinj = "0.15.10"
+bitcoinj = "0.16.1"
 
 [libraries]
 # AndroidX Core

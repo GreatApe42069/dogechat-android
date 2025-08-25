@@ -13,7 +13,7 @@ class CommandProcessor(
     private val channelManager: ChannelManager,
     private val privateChatManager: PrivateChatManager
 ) {
-    
+
     // Available commands list
     private val baseCommands = listOf(
         CommandSuggestion("/block", emptyList(), "[nickname]", "block or list blocked peers"),
@@ -26,15 +26,21 @@ class CommandProcessor(
         CommandSuggestion("/unblock", emptyList(), "<nickname>", "unblock a peer"),
         CommandSuggestion("/w", emptyList(), null, "see who's online")
     )
-    
+
     // MARK: - Command Processing
-    
-    fun processCommand(command: String, meshService: BluetoothMeshService, myPeerID: String, onSendMessage: (String, List<String>, String?) -> Unit, viewModel: ChatViewModel? = null): Boolean {
+
+    fun processCommand(
+        command: String,
+        meshService: BluetoothMeshService,
+        myPeerID: String,
+        onSendMessage: (String, List<String>, String?) -> Unit,
+        viewModel: ChatViewModel? = null
+    ): Boolean {
         if (!command.startsWith("/")) return false
-        
+
         val parts = command.split(" ")
         val cmd = parts.first()
-        
+
         when (cmd) {
             "/j", "/join" -> handleJoinCommand(parts, myPeerID)
             "/m", "/msg" -> handleMessageCommand(parts, meshService)
@@ -48,10 +54,10 @@ class CommandProcessor(
             "/channels" -> handleChannelsCommand()
             else -> handleUnknownCommand(cmd)
         }
-        
+
         return true
     }
-    
+
     private fun handleJoinCommand(parts: List<String>, myPeerID: String) {
         if (parts.size > 1) {
             val channelName = parts[1]
@@ -77,22 +83,22 @@ class CommandProcessor(
             messageManager.addMessage(systemMessage)
         }
     }
-    
+
     private fun handleMessageCommand(parts: List<String>, meshService: BluetoothMeshService) {
         if (parts.size > 1) {
             val targetName = parts[1].removePrefix("@")
             val peerID = getPeerIDForNickname(targetName, meshService)
-            
+
             if (peerID != null) {
                 val success = privateChatManager.startPrivateChat(peerID, meshService)
-                
+
                 if (success) {
                     if (parts.size > 2) {
                         val messageContent = parts.drop(2).joinToString(" ")
                         val recipientNickname = getPeerNickname(peerID, meshService)
                         privateChatManager.sendPrivateMessage(
-                            messageContent, 
-                            peerID, 
+                            messageContent,
+                            peerID,
                             recipientNickname,
                             state.getNicknameValue(),
                             getMyPeerID(meshService)
@@ -129,47 +135,56 @@ class CommandProcessor(
             messageManager.addMessage(systemMessage)
         }
     }
-    
+
     private fun handleWhoCommand(meshService: BluetoothMeshService, viewModel: ChatViewModel? = null) {
-        // Channel-aware who command (matches iOS behavior)
         val (peerList, contextDescription) = if (viewModel != null) {
             when (val selectedChannel = viewModel.selectedLocationChannel.value) {
                 is com.dogechat.android.geohash.ChannelID.Mesh,
                 null -> {
-                    // Mesh channel: show Bluetooth-connected peers
                     val connectedPeers = state.getConnectedPeersValue()
                     val peerList = connectedPeers.joinToString(", ") { peerID ->
                         getPeerNickname(peerID, meshService)
                     }
                     Pair(peerList, "online users")
                 }
+
                 is com.dogechat.android.geohash.ChannelID.Location -> {
-                    // Location channel: show geohash participants
                     val geohashPeople = viewModel.geohashPeople.value ?: emptyList()
-                    val peerList = geohashPeople.joinToString(", ") { person ->
-                        person.displayName
-                    }
-                    Pair(peerList, "geohash participants")
+                    val currentNickname = state.getNicknameValue()
+
+                    val participantList = geohashPeople.mapNotNull { person ->
+                        val displayName = person.displayName
+                        if (displayName.startsWith("${currentNickname}#")) {
+                            null
+                        } else {
+                            displayName
+                        }
+                    }.joinToString(", ")
+
+                    Pair(participantList, "participants in ${selectedChannel.channel.geohash}")
                 }
             }
         } else {
-            // Fallback to mesh peers if no viewModel available
             val connectedPeers = state.getConnectedPeersValue()
             val peerList = connectedPeers.joinToString(", ") { peerID ->
                 getPeerNickname(peerID, meshService)
             }
             Pair(peerList, "online users")
         }
-        
+
         val systemMessage = DogechatMessage(
             sender = "system",
-            content = "$contextDescription: $peerList",
+            content = if (peerList.isEmpty()) {
+                "no one else is around right now."
+            } else {
+                "$contextDescription: $peerList"
+            },
             timestamp = Date(),
             isRelay = false
         )
         messageManager.addMessage(systemMessage)
     }
-    
+
     private fun handleClearCommand() {
         messageManager.clearAllMessages()
         val systemMessage = DogechatMessage(
@@ -180,7 +195,7 @@ class CommandProcessor(
         )
         messageManager.addMessage(systemMessage)
     }
-    
+
     private fun handlePassCommand(parts: List<String>, myPeerID: String) {
         val currentChannel = state.getCurrentChannelValue() ?: return
         if (parts.size > 1) {
@@ -213,7 +228,7 @@ class CommandProcessor(
             messageManager.addMessage(systemMessage)
         }
     }
-    
+
     private fun handleBlockCommand(parts: List<String>, meshService: BluetoothMeshService) {
         if (parts.size > 1) {
             val targetName = parts[1].removePrefix("@")
@@ -237,7 +252,6 @@ class CommandProcessor(
                 messageManager.addMessage(systemMessage)
             }
         } else {
-            // List blocked peers
             val blockedPeers = privateChatManager.getBlockedPeers(meshService)
             val blockedList = if (blockedPeers.isEmpty()) "none" else blockedPeers.joinToString(", ")
             val systemMessage = DogechatMessage(
@@ -249,7 +263,7 @@ class CommandProcessor(
             messageManager.addMessage(systemMessage)
         }
     }
-    
+
     private fun handleUnblockCommand(parts: List<String>, meshService: BluetoothMeshService) {
         if (parts.size > 1) {
             val targetName = parts[1].removePrefix("@")
@@ -282,7 +296,7 @@ class CommandProcessor(
             messageManager.addMessage(systemMessage)
         }
     }
-    
+
     private fun handleActionCommand(
         parts: List<String>,
         actionVerb: String,
@@ -305,11 +319,11 @@ class CommandProcessor(
             messageManager.addMessage(systemMessage)
         }
     }
-    
+
     private fun handleChannelsCommand() {
         val allChannels = channelManager.getJoinedChannelsList()
         val channelList = if (allChannels.isEmpty()) "none" else "joined channels: ${allChannels.joinToString(", ")}"
-        
+
         val systemMessage = DogechatMessage(
             sender = "system",
             content = channelList,
@@ -318,7 +332,7 @@ class CommandProcessor(
         )
         messageManager.addMessage(systemMessage)
     }
-    
+
     private fun handleUnknownCommand(cmd: String) {
         val systemMessage = DogechatMessage(
             sender = "system",
@@ -328,7 +342,7 @@ class CommandProcessor(
         )
         messageManager.addMessage(systemMessage)
     }
-    
+
     // MARK: - Command Autocomplete
 
     fun updateCommandSuggestions(input: String) {
@@ -337,13 +351,10 @@ class CommandProcessor(
             state.setCommandSuggestions(emptyList())
             return
         }
-        
-        // Get all available commands based on context
+
         val allCommands = getAllAvailableCommands()
-        
-        // Filter commands based on input
         val filteredCommands = filterCommands(allCommands, input.lowercase())
-        
+
         if (filteredCommands.isNotEmpty()) {
             state.setCommandSuggestions(filteredCommands)
             state.setShowCommandSuggestions(true)
@@ -352,9 +363,8 @@ class CommandProcessor(
             state.setCommandSuggestions(emptyList())
         }
     }
-    
+
     private fun getAllAvailableCommands(): List<CommandSuggestion> {
-        // Add channel-specific commands if in a channel
         val channelCommands = if (state.getCurrentChannelValue() != null) {
             listOf(
                 CommandSuggestion("/pass", emptyList(), "[password]", "change channel password"),
@@ -364,63 +374,54 @@ class CommandProcessor(
         } else {
             emptyList()
         }
-        
+
         return baseCommands + channelCommands
     }
-    
+
     private fun filterCommands(commands: List<CommandSuggestion>, input: String): List<CommandSuggestion> {
         return commands.filter { command ->
-            // Check primary command
             command.command.startsWith(input) ||
-            // Check aliases
-            command.aliases.any { it.startsWith(input) }
+                    command.aliases.any { it.startsWith(input) }
         }.sortedBy { it.command }
     }
-    
+
     fun selectCommandSuggestion(suggestion: CommandSuggestion): String {
         state.setShowCommandSuggestions(false)
         state.setCommandSuggestions(emptyList())
         return "${suggestion.command} "
     }
-    
+
     // MARK: - Mention Autocomplete
-    
+
     fun updateMentionSuggestions(input: String, meshService: BluetoothMeshService, viewModel: ChatViewModel? = null) {
-        // Check if input contains @ and we're at the end of a word or at the end of input
         val atIndex = input.lastIndexOf('@')
         if (atIndex == -1) {
             state.setShowMentionSuggestions(false)
             state.setMentionSuggestions(emptyList())
             return
         }
-        
-        // Get the text after the @ symbol
+
         val textAfterAt = input.substring(atIndex + 1)
-        
-        // If there's a space after @, don't show suggestions
+
         if (textAfterAt.contains(' ')) {
             state.setShowMentionSuggestions(false)
             state.setMentionSuggestions(emptyList())
             return
         }
-        
-        // Get peer candidates based on active channel (matches iOS logic exactly)
+
         val peerCandidates: List<String> = if (viewModel != null) {
             when (val selectedChannel = viewModel.selectedLocationChannel.value) {
                 is com.dogechat.android.geohash.ChannelID.Mesh,
                 null -> {
-                    // Mesh channel: use Bluetooth mesh peer nicknames
                     meshService.getPeerNicknames().values.filter { it != meshService.getPeerNicknames()[meshService.myPeerID] }
                 }
-                
+
                 is com.dogechat.android.geohash.ChannelID.Location -> {
-                    // Location channel: use geohash participants with collision-resistant suffixes
                     val geohashPeople = viewModel.geohashPeople.value ?: emptyList()
                     val currentNickname = state.getNicknameValue()
-                    
+
                     geohashPeople.mapNotNull { person ->
                         val displayName = person.displayName
-                        // Exclude self from suggestions
                         if (displayName.startsWith("${currentNickname}#")) {
                             null
                         } else {
@@ -430,15 +431,13 @@ class CommandProcessor(
                 }
             }
         } else {
-            // Fallback to mesh peers if no viewModel available
             meshService.getPeerNicknames().values.filter { it != meshService.getPeerNicknames()[meshService.myPeerID] }
         }
-        
-        // Filter nicknames based on the text after @
+
         val filteredNicknames = peerCandidates.filter { nickname ->
             nickname.startsWith(textAfterAt, ignoreCase = true)
         }.sorted()
-        
+
         if (filteredNicknames.isNotEmpty()) {
             state.setMentionSuggestions(filteredNicknames)
             state.setShowMentionSuggestions(true)
@@ -447,36 +446,34 @@ class CommandProcessor(
             state.setMentionSuggestions(emptyList())
         }
     }
-    
+
     fun selectMentionSuggestion(nickname: String, currentText: String): String {
         state.setShowMentionSuggestions(false)
         state.setMentionSuggestions(emptyList())
-        
-        // Find the last @ symbol position
+
         val atIndex = currentText.lastIndexOf('@')
         if (atIndex == -1) {
             return "$currentText@$nickname "
         }
-        
-        // Replace the text from the @ symbol to the end with the mention
+
         val textBeforeAt = currentText.substring(0, atIndex)
         return "$textBeforeAt@$nickname "
     }
-    
+
     // MARK: - Utility Functions
-    
+
     private fun getPeerIDForNickname(nickname: String, meshService: BluetoothMeshService): String? {
         return meshService.getPeerNicknames().entries.find { it.value == nickname }?.key
     }
-    
+
     private fun getPeerNickname(peerID: String, meshService: BluetoothMeshService): String {
         return meshService.getPeerNicknames()[peerID] ?: peerID
     }
-    
+
     private fun getMyPeerID(meshService: BluetoothMeshService): String {
         return meshService.myPeerID
     }
-    
+
     private fun sendPrivateMessageVia(meshService: BluetoothMeshService, content: String, peerID: String, recipientNickname: String, messageId: String) {
         meshService.sendPrivateMessage(content, peerID, recipientNickname, messageId)
     }

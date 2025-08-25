@@ -1,9 +1,9 @@
-package com.dogechat.android.mesh
+package com.bitchat.android.mesh
 
 import android.util.Log
-import com.dogechat.android.protocol.DogechatPacket
-import com.dogechat.android.protocol.MessageType
-import com.dogechat.android.model.RoutedPacket
+import com.bitchat.android.protocol.BitchatPacket
+import com.bitchat.android.protocol.MessageType
+import com.bitchat.android.model.RoutedPacket
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.actor
@@ -279,7 +279,7 @@ class PacketProcessor(private val myPeerID: String) {
  */
 interface PacketProcessorDelegate {
     // Security validation
-    fun validatePacketSecurity(packet: DogechatPacket, peerID: String): Boolean
+    fun validatePacketSecurity(packet: BitchatPacket, peerID: String): Boolean
     
     // Peer management
     fun updatePeerLastSeen(peerID: String)
@@ -295,7 +295,7 @@ interface PacketProcessorDelegate {
     fun handleAnnounce(routed: RoutedPacket)
     fun handleMessage(routed: RoutedPacket)
     fun handleLeave(routed: RoutedPacket)
-    fun handleFragment(packet: DogechatPacket): DogechatPacket?
+    fun handleFragment(packet: BitchatPacket): BitchatPacket?
     
     // Communication
     fun sendAnnouncementToPeer(peerID: String)
