@@ -1,7 +1,7 @@
-package com.dogechat.android.mesh
+﻿package com.dogechat.android.mesh
 
 import android.util.Log
-import com.dogechat.android.protocol.BitchatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.model.RoutedPacket
 import kotlinx.coroutines.*
@@ -45,15 +45,15 @@ class PacketProcessor(private val myPeerID: String) {
     private fun getOrCreateActorForPeer(peerID: String) = processorScope.actor<RoutedPacket>(
         capacity = Channel.UNLIMITED
     ) {
-        Log.d(TAG, "🎭 Created packet actor for peer: ${formatPeerForLog(peerID)}")
+        Log.d(TAG, "ðŸŽ­ Created packet actor for peer: ${formatPeerForLog(peerID)}")
         try {
             for (packet in channel) {
-                Log.d(TAG, "📦 Processing packet type ${packet.packet.type} from ${formatPeerForLog(peerID)} (serialized)")
+                Log.d(TAG, "ðŸ“¦ Processing packet type ${packet.packet.type} from ${formatPeerForLog(peerID)} (serialized)")
                 handleReceivedPacket(packet)
                 Log.d(TAG, "Completed packet type ${packet.packet.type} from ${formatPeerForLog(peerID)}")
             }
         } finally {
-            Log.d(TAG, "🎭 Packet actor for ${formatPeerForLog(peerID)} terminated")
+            Log.d(TAG, "ðŸŽ­ Packet actor for ${formatPeerForLog(peerID)} terminated")
         }
     }
     
@@ -279,7 +279,7 @@ class PacketProcessor(private val myPeerID: String) {
  */
 interface PacketProcessorDelegate {
     // Security validation
-    fun validatePacketSecurity(packet: BitchatPacket, peerID: String): Boolean
+    fun validatePacketSecurity(packet: DogechatPacket, peerID: String): Boolean
     
     // Peer management
     fun updatePeerLastSeen(peerID: String)
@@ -295,12 +295,13 @@ interface PacketProcessorDelegate {
     fun handleAnnounce(routed: RoutedPacket)
     fun handleMessage(routed: RoutedPacket)
     fun handleLeave(routed: RoutedPacket)
-    fun handleFragment(packet: BitchatPacket): BitchatPacket?
+    fun handleFragment(packet: DogechatPacket): DogechatPacket?
     
     // Communication
     fun sendAnnouncementToPeer(peerID: String)
     fun sendCachedMessages(peerID: String)
     fun relayPacket(routed: RoutedPacket)
 }
+
 
 
