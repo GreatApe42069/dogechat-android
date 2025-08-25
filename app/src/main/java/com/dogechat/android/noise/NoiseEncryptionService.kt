@@ -1,4 +1,4 @@
-﻿package com.dogechat.android.noise
+package com.dogechat.android.noise
 
 import android.content.Context
 import android.util.Log

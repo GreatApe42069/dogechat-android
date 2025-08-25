@@ -1,4 +1,4 @@
-﻿package com.dogechat.android.mesh
+package com.dogechat.android.mesh
 
 import android.util.Log
 import com.dogechat.android.protocol.BitchatPacket
