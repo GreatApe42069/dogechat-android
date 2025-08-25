@@ -1,9 +1,9 @@
-package com.dogechat.android.nostr
+﻿package com.Dogechat.android.nostr
 
 import android.content.Context
 import android.util.Log
-import com.dogechat.android.model.ReadReceipt
-import com.dogechat.android.model.NoisePayloadType
+import com.Dogechat.android.model.ReadReceipt
+import com.Dogechat.android.model.NoisePayloadType
 import kotlinx.coroutines.*
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -421,7 +421,7 @@ class NostrTransport(
                 
                 Log.d(TAG, "GeoDM: send PM -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}...")
                 
-                // Build embedded BitChat packet without recipient peer ID
+                // Build embedded Dogechat packet without recipient peer ID
                 val embedded = NostrEmbeddedBitChat.encodePMForNostrNoRecipient(
                     content = content,
                     messageID = messageID,
@@ -460,14 +460,14 @@ class NostrTransport(
         try {
             // Try to resolve from favorites persistence service
             val noiseKey = hexStringToByteArray(peerID)
-            val favoriteStatus = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey)
+            val favoriteStatus = com.Dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey)
             if (favoriteStatus?.peerNostrPublicKey != null) {
                 return favoriteStatus.peerNostrPublicKey
             }
             
             // Fallback: try with 16-hex peerID lookup
             if (peerID.length == 16) {
-                val fallbackStatus = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(peerID)
+                val fallbackStatus = com.Dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(peerID)
                 return fallbackStatus?.peerNostrPublicKey
             }
             

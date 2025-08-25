@@ -1,9 +1,9 @@
-package com.bitchat.android.mesh
+﻿package com.Dogechat.android.mesh
 
 import android.util.Log
-import com.bitchat.android.protocol.BitchatPacket
-import com.bitchat.android.protocol.MessageType
-import com.bitchat.android.model.RoutedPacket
+import com.Dogechat.android.protocol.BitchatPacket
+import com.Dogechat.android.protocol.MessageType
+import com.Dogechat.android.model.RoutedPacket
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.actor
@@ -302,3 +302,4 @@ interface PacketProcessorDelegate {
     fun sendCachedMessages(peerID: String)
     fun relayPacket(routed: RoutedPacket)
 }
+
