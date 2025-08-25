@@ -1,10 +1,10 @@
 package com.dogechat.android.ui
 
 import androidx.lifecycle.LifecycleCoroutineScope
-import com.Dogechat.android.mesh.BluetoothMeshDelegate
-import com.Dogechat.android.mesh.BluetoothMeshService
-import com.Dogechat.android.model.DogechatMessage
-import com.Dogechat.android.model.DeliveryStatus
+import com.dogechat.android.mesh.BluetoothMeshDelegate
+import com.dogechat.android.mesh.BluetoothMeshService
+import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.DeliveryStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.util.*
