@@ -125,7 +125,7 @@ class BluetoothMeshService(private val context: Context) {
             
             override fun sendHandshakeResponse(peerID: String, response: ByteArray) {
                 // Send Noise handshake response
-                val responsePacket = DogePacket(
+                val responsePacket = DogechatPacket(
                     version = 1u,
                     type = MessageType.NOISE_HANDSHAKE.value,
                     senderID = hexStringToByteArray(myPeerID),
