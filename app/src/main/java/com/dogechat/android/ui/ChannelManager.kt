@@ -4,7 +4,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.security.MessageDigest
 import javax.crypto.Cipher
+import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 import com.dogechat.android.model.DogechatMessage
 import java.util.*
@@ -119,18 +121,17 @@ class ChannelManager(
     // MARK: - Channel Password and Encryption
 
     private fun verifyChannelPassword(channel: String, password: String): Boolean {
-        // TODO: Implement proper password verification logic (commitment-based or hash)
+        // TODO: Implement commitment-based verification later
         return true
     }
 
     private fun deriveChannelKey(password: String, channelName: String): SecretKeySpec {
-        // PBKDF2 key derivation (same as iOS version)
-        val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        val spec = javax.crypto.spec.PBEKeySpec(
+        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+        val spec = PBEKeySpec(
             password.toCharArray(),
             channelName.toByteArray(),
-            100000, // 100,000 iterations
-            256 // 256-bit key
+            100000, // iterations
+            256     // 256-bit key
         )
         val secretKey = factory.generateSecret(spec)
         return SecretKeySpec(secretKey.encoded, "AES")
@@ -143,7 +144,7 @@ class ChannelManager(
     private fun decryptChannelMessage(encryptedContent: ByteArray, channel: String, testKey: SecretKeySpec?): String? {
         val key = testKey ?: channelKeys[channel] ?: return null
 
-        try {
+        return try {
             if (encryptedContent.size < 16) return null // IV + ciphertext minimum
 
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -154,10 +155,9 @@ class ChannelManager(
             cipher.init(Cipher.DECRYPT_MODE, key, gcmSpec)
 
             val decryptedData = cipher.doFinal(ciphertext)
-            return String(decryptedData, Charsets.UTF_8)
-
+            String(decryptedData, Charsets.UTF_8)
         } catch (e: Exception) {
-            return null
+            null
         }
     }
 
@@ -202,9 +202,12 @@ class ChannelManager(
                     isEncrypted = true
                 )
 
-                encryptedMessage.toBinaryData()?.let { messageData ->
+                val messageData: ByteArray? = encryptedMessage.toBinaryData()
+                if (messageData != null) {
                     onEncryptedPayload(messageData)
-                } ?: onFallback()
+                } else {
+                    onFallback()
+                }
 
             } catch (e: Exception) {
                 onFallback()
@@ -216,7 +219,6 @@ class ChannelManager(
 
     fun addChannelMessage(channel: String, message: DogechatMessage, senderPeerID: String?) {
         messageManager.addChannelMessage(channel, message)
-
         senderPeerID?.let { peerID ->
             dataManager.addChannelMember(channel, peerID)
         }
@@ -232,35 +234,32 @@ class ChannelManager(
 
     // MARK: - Channel Information
 
-    fun isChannelPasswordProtected(channel: String): Boolean {
-        return state.getPasswordProtectedChannelsValue().contains(channel)
-    }
+    fun isChannelPasswordProtected(channel: String): Boolean =
+        state.getPasswordProtectedChannelsValue().contains(channel)
 
-    fun hasChannelKey(channel: String): Boolean {
-        return channelKeys.containsKey(channel)
-    }
+    fun hasChannelKey(channel: String): Boolean =
+        channelKeys.containsKey(channel)
 
-    fun getChannelPassword(channel: String): String? {
-        return channelPasswords[channel]
-    }
+    fun getChannelPassword(channel: String): String? =
+        channelPasswords[channel]
 
-    fun isChannelCreator(channel: String, peerID: String): Boolean {
-        return dataManager.isChannelCreator(channel, peerID)
-    }
+    fun isChannelCreator(channel: String, peerID: String): Boolean =
+        dataManager.isChannelCreator(channel, peerID)
 
-    fun getJoinedChannelsList(): List<String> {
-        return state.getJoinedChannelsValue().toList().sorted()
-    }
+    fun getJoinedChannelsList(): List<String> =
+        state.getJoinedChannelsValue().toList().sorted()
 
     // MARK: - Data Persistence
 
     private fun saveChannelData() {
-        dataManager.saveChannelData(state.getJoinedChannelsValue(), state.getPasswordProtectedChannelsValue())
+        dataManager.saveChannelData(
+            state.getJoinedChannelsValue(),
+            state.getPasswordProtectedChannelsValue()
+        )
     }
 
-    fun loadChannelData(): Pair<Set<String>, Set<String>> {
-        return dataManager.loadChannelData()
-    }
+    fun loadChannelData(): Pair<Set<String>, Set<String>> =
+        dataManager.loadChannelData()
 
     // MARK: - Password Management
 
