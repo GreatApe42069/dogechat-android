@@ -1,4 +1,4 @@
-﻿package com.dogechat.android.ui
+package com.dogechat.android.ui
 
 import android.content.Intent
 import android.net.Uri

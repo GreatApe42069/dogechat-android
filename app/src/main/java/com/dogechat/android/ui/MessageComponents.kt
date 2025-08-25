@@ -1,4 +1,4 @@
-﻿package com.dogechat.android.ui
+package com.dogechat.android.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
