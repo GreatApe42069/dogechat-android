@@ -22,11 +22,15 @@ import okhttp3.Request
 
 /**
  * Loads relay coordinates from assets and provides nearest-relay lookup by geohash.
+ *
+ * NOTE: This file contains an internal small geohash->center decoder so it doesn't depend on
+ * an external API name that may vary across branches.
  */
 object RelayDirectory {
 
     private const val TAG = "RelayDirectory"
-    private const val ASSET_FILE_URL = "https://raw.githubusercontent.com/permissionlesstech/georelays/refs/heads/main/nostr_relays.csv"
+    private const val ASSET_FILE_URL =
+        "https://raw.githubusercontent.com/permissionlesstech/georelays/refs/heads/main/nostr_relays.csv"
     private const val ASSET_FILE = "nostr_relays.csv"
     private const val DOWNLOADED_FILE = "nostr_relays_latest.csv"
     private const val PREFS_NAME = "relay_directory_prefs"
@@ -94,8 +98,7 @@ object RelayDirectory {
         val snapshot = synchronized(relaysLock) { relays.toList() }
         if (snapshot.isEmpty()) return emptyList()
         val center = try {
-            val c = com.dogechat.android.geohash.Geohash.decodeToCenter(geohash)
-            c
+            decodeGeohashCenter(geohash)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to decode geohash '$geohash': ${e.message}")
             return emptyList()
@@ -114,7 +117,9 @@ object RelayDirectory {
         val R = 6371000.0 // meters
         val dLat = Math.toRadians(lat2 - lat1)
         val dLon = Math.toRadians(lon2 - lon1)
-        val a = sin(dLat / 2).pow(2.0) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2.0)
+        val a = sin(dLat / 2).pow(2.0) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+                sin(dLon / 2).pow(2.0)
         val c = 2 * atan2(sqrt(a), sqrt(1 - a))
         return R * c
     }
@@ -189,7 +194,10 @@ object RelayDirectory {
 
             getPrefs(application).edit().putLong(KEY_LAST_UPDATE_MS, System.currentTimeMillis()).apply()
 
-            Log.i(TAG, "✅ Using downloaded relay list (${dest.absolutePath}), entries=$entries, sha256=$hash, updatedAtMs=${getPrefs(application).getLong(KEY_LAST_UPDATE_MS, 0L)}")
+            Log.i(
+                TAG,
+                "✅ Using downloaded relay list (${dest.absolutePath}), entries=$entries, sha256=$hash, updatedAtMs=${getPrefs(application).getLong(KEY_LAST_UPDATE_MS, 0L)}"
+            )
         } catch (e: Exception) {
             Log.w(TAG, "Failed to fetch and swap relay list: ${e.message}")
         }
@@ -200,9 +208,10 @@ object RelayDirectory {
             val req = Request.Builder().url(url).get().build()
             httpClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) {
-                    Log.w(TAG, "HTTP ${'$'}{resp.code} when fetching $url")
+                    Log.w(TAG, "HTTP ${resp.code} when fetching $url")
                     return false
                 }
+
                 val body = resp.body ?: return false
                 FileOutputStream(dest).use { out ->
                     body.byteStream().use { input ->
@@ -229,7 +238,10 @@ object RelayDirectory {
                     relays.addAll(list)
                 }
                 val hash = fileSha256Hex(file)
-                Log.i(TAG, "📄 Loaded ${list.size} relay entries from ${sourceLabel} file (${file.absolutePath}), sha256=$hash")
+                Log.i(
+                    TAG,
+                    "📄 Loaded ${list.size} relay entries from ${sourceLabel} file (${file.absolutePath}), sha256=$hash"
+                )
                 true
             }
         } catch (e: Exception) {
@@ -249,13 +261,12 @@ object RelayDirectory {
             relays.clear()
             relays.addAll(list)
         }
-        // Compute asset hash for logging
         val hash = try {
             application.assets.open(ASSET_FILE).use { input ->
                 streamSha256Hex(input)
             }
         } catch (e: Exception) {
-            "error:${'$'}{e.message}"
+            "error:${e.message}"
         }
         Log.i(TAG, "📦 Loaded ${list.size} relay entries from assets/$ASSET_FILE, sha256=$hash")
     }
@@ -265,9 +276,8 @@ object RelayDirectory {
         BufferedReader(InputStreamReader(input)).use { reader ->
             var line: String?
             while (true) {
-                line = reader.readLine()
-                if (line == null) break
-                val trimmed = line!!.trim()
+                line = reader.readLine() ?: break
+                val trimmed = line.trim()
                 if (trimmed.isEmpty()) continue
                 if (trimmed.lowercase().startsWith("relay url")) continue
                 val parts = trimmed.split(",")
@@ -286,7 +296,9 @@ object RelayDirectory {
         FileInputStream(file).use { input ->
             streamSha256Hex(input)
         }
-    } catch (_: Exception) { "error" }
+    } catch (_: Exception) {
+        "error"
+    }
 
     private fun streamSha256Hex(input: InputStream): String {
         val digest = MessageDigest.getInstance("SHA-256")
@@ -304,5 +316,35 @@ object RelayDirectory {
             if (s.length == 1) "0$s" else s
         }
     }
-}
 
+    // ------------------------
+    // Minimal geohash decoder (returns center lat/lon)
+    // ------------------------
+    private val BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
+
+    private fun decodeGeohashCenter(geohash: String): Pair<Double, Double> {
+        var even = true
+        var latInterval = doubleArrayOf(-90.0, 90.0)
+        var lonInterval = doubleArrayOf(-180.0, 180.0)
+
+        for (c in geohash.lowercase()) {
+            val cd = BASE32.indexOf(c)
+            if (cd == -1) throw IllegalArgumentException("Invalid geohash character: $c")
+            for (mask in listOf(16, 8, 4, 2, 1)) {
+                val bitSet = (cd and mask) != 0
+                if (even) {
+                    val mid = (lonInterval[0] + lonInterval[1]) / 2.0
+                    if (bitSet) lonInterval[0] = mid else lonInterval[1] = mid
+                } else {
+                    val mid = (latInterval[0] + latInterval[1]) / 2.0
+                    if (bitSet) latInterval[0] = mid else latInterval[1] = mid
+                }
+                even = !even
+            }
+        }
+
+        val lat = (latInterval[0] + latInterval[1]) / 2.0
+        val lon = (lonInterval[0] + lonInterval[1]) / 2.0
+        return Pair(lat, lon)
+    }
+}
