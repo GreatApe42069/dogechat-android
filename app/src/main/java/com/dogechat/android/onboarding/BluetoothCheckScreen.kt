@@ -68,12 +68,12 @@ private fun BluetoothDisabledContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Bluetooth icon - using Bluetooth outlined icon in app's yellow color
+        // Bluetooth icon - using Bluetooth outlined icon in app's green color
         Icon(
             imageVector = Icons.Outlined.Bluetooth,
             contentDescription = "Bluetooth",
             modifier = Modifier.size(64.dp),
-            tint = Color(0xFFFFFF00) // App's main yellow color
+            tint = Color(0xFF00C851) // App's main green color
         )
 
         Text(
@@ -98,21 +98,7 @@ private fun BluetoothDisabledContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-<<<<<<< HEAD:app/src/main/java/com/dogechat/android/onboarding/BluetoothCheckScreen.kt
-                    text = "dogechat needs Bluetooth to:",
-=======
-                    text = "Dogechat does NOT track your location.\n\nLocation services are required for Bluetooth scanning and for the Geohash chat feature.",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        color = colorScheme.onSurface.copy(alpha = 0.8f)
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "Dogechat needs location services for:",
->>>>>>> upstream/main:app/src/main/java/com/Dogechat/android/onboarding/LocationCheckScreen.kt
+                    text = "Đogechat needs Bluetooth to:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface
@@ -122,17 +108,10 @@ private fun BluetoothDisabledContent(
                 )
                 
                 Text(
-<<<<<<< HEAD:app/src/main/java/com/dogechat/android/onboarding/BluetoothCheckScreen.kt
-                    text = "• Discover nearby users\n" +
+                    text = "• Discover nearby shibes\n" +
                             "• Create mesh network connections\n" +
                             "• Send and receive messages\n" +
                             "• Work without internet or servers",
-=======
-                    text = "• Bluetooth device scanning (Android requirement)\n" +
-                            "• Discovering nearby users on mesh network\n" +
-                            "• Geohash chat feature\n" +
-                            "• No tracking or location collection",
->>>>>>> upstream/main:app/src/main/java/com/Dogechat/android/onboarding/LocationCheckScreen.kt
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -152,11 +131,11 @@ private fun BluetoothDisabledContent(
                     onClick = onEnableBluetooth,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFFF00) // App's main yellow color
+                        containerColor = Color(0xFF00C851) // App's main green color
                     )
                 ) {
                     Text(
-                        text = "Enable Bluetooth",
+                        text = "Much Enable Bluetooth",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -224,7 +203,7 @@ private fun BluetoothNotSupportedContent(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Text(
-                text = "This device doesn't support Bluetooth Low Energy (BLE), which is required for dogechat to function.\n\ndogechat needs BLE to create mesh networks and communicate with nearby devices without internet.",
+                text = "So Sad... This device doesn't support Bluetooth Low Energy (BLE), which is required for dogechat to function.\n\ndogechat needs BLE to create mesh networks and communicate with nearby devices without internet.",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     color = colorScheme.onSurface
@@ -257,7 +236,7 @@ private fun BluetoothCheckingContent(
         BluetoothLoadingIndicator()
 
         Text(
-            text = "Checking Bluetooth status...",
+            text = "Such Checking Much Bluetooth status...",
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 color = colorScheme.onSurface.copy(alpha = 0.7f)
