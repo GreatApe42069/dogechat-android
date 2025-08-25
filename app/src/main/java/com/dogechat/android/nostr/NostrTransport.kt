@@ -1,9 +1,9 @@
-﻿package com.Dogechat.android.nostr
+﻿package com.dogechat.android.nostr
 
 import android.content.Context
 import android.util.Log
-import com.Dogechat.android.model.ReadReceipt
-import com.Dogechat.android.model.NoisePayloadType
+import com.dogechat.android.model.ReadReceipt
+import com.dogechat.android.model.NoisePayloadType
 import kotlinx.coroutines.*
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -460,14 +460,14 @@ class NostrTransport(
         try {
             // Try to resolve from favorites persistence service
             val noiseKey = hexStringToByteArray(peerID)
-            val favoriteStatus = com.Dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey)
+            val favoriteStatus = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey)
             if (favoriteStatus?.peerNostrPublicKey != null) {
                 return favoriteStatus.peerNostrPublicKey
             }
             
             // Fallback: try with 16-hex peerID lookup
             if (peerID.length == 16) {
-                val fallbackStatus = com.Dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(peerID)
+                val fallbackStatus = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(peerID)
                 return fallbackStatus?.peerNostrPublicKey
             }
             
@@ -507,3 +507,4 @@ class NostrTransport(
         transportScope.cancel()
     }
 }
+

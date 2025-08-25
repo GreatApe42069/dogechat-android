@@ -1,4 +1,4 @@
-package com.Dogechat.android.ui
+﻿package com.dogechat.android.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,11 +11,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.Dogechat.android.ui.theme.BASE_FONT_SIZE
+import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import kotlinx.coroutines.launch
-import com.Dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.DogechatMessage
 
 /**
  * User Action Sheet for selecting actions on a specific user (slap, hug, block)
@@ -134,7 +134,7 @@ fun ChatUserSheet(
                                 onClick = {
                                     // Check if we're in a geohash channel
                                     val selectedLocationChannel = viewModel.selectedLocationChannel.value
-                                    if (selectedLocationChannel is com.Dogechat.android.geohash.ChannelID.Location) {
+                                    if (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location) {
                                         // Get user's nostr public key and add to geohash block list
                                         viewModel.blockUserInGeohash(targetNickname)
                                     } else {
@@ -205,3 +205,4 @@ private fun UserActionRow(
         }
     }
 }
+

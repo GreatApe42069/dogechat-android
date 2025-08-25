@@ -1,4 +1,4 @@
-package com.Dogechat.android.ui
+﻿package com.dogechat.android.ui
 
 import android.content.Intent
 import android.net.Uri
@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.Dogechat.android.ui.theme.BASE_FONT_SIZE
+import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 import java.net.URL
 
 /**
@@ -180,3 +180,4 @@ object URLDetector {
         return urlRegex.containsMatchIn(text)
     }
 }
+

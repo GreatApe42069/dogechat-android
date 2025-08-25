@@ -1,4 +1,4 @@
-package com.dogechat.android.ui
+﻿package com.dogechat.android.ui
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.dogechat.android.R
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.withStyle
-import com.Dogechat.android.ui.theme.BASE_FONT_SIZE
+import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 
 /**
  * Input components for ChatScreen
@@ -416,3 +416,4 @@ fun MentionSuggestionItem(
         )
     }
 }
+

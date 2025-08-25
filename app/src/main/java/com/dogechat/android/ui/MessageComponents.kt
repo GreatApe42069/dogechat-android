@@ -1,4 +1,4 @@
-package com.dogechat.android.ui
+﻿package com.dogechat.android.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -23,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import com.Dogechat.android.model.DogechatMessage
-import com.Dogechat.android.model.DeliveryStatus
-import com.Dogechat.android.mesh.BluetoothMeshService
+import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.DeliveryStatus
+import com.dogechat.android.mesh.BluetoothMeshService
 import java.text.SimpleDateFormat
 import java.util.*
 
