@@ -692,63 +692,39 @@ class MainActivity : ComponentActivity() {
                     // Open the private chat with this peer
                     chatViewModel.startPrivateChat(peerID)
                     
-                    // Clear notifications for this sender — call reflectively if method exists
-                    try {
-                        val clearMethod = chatViewModel::class.java.getMethod("clearNotificationsForSender", String::class.java)
-                        clearMethod.invoke(chatViewModel, peerID)
-                    } catch (ignored: NoSuchMethodException) {
-                        // method doesn't exist in this build — ignore
-                    }
+                    // Clear notifications for this sender since user is now viewing the chat
+                    chatViewModel.clearNotificationsForSender(peerID)
                 }
             }
             
             shouldOpenGeohashChat -> {
-                val geohash = intent.getStringExtra(com.dogechat.android.ui.NotificationManager.EXTRA_GEOHASH)
+                val geohash = intent.getStringExtra(com.bitchat.android.ui.NotificationManager.EXTRA_GEOHASH)
                 
                 if (geohash != null) {
                     Log.d("MainActivity", "Opening geohash chat #$geohash from notification")
                     
                     // Switch to the geohash channel - create appropriate geohash channel level
                     val level = when (geohash.length) {
-                        7 -> com.dogechat.android.geohash.GeohashChannelLevel.BLOCK
-                        6 -> com.dogechat.android.geohash.GeohashChannelLevel.NEIGHBORHOOD
-                        5 -> com.dogechat.android.geohash.GeohashChannelLevel.CITY
-                        4 -> {
-                            // Some versions of the upstream enum may not include PROVINCE; try to resolve it dynamically
-                            val lvl = try {
-                                com.dogechat.android.geohash.GeohashChannelLevel.valueOf("PROVINCE")
-                            } catch (_: Exception) {
-                                com.dogechat.android.geohash.GeohashChannelLevel.CITY
-                            }
-                            lvl
-                        }
-                        2 -> com.dogechat.android.geohash.GeohashChannelLevel.REGION
-                        else -> com.dogechat.android.geohash.GeohashChannelLevel.CITY // Default fallback
+                        7 -> com.bitchat.android.geohash.GeohashChannelLevel.BLOCK
+                        6 -> com.bitchat.android.geohash.GeohashChannelLevel.NEIGHBORHOOD
+                        5 -> com.bitchat.android.geohash.GeohashChannelLevel.CITY
+                        4 -> com.bitchat.android.geohash.GeohashChannelLevel.PROVINCE
+                        2 -> com.bitchat.android.geohash.GeohashChannelLevel.REGION
+                        else -> com.bitchat.android.geohash.GeohashChannelLevel.CITY // Default fallback
                     }
-                    val geohashChannel = com.dogechat.android.geohash.GeohashChannel(level, geohash)
-                    val channelId = com.dogechat.android.geohash.ChannelID.Location(geohashChannel)
+                    val geohashChannel = com.bitchat.android.geohash.GeohashChannel(level, geohash)
+                    val channelId = com.bitchat.android.geohash.ChannelID.Location(geohashChannel)
                     chatViewModel.selectLocationChannel(channelId)
                     
-                    // Update current geohash state for notifications (reflective call if present)
-                    try {
-                        val setMethod = chatViewModel::class.java.getMethod("setCurrentGeohash", String::class.java)
-                        setMethod.invoke(chatViewModel, geohash)
-                    } catch (ignored: NoSuchMethodException) {
-                        // method missing — ignore
-                    }
+                    // Update current geohash state for notifications
+                    chatViewModel.setCurrentGeohash(geohash)
                     
-                    // Clear notifications for this geohash since user is now viewing it (reflective call if present)
-                    try {
-                        val clearMethod = chatViewModel::class.java.getMethod("clearNotificationsForGeohash", String::class.java)
-                        clearMethod.invoke(chatViewModel, geohash)
-                    } catch (ignored: NoSuchMethodException) {
-                        // method missing — ignore
-                    }
+                    // Clear notifications for this geohash since user is now viewing it
+                    chatViewModel.clearNotificationsForGeohash(geohash)
                 }
             }
         }
     }
-
     
     override fun onDestroy() {
         super.onDestroy()
