@@ -102,10 +102,3 @@ object Geohash {
         return latCenter to lonCenter
     }
 }
-                ch = 0
-            }
-        }
-
-        return geohash.toString()
-    }
-}
