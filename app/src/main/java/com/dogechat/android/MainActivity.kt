@@ -698,22 +698,22 @@ class MainActivity : ComponentActivity() {
             }
             
             shouldOpenGeohashChat -> {
-                val geohash = intent.getStringExtra(com.bitchat.android.ui.NotificationManager.EXTRA_GEOHASH)
+                val geohash = intent.getStringExtra(com.dogechat.android.ui.NotificationManager.EXTRA_GEOHASH)
                 
                 if (geohash != null) {
                     Log.d("MainActivity", "Opening geohash chat #$geohash from notification")
                     
                     // Switch to the geohash channel - create appropriate geohash channel level
                     val level = when (geohash.length) {
-                        7 -> com.bitchat.android.geohash.GeohashChannelLevel.BLOCK
-                        6 -> com.bitchat.android.geohash.GeohashChannelLevel.NEIGHBORHOOD
-                        5 -> com.bitchat.android.geohash.GeohashChannelLevel.CITY
-                        4 -> com.bitchat.android.geohash.GeohashChannelLevel.PROVINCE
-                        2 -> com.bitchat.android.geohash.GeohashChannelLevel.REGION
-                        else -> com.bitchat.android.geohash.GeohashChannelLevel.CITY // Default fallback
+                        7 -> com.dogechat.android.geohash.GeohashChannelLevel.BLOCK
+                        6 -> com.dogechat.android.geohash.GeohashChannelLevel.NEIGHBORHOOD
+                        5 -> com.dogechat.android.geohash.GeohashChannelLevel.CITY
+                        4 -> com.dogechat.android.geohash.GeohashChannelLevel.PROVINCE
+                        2 -> com.dogechat.android.geohash.GeohashChannelLevel.REGION
+                        else -> com.dogechat.android.geohash.GeohashChannelLevel.CITY // Default fallback
                     }
-                    val geohashChannel = com.bitchat.android.geohash.GeohashChannel(level, geohash)
-                    val channelId = com.bitchat.android.geohash.ChannelID.Location(geohashChannel)
+                    val geohashChannel = com.dogechat.android.geohash.GeohashChannel(level, geohash)
+                    val channelId = com.dogechat.android.geohash.ChannelID.Location(geohashChannel)
                     chatViewModel.selectLocationChannel(channelId)
                     
                     // Update current geohash state for notifications
