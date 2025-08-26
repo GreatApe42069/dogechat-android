@@ -1,8 +1,8 @@
-package com.bitchat.android.services
+package com.dogechat.android.services
 
 import android.content.Context
 import android.util.Log
-import com.bitchat.android.identity.SecureIdentityStateManager
+import com.dogechat.android.identity.SecureIdentityStateManager
 import com.google.gson.Gson
 
 /**
