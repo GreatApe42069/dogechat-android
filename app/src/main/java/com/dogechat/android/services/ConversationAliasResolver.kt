@@ -1,6 +1,6 @@
-package com.bitchat.android.services
+package com.dogechat.android.services
 
-import com.bitchat.android.ui.ChatState
+import com.dogechat.android.ui.ChatState
 
 object ConversationAliasResolver {
 
