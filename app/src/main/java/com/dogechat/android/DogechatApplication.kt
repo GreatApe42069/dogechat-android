@@ -22,6 +22,3 @@ class DogechatApplication : Application() {
         } catch (_: Exception) { }
     }
 }
-
-    }
-}
