@@ -231,23 +231,15 @@ class SecureIdentityStateManager(private val context: Context) {
      * Schedule the next rotation with random interval (5-15 minutes)
      */
     private fun scheduleNextRotation() {
-        // Compute range and pick a random offset within [0, range)
-        val range = MAX_ROTATION_INTERVAL - MIN_ROTATION_INTERVAL
-        val offset = if (range <= 0L) {
-            0L
-        } else {
-            Random.nextLong(0L, range)
-        }
-
-        val nextInterval = MIN_ROTATION_INTERVAL + offset
-
+        val nextInterval = MIN_ROTATION_INTERVAL + random.nextLong(MAX_ROTATION_INTERVAL - MIN_ROTATION_INTERVAL)
+        
         prefs.edit()
             .putLong(KEY_NEXT_ROTATION_INTERVAL, nextInterval)
             .apply()
-
+        
         Log.d(TAG, "Next peer ID rotation scheduled in ${nextInterval / 60000} minutes")
     }
-
+    
     /**
      * Get time until next rotation (for debugging)
      */
@@ -255,9 +247,9 @@ class SecureIdentityStateManager(private val context: Context) {
         val lastRotation = prefs.getLong(KEY_LAST_ROTATION, 0L)
         val nextInterval = prefs.getLong(KEY_NEXT_ROTATION_INTERVAL, 0L)
         val now = System.currentTimeMillis()
-
+        
         if (lastRotation == 0L || nextInterval == 0L) return -1
-
+        
         val elapsed = now - lastRotation
         return maxOf(0L, nextInterval - elapsed)
     }
