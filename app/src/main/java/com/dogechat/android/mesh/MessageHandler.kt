@@ -79,6 +79,15 @@ class MessageHandler(private val myPeerID: String) {
                     if (privateMessage != null) {
                         Log.d(TAG, "🔓 Decrypted TLV PM from $peerID: ${privateMessage.content.take(30)}...")
                         
+                        // Handle favorite/unfavorite notifications embedded as PMs
+                        val pmContent = privateMessage.content
+                        if (pmContent.startsWith("[FAVORITED]") || pmContent.startsWith("[UNFAVORITED]")) {
+                            handleFavoriteNotificationFromMesh(pmContent, peerID)
+                            // Acknowledge delivery for UX parity
+                            sendDeliveryAck(privateMessage.messageID, peerID)
+                            return
+                        }
+
                         // Create DogechatMessage - use local system time for incoming messages
                         val message = DogechatMessage(
                             id = privateMessage.messageID,
