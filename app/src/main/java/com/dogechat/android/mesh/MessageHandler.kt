@@ -428,6 +428,53 @@ class MessageHandler(private val myPeerID: String) {
     }
 }
 
+    /**
+     * Handle favorite/unfavorite notification received over mesh as a private message.
+     * Content format: "[FAVORITED]:npub..." or "[UNFAVORITED]:npub..."
+     */
+    private fun handleFavoriteNotificationFromMesh(content: String, fromPeerID: String) {
+        try {
+            val isFavorite = content.startsWith("[FAVORITED]")
+            val npub = content.substringAfter(":", "").trim().takeIf { it.startsWith("npub1") }
+
+            // Update mutual favorite status in persistence
+            // Resolve full Noise key if available via delegate peer info
+            val peerInfo = delegate?.getPeerInfo(fromPeerID)
+            val noiseKey = peerInfo?.noisePublicKey
+            if (noiseKey != null) {
+                com.dogechat.android.favorites.FavoritesPersistenceService.shared.updatePeerFavoritedUs(noiseKey, isFavorite)
+                if (npub != null) {
+                    com.dogechat.android.favorites.FavoritesPersistenceService.shared.updateNostrPublicKey(noiseKey, npub)
+                }
+
+                // Determine iOS-style guidance text
+                val rel = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey)
+                val guidance = if (isFavorite) {
+                    if (rel?.isFavorite == true) {
+                        " — mutual! You can continue DMs via Nostr when out of mesh."
+                    } else {
+                        " — favorite back to continue DMs later."
+                    }
+                } else {
+                    ". DMs over Nostr will pause unless you both favorite again."
+                }
+
+                // Emit system message via delegate callback
+                val action = if (isFavorite) "favorited" else "unfavorited"
+                val sys = com.dogechat.android.model.DogechatMessage(
+                    sender = "system",
+                    content = "${peerInfo.nickname} $action you$guidance",
+                    timestamp = java.util.Date(),
+                    isRelay = false
+                )
+                delegate?.onMessageReceived(sys)
+            }
+        } catch (_: Exception) {
+            // Best-effort; ignore errors
+        }
+    }
+}
+
 /**
  * Delegate interface for message handler callbacks
  */
