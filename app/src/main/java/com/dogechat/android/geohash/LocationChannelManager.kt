@@ -50,7 +50,7 @@ class LocationChannelManager private constructor(private val context: Context) {
     private var refreshTimer: Job? = null
     private var isGeocoding: Boolean = false
     private val gson = Gson()
-    private var dataManager: com.bitchat.android.ui.DataManager? = null
+    private var dataManager: com.dogechat.android.ui.DataManager? = null
 
     // Published state for UI bindings (matching iOS @Published properties)
     private val _permissionState = MutableLiveData(PermissionState.NOT_DETERMINED)
@@ -71,7 +71,7 @@ class LocationChannelManager private constructor(private val context: Context) {
     init {
         updatePermissionState()
         // Initialize DataManager and load persisted channel selection
-        dataManager = com.bitchat.android.ui.DataManager(context)
+        dataManager = com.dogechat.android.ui.DataManager(context)
         loadPersistedChannelSelection()
     }
 
