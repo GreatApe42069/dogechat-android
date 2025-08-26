@@ -435,7 +435,6 @@ class MessageHandler(private val myPeerID: String) {
     fun shutdown() {
         handlerScope.cancel()
     }
-}
 
     /**
      * Handle favorite/unfavorite notification received over mesh as a private message.
