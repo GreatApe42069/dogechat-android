@@ -13,7 +13,7 @@ class DogechatApplication : Application() {
         // Hilt initialization happens automatically
         // Initialize favorites persistence early so MessageRouter/NostrTransport can use it on startup
         try {
-            com.bitchat.android.favorites.FavoritesPersistenceService.initialize(this)
+            com.dogechat.android.favorites.FavoritesPersistenceService.initialize(this)
         } catch (_: Exception) { }
 
         // Warm up Nostr identity to ensure npub is available for favorite notifications
