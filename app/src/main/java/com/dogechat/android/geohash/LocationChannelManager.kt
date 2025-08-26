@@ -50,7 +50,7 @@ class LocationChannelManager private constructor(private val context: Context) {
     private var refreshTimer: Job? = null
     private var isGeocoding: Boolean = false
     private val gson = Gson()
-    private var dataManager: com.dogechat.android.ui.DataManager? = null
+    private var dataManager: com.bitchat.android.ui.DataManager? = null
 
     // Published state for UI bindings (matching iOS @Published properties)
     private val _permissionState = MutableLiveData(PermissionState.NOT_DETERMINED)
@@ -71,7 +71,7 @@ class LocationChannelManager private constructor(private val context: Context) {
     init {
         updatePermissionState()
         // Initialize DataManager and load persisted channel selection
-        dataManager = com.dogechat.android.ui.DataManager(context)
+        dataManager = com.bitchat.android.ui.DataManager(context)
         loadPersistedChannelSelection()
     }
 
@@ -149,8 +149,28 @@ class LocationChannelManager private constructor(private val context: Context) {
      */
     fun select(channel: ChannelID) {
         Log.d(TAG, "Selected channel: ${channel.displayName}")
-        _selectedChannel.postValue(channel)
+        // Use synchronous set to avoid race with background recomputation
+        _selectedChannel.value = channel
         saveChannelSelection(channel)
+
+        // Immediately recompute teleported status against the latest known location
+        lastLocation?.let { location ->
+            when (channel) {
+                is ChannelID.Mesh -> {
+                    _teleported.postValue(false)
+                }
+                is ChannelID.Location -> {
+                    val currentGeohash = Geohash.encode(
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        precision = channel.channel.level.precision
+                    )
+                    val isTeleportedNow = currentGeohash != channel.channel.geohash
+                    _teleported.postValue(isTeleportedNow)
+                    Log.d(TAG, "Teleported (immediate recompute): $isTeleportedNow (current: $currentGeohash, selected: ${channel.channel.geohash})")
+                }
+            }
+        }
     }
     
     /**
@@ -309,14 +329,14 @@ class LocationChannelManager private constructor(private val context: Context) {
         
         // Country
         address.countryName?.takeIf { it.isNotEmpty() }?.let {
-            dict[GeohashChannelLevel.COUNTRY] = it
+            dict[GeohashChannelLevel.REGION] = it
         }
         
-        // Region (state/province or county)
+        // Province (state/province or county)
         address.adminArea?.takeIf { it.isNotEmpty() }?.let {
-            dict[GeohashChannelLevel.REGION] = it
+            dict[GeohashChannelLevel.PROVINCE] = it
         } ?: address.subAdminArea?.takeIf { it.isNotEmpty() }?.let {
-            dict[GeohashChannelLevel.REGION] = it
+            dict[GeohashChannelLevel.PROVINCE] = it
         }
         
         // City (locality)
