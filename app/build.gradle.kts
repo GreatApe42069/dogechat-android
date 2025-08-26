@@ -16,7 +16,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.dogechat.android" // KEEP OURS
+        applicationId = "com.dogechat.droid"
         minSdk = 26
         targetSdk = 34
 
