@@ -74,16 +74,16 @@ class ChatViewModel(
     )
     
     // Expose state through LiveData (maintaining the same interface)
-    val messages: LiveData<List<BitchatMessage>> = state.messages
+    val messages: LiveData<List<DogechatMessage>> = state.messages
     val connectedPeers: LiveData<List<String>> = state.connectedPeers
     val nickname: LiveData<String> = state.nickname
     val isConnected: LiveData<Boolean> = state.isConnected
-    val privateChats: LiveData<Map<String, List<BitchatMessage>>> = state.privateChats
+    val privateChats: LiveData<Map<String, List<DogechatMessage>>> = state.privateChats
     val selectedPrivateChatPeer: LiveData<String?> = state.selectedPrivateChatPeer
     val unreadPrivateMessages: LiveData<Set<String>> = state.unreadPrivateMessages
     val joinedChannels: LiveData<Set<String>> = state.joinedChannels
     val currentChannel: LiveData<String?> = state.currentChannel
-    val channelMessages: LiveData<Map<String, List<BitchatMessage>>> = state.channelMessages
+    val channelMessages: LiveData<Map<String, List<DogechatMessage>>> = state.channelMessages
     val unreadChannelMessages: LiveData<Map<String, Int>> = state.unreadChannelMessages
     val passwordProtectedChannels: LiveData<Set<String>> = state.passwordProtectedChannels
     val showPasswordPrompt: LiveData<Boolean> = state.showPasswordPrompt
@@ -101,7 +101,7 @@ class ChatViewModel(
     val peerNicknames: LiveData<Map<String, String>> = state.peerNicknames
     val peerRSSI: LiveData<Map<String, Int>> = state.peerRSSI
     val showAppInfo: LiveData<Boolean> = state.showAppInfo
-    val selectedLocationChannel: LiveData<com.bitchat.android.geohash.ChannelID?> = state.selectedLocationChannel
+    val selectedLocationChannel: LiveData<com.dogechat.android.geohash.ChannelID?> = state.selectedLocationChannel
     val isTeleported: LiveData<Boolean> = state.isTeleported
     val geohashPeople: LiveData<List<GeoPerson>> = state.geohashPeople
     val teleportedGeo: LiveData<Set<String>> = state.teleportedGeo
@@ -148,7 +148,7 @@ class ChatViewModel(
         nostrGeohashService.initializeLocationChannelState()
         
         // Initialize favorites persistence service
-        com.bitchat.android.favorites.FavoritesPersistenceService.initialize(getApplication())
+        com.dogechat.android.favorites.FavoritesPersistenceService.initialize(getApplication())
         
         // Initialize Nostr integration
         nostrGeohashService.initializeNostrIntegration()
@@ -257,7 +257,7 @@ class ChatViewModel(
         
         if (selectedPeer != null) {
             // If the selected peer is a temporary Nostr alias or a noise-hex identity, resolve to a canonical target
-            selectedPeer = com.bitchat.android.services.ConversationAliasResolver.resolveCanonicalPeerID(
+            selectedPeer = com.dogechat.android.services.ConversationAliasResolver.resolveCanonicalPeerID(
                 selectedPeerID = selectedPeer,
                 connectedPeers = state.getConnectedPeersValue(),
                 meshNoiseKeyForPeer = { pid -> meshService.getPeerInfo(pid)?.noisePublicKey },
@@ -285,12 +285,12 @@ class ChatViewModel(
         } else {
             // Check if we're in a location channel
             val selectedLocationChannel = state.selectedLocationChannel.value
-            if (selectedLocationChannel is com.bitchat.android.geohash.ChannelID.Location) {
+            if (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location) {
                 // Send to geohash channel via Nostr ephemeral event
                 nostrGeohashService.sendGeohashMessage(content, selectedLocationChannel.channel, meshService.myPeerID, state.getNicknameValue())
             } else {
                 // Send public/channel message via mesh
-                val message = BitchatMessage(
+                val message = DogechatMessage(
                     sender = state.getNicknameValue() ?: meshService.myPeerID,
                     content = content,
                     timestamp = Date(),
@@ -349,7 +349,7 @@ class ChatViewModel(
             val nickname = peerInfo?.nickname ?: (meshService.getPeerNicknames()[peerID] ?: peerID)
             if (noiseKey != null) {
                 val isNowFavorite = dataManager.favoritePeers.contains(
-                    com.bitchat.android.mesh.PeerFingerprintManager.getInstance().getFingerprintForPeer(peerID) ?: ""
+                    com.dogechat.android.mesh.PeerFingerprintManager.getInstance().getFingerprintForPeer(peerID) ?: ""
                 )
                 com.bitchat.android.favorites.FavoritesPersistenceService.shared.updateFavoriteStatus(
                     noisePublicKey = noiseKey,
@@ -359,7 +359,7 @@ class ChatViewModel(
 
                 // Send favorite notification via mesh or Nostr with our npub if available
                 try {
-                    val myNostr = com.bitchat.android.nostr.NostrIdentityBridge.getCurrentNostrIdentity(getApplication())
+                    val myNostr = com.dogechat.android.nostr.NostrIdentityBridge.getCurrentNostrIdentity(getApplication())
                     val announcementContent = if (isNowFavorite) "[FAVORITED]:${myNostr?.npub ?: ""}" else "[UNFAVORITED]:${myNostr?.npub ?: ""}"
                     // Prefer mesh if session established, else try Nostr
                     if (meshService.hasEstablishedSession(peerID)) {
@@ -371,7 +371,7 @@ class ChatViewModel(
                             java.util.UUID.randomUUID().toString()
                         )
                     } else {
-                        val nostrTransport = com.bitchat.android.nostr.NostrTransport.getInstance(getApplication())
+                        val nostrTransport = com.dogechat.android.nostr.NostrTransport.getInstance(getApplication())
                         nostrTransport.senderPeerID = meshService.myPeerID
                         nostrTransport.sendFavoriteNotification(peerID, isNowFavorite)
                     }
@@ -419,7 +419,7 @@ class ChatViewModel(
         sessionStates.forEach { (peerID, newState) ->
             val old = prevStates[peerID]
             if (old != "established" && newState == "established") {
-                com.bitchat.android.services.MessageRouter
+                com.dogechat.android.services.MessageRouter
                     .getInstance(getApplication(), meshService)
                     .onSessionEstablished(peerID)
             }
@@ -576,7 +576,7 @@ class ChatViewModel(
         state.setNickname(newNickname)
         dataManager.saveNickname(newNickname)
         
-        Log.w(TAG, "🚨 PANIC MODE COMPLETED - All sensitive data cleared")
+        Log.w(TAG, "🚨 PANIC MODE COMPLETED - All sensitive data Much cleared")
         
         // Note: Mesh service restart is now handled by MainActivity
         // This method now only clears data, not mesh service lifecycle
@@ -606,7 +606,7 @@ class ChatViewModel(
             
             // Clear secure identity state (if used)
             try {
-                val identityManager = com.bitchat.android.identity.SecureIdentityStateManager(getApplication())
+                val identityManager = com.dogechat.android.identity.SecureIdentityStateManager(getApplication())
                 identityManager.clearIdentityData()
                 Log.d(TAG, "✅ Cleared secure identity state")
             } catch (e: Exception) {
@@ -680,7 +680,7 @@ class ChatViewModel(
     
 
     
-    fun selectLocationChannel(channel: com.bitchat.android.geohash.ChannelID) {
+    fun selectLocationChannel(channel: com.dogechat.android.geohash.ChannelID) {
         nostrGeohashService.selectLocationChannel(channel)
     }
     
