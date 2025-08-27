@@ -73,7 +73,7 @@ fun LocationChannelsSheet(
     // iOS system colors (matches iOS exactly)
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
-    val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D) // iOS green
+    val standardYellow = if (isDark) Color(0xFFFFFF00) else Color(0xFF248A3D) // standard Yellow
     val standardBlue = Color(0xFF007AFF) // iOS blue
     
     if (isPresented) {
@@ -115,8 +115,8 @@ fun LocationChannelsSheet(
                         Button(
                             onClick = { locationManager.enableLocationChannels() },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = standardGreen.copy(alpha = 0.12f),
-                                contentColor = standardGreen
+                                containerColor = standardYellow.copy(alpha = 0.12f),
+                                contentColor = standardYellow
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -200,7 +200,7 @@ fun LocationChannelsSheet(
                                 title = geohashTitleWithCount(channel, participantCount),
                                 subtitle = subtitlePrefix + (namePart?.let { " • $it" } ?: ""),
                                 isSelected = isChannelSelected(channel, selectedChannel),
-                                titleColor = standardGreen,
+                                titleColor = standardYellow,
                                 titleBold = highlight,
                                 onClick = {
                                     // Selecting a suggested nearby channel is not a teleport

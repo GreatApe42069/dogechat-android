@@ -245,8 +245,8 @@ private fun getPermissionEmoji(permissionType: PermissionType): String {
 private fun getPermissionIconColor(permissionType: PermissionType): Color {
     return when (permissionType) {
         PermissionType.NEARBY_DEVICES -> Color(0xFF2196F3) // Blue
-        PermissionType.PRECISE_LOCATION -> Color(0xFFFF9800) // Orange
-        PermissionType.NOTIFICATIONS -> Color(0xFF4CAF50) // Green
+        PermissionType.PRECISE_LOCATION -> Color(0xFF000000) // Yellow
+        PermissionType.NOTIFICATIONS -> Color(oxFFFFD700) // Gold
         PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
         PermissionType.OTHER -> Color(0xFF9C27B0) // Purple
     }
