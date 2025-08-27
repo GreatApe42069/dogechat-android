@@ -1,7 +1,7 @@
 package com.dogechat.android.ui
 
 import com.dogechat.android.mesh.BluetoothMeshService
-import com.dogechat.android.model.DogechatchatMessage
+import com.dogechat.android.model.DogechatMessage
 import java.util.*
 
 /**
@@ -59,7 +59,7 @@ class CommandProcessor(
             val password = if (parts.size > 2) parts[2] else null
             val success = channelManager.joinChannel(channel, password, myPeerID)
             if (success) {
-                val systemMessage = BitchatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "joined channel $channel",
                     timestamp = Date(),
@@ -68,7 +68,7 @@ class CommandProcessor(
                 messageManager.addMessage(systemMessage)
             }
         } else {
-            val systemMessage = BitchatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "usage: /join <channel>",
                 timestamp = Date(),
@@ -219,7 +219,7 @@ class CommandProcessor(
 
         if (parts.size == 2){
             if(!channelManager.isChannelCreator(channel = currentChannel, peerID = peerID)){
-                val systemMessage = BitchatMessage(
+                val systemMessage = DogechatMessage(
                     sender = "system",
                     content = "you must be the channel creator to set a password.",
                     timestamp = Date(),
@@ -230,7 +230,7 @@ class CommandProcessor(
             }
             val newPassword = parts[1]
             channelManager.setChannelPassword(currentChannel, newPassword)
-            val systemMessage = BitchatMessage(
+            val systemMessage = DogechatMessage(
                 sender = "system",
                 content = "password changed for channel $currentChannel",
                 timestamp = Date(),
@@ -342,7 +342,7 @@ class CommandProcessor(
             "joined channels: ${allChannels.joinToString(", ")}"
         }
         
-        val systemMessage = BitchatMessage(
+        val systemMessage = DogechatMessage(
             sender = "system",
             content = channelList,
             timestamp = Date(),
