@@ -73,11 +73,11 @@ private fun LocationDisabledContent(
             imageVector = Icons.Outlined.LocationOn,
             contentDescription = "Location Services",
             modifier = Modifier.size(64.dp),
-            tint = Color(0xFF00C851) // App's main green color
+            tint = Color(0xFFFFFF00) // App's main yellow color
         )
 
         Text(
-            text = "Location Services Required",
+            text = "Location Services Much Required",
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -129,7 +129,7 @@ private fun LocationDisabledContent(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Dogechat needs location services for:",
+                    text = "Đogechat needs Much location services for:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface
@@ -139,10 +139,10 @@ private fun LocationDisabledContent(
                 )
                 
                 Text(
-                    text = "• Bluetooth device scanning (Android requirement)\n" +
-                            "• Discovering nearby users on mesh network\n" +
-                            "• Geohash chat feature\n" +
-                            "• No tracking or location collection",
+                    text = "• Bluetooth Đevice scanning (Android requirement)\n" +
+                            "• Điscovering Many nearby users on Much mesh network\n" +
+                            "• Geohash Such Chat Feature\n" +
+                            "• No tracking Shibes or location collection",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -162,7 +162,7 @@ private fun LocationDisabledContent(
                     onClick = onEnableLocation,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF00C851) // App's main green color
+                        containerColor = Color(0xFFFFFF00) // App's main yellow color
                     )
                 ) {
                     Text(
