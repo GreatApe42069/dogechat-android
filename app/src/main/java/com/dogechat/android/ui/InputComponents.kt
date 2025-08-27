@@ -104,7 +104,7 @@ class MentionVisualTransformation : VisualTransformation {
                 // Add the styled mention
                 withStyle(
                     style = SpanStyle(
-                        color = Color(FFFFD700), // Dogecoin Gold
+                        color = Color(0xFFFFD700), // Dogecoin Gold
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.SemiBold
                     )
