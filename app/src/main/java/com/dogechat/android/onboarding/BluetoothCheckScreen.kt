@@ -68,12 +68,12 @@ private fun BluetoothDisabledContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Bluetooth icon - using Bluetooth outlined icon in app's green color
+        // Bluetooth icon - using Bluetooth outlined icon in app's yellow color
         Icon(
             imageVector = Icons.Outlined.Bluetooth,
             contentDescription = "Bluetooth",
             modifier = Modifier.size(64.dp),
-            tint = Color(0xFF00C851) // App's main green color
+            tint = Color(0xFFFFFF00) // App's main yellow color
         )
 
         Text(
@@ -108,10 +108,10 @@ private fun BluetoothDisabledContent(
                 )
                 
                 Text(
-                    text = "• Discover nearby shibes\n" +
-                            "• Create mesh network connections\n" +
-                            "• Send and receive messages\n" +
-                            "• Work without internet or servers",
+                    text = "• Discover Nearby Shibes\n" +
+                            "• Create Much Mesh Network Connections\n" +
+                            "• Such Send and Receive messages\n" +
+                            "• Very Work without internet or servers",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -131,7 +131,7 @@ private fun BluetoothDisabledContent(
                     onClick = onEnableBluetooth,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF00C851) // App's main green color
+                        containerColor = Color(0xFFFFFF00) // App's main yellow color
                     )
                 ) {
                     Text(
