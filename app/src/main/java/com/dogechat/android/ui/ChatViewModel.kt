@@ -18,7 +18,7 @@ import java.util.*
 import kotlin.random.Random
 
 /**
- * Refactored ChatViewModel - Main coordinator for bitchat functionality
+ * Refactored ChatViewModel - Main coordinator for dogechat functionality
  * Delegates specific responsibilities to specialized managers while maintaining 100% iOS compatibility
  */
 class ChatViewModel(
@@ -167,7 +167,7 @@ class ChatViewModel(
             if (state.getConnectedPeersValue().isEmpty() && state.getMessagesValue().isEmpty()) {
                 val welcomeMessage = DogechatMessage(
                     sender = "system",
-                    content = "get people around you to download bitchat and chat with them here!",
+                    content = "get Many people around you to Very download dogechat and Much chat with them here!",
                     timestamp = Date(),
                     isRelay = false
                 )
