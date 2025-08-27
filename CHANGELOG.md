@@ -3,9 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+
+## [0.9.3] - 2025-08-17
+### Added
+- Implemented all geohash updates from bitchat
+- fixed UI colors 
+- Added dogechat-android v0.9.3 apk & aab geohash, 2nd release of dogechat Android Much LFG!!!!!
+
 ## [0.8.2] - 2025-08-17
 ### Added
-- Initial apk & aab release of dogechat Android client Much LFG!!!!!
+- Initial apk & aab release of dogechat Android app Much LFG!!!!!
 - Added git pages `https://greatape42069.github.io/dogechat-android/`
 
 ## [0.7.3] - 2025-08-08

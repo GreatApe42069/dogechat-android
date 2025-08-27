@@ -39,7 +39,7 @@ fun AboutSheet(
         try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         } catch (e: Exception) {
-            "0.8.2" // fallback version
+            "0.9.3" // fallback version
         }
     }
     
@@ -78,7 +78,7 @@ fun AboutSheet(
                             verticalAlignment = Alignment.Bottom
                         ) {
                             Text(
-                                text = "Dogechat",
+                                text = "Đogechat",
                                 fontSize = 18.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Medium,
