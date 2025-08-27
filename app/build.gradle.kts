@@ -20,9 +20,8 @@ android {
         minSdk = 26
         targetSdk = 34
 
-        // Keep your current Dogechat versioning; you can bump later if you want.
-        versionCode = 8
-        versionName = "0.8.2"
+        versionCode = 9
+        versionName = "0.9.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
