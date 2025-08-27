@@ -105,7 +105,7 @@ fun InitializingScreen() {
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Such Initializing... Much mesh network",
+                    text = "Initializing Mesh Network",
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.7f)
