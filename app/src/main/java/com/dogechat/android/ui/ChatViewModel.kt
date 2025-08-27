@@ -514,7 +514,7 @@ class ChatViewModel(
     
     // MARK: - BluetoothMeshDelegate Implementation (delegated)
     
-    override fun didReceiveMessage(message: BitchatMessage) {
+    override fun didReceiveMessage(message: DogechatMessage) {
         meshDelegateHandler.didReceiveMessage(message)
     }
     
