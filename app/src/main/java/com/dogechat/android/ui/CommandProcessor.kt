@@ -101,7 +101,7 @@ class CommandProcessor(
                             sendPrivateMessageVia(meshService, content, peerIdParam, recipientNicknameParam, messageId)
                         }
                     } else {
-                        val systemMessage = BitchatMessage(
+                        val systemMessage = DogechatMessage(
                             sender = "system",
                             content = "started private chat with $targetName",
                             timestamp = Date(),
