@@ -8,6 +8,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.viewModelScope
 import com.dogechat.android.mesh.BluetoothMeshService
 import com.dogechat.android.model.DogechatMessage
+import com.bitchat.android.protocol.DogechatPacket
+import com.bitchat.android.nostr.NostrGeohashService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.*
