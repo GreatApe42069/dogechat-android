@@ -245,13 +245,13 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 color = colorScheme.background,
                 tonalElevation = 3.dp,
                 shadowElevation = 6.dp,
-                border = BorderStroke(2.dp, Color(0xFF00C851))
+                border = BorderStroke(2.dp, Color(0xFFFFFF00))
             ) {
                 IconButton(onClick = { forceScrollToBottom = !forceScrollToBottom }) {
                     Icon(
                         imageVector = Icons.Filled.ArrowDownward,
                         contentDescription = "Scroll to bottom",
-                        tint = Color(0xFF00C851)
+                        tint = Color(0xFFFFFF00)
                     )
                 }
             }
