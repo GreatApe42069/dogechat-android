@@ -66,7 +66,7 @@ fun NoiseSessionIcon(
         )
         "established" -> Triple(
             Icons.Filled.Lock,
-            Color(0xFFFF9500), // Orange - secure
+            Color(0xFFFFFF00), // Yellow - secure
             "End-to-end encrypted"
         )
         else -> { // "failed" or any other state
@@ -152,7 +152,7 @@ fun PeerCounter(
         is com.dogechat.android.geohash.ChannelID.Location -> {
             // Geohash channel: show geohash participants
             val count = geohashPeople.size
-            val green = Color(0xFF00C851) // Standard green
+            val yellow = Color(0xFFFFFF00) // Standard yellow
             Pair(count, if (count > 0) green else Color.Gray)
         }
         is com.dogechat.android.geohash.ChannelID.Mesh,
@@ -177,7 +177,7 @@ fun PeerCounter(
                 Text(
                     text = "#",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF0080FF),
+                    color = Color(0xFFFFFF00),
                     fontSize = 16.sp
                 )
             }
@@ -190,7 +190,7 @@ fun PeerCounter(
                 imageVector = Icons.Filled.Email,
                 contentDescription = "Unread private messages",
                 modifier = Modifier.size(16.dp),
-                tint = Color(0xFFFF9500) // Orange to match private message theme
+                tint = Color(0xFFFFD700) // Dogecoin Gold to match private message theme
             )
             Spacer(modifier = Modifier.width(6.dp))
         }
@@ -217,7 +217,7 @@ fun PeerCounter(
             Text(
                 text = " · ⧉ ${joinedChannels.size}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isConnected) Color(0xFF00C851) else Color.Red,
+                color = if (isConnected) Color(0xFFFFFF00) else Color.Red,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -385,7 +385,7 @@ private fun PrivateChatHeader(
             Text(
                 text = titleText,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFFF9500) // Orange
+                color = Color(0xFFFFFF00) // Yellow
             )
 
             Spacer(modifier = Modifier.width(4.dp))
@@ -470,7 +470,7 @@ private fun ChannelHeader(
         Text(
             text = "channel: $channel",
             style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFFFF9500), // Orange to match input field
+            color = Color(0xFFFFFF00), // Yellow to match input field
             modifier = Modifier
                 .align(Alignment.Center)
                 .clickable { onSidebarClick() }
@@ -579,7 +579,7 @@ private fun LocationChannelsButton(
         }
         is com.dogechat.android.geohash.ChannelID.Location -> {
             val geohash = (selectedChannel as com.dogechat.android.geohash.ChannelID.Location).channel.geohash
-            "#$geohash" to Color(0xFF00C851) // Green for location
+            "#$geohash" to Color(0xFFFFFF00) // Yellow for location
         }
         null -> "#mesh" to Color(0xFF007AFF) // Default to mesh
     }
