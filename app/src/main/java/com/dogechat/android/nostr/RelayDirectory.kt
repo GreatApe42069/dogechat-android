@@ -94,7 +94,7 @@ object RelayDirectory {
         val snapshot = synchronized(relaysLock) { relays.toList() }
         if (snapshot.isEmpty()) return emptyList()
         val center = try {
-            val c = com.bitchat.android.geohash.Geohash.decodeToCenter(geohash)
+            val c = com.dogechat.android.geohash.Geohash.decodeToCenter(geohash)
             c
         } catch (e: Exception) {
             Log.e(TAG, "Failed to decode geohash '$geohash': ${e.message}")
