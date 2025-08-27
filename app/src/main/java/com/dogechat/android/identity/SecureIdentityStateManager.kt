@@ -7,7 +7,6 @@ import androidx.security.crypto.MasterKey
 import java.security.MessageDigest
 import java.security.SecureRandom
 import android.util.Log
-import java.util.concurrent.ThreadLocalRandom
 
 /**
  * Manages persistent identity storage and peer ID rotation - 100% compatible with iOS implementation
@@ -25,6 +24,8 @@ class SecureIdentityStateManager(private val context: Context) {
         private const val PREFS_NAME = "dogechat_identity"
         private const val KEY_STATIC_PRIVATE_KEY = "static_private_key"
         private const val KEY_STATIC_PUBLIC_KEY = "static_public_key"
+        private const val KEY_SIGNING_PRIVATE_KEY = "signing_private_key"
+        private const val KEY_SIGNING_PUBLIC_KEY = "signing_public_key"
         private const val KEY_LAST_ROTATION = "last_rotation"
         private const val KEY_NEXT_ROTATION_INTERVAL = "next_rotation_interval"
 
@@ -110,6 +111,64 @@ class SecureIdentityStateManager(private val context: Context) {
         }
     }
 
+    // MARK: - Signing Key Management
+
+    /**
+     * Load saved signing key pair
+     * Returns (privateKey, publicKey) or null if none exists
+     */
+    fun loadSigningKey(): Pair<ByteArray, ByteArray>? {
+        return try {
+            val privateKeyString = prefs.getString(KEY_SIGNING_PRIVATE_KEY, null)
+            val publicKeyString = prefs.getString(KEY_SIGNING_PUBLIC_KEY, null)
+
+            if (privateKeyString != null && publicKeyString != null) {
+                val privateKey = android.util.Base64.decode(privateKeyString, android.util.Base64.DEFAULT)
+                val publicKey = android.util.Base64.decode(publicKeyString, android.util.Base64.DEFAULT)
+
+                // Validate key sizes
+                if (privateKey.size == 32 && publicKey.size == 32) {
+                    Log.d(TAG, "Loaded Ed25519 signing key from secure storage")
+                    Pair(privateKey, publicKey)
+                } else {
+                    Log.w(TAG, "Invalid signing key sizes in storage, returning null")
+                    null
+                }
+            } else {
+                Log.d(TAG, "No Ed25519 signing key found in storage")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load signing key: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Save signing key pair to secure storage
+     */
+    fun saveSigningKey(privateKey: ByteArray, publicKey: ByteArray) {
+        try {
+            // Validate key sizes
+            if (privateKey.size != 32 || publicKey.size != 32) {
+                throw IllegalArgumentException("Invalid signing key sizes: private=${privateKey.size}, public=${publicKey.size}")
+            }
+
+            val privateKeyString = android.util.Base64.encodeToString(privateKey, android.util.Base64.DEFAULT)
+            val publicKeyString = android.util.Base64.encodeToString(publicKey, android.util.Base64.DEFAULT)
+
+            prefs.edit()
+                .putString(KEY_SIGNING_PRIVATE_KEY, privateKeyString)
+                .putString(KEY_SIGNING_PUBLIC_KEY, publicKeyString)
+                .apply()
+
+            Log.d(TAG, "Saved Ed25519 signing key to secure storage")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save signing key: ${e.message}")
+            throw e
+        }
+    }
+
     // MARK: - Fingerprint Generation
 
     /**
@@ -170,25 +229,27 @@ class SecureIdentityStateManager(private val context: Context) {
     /**
      * Schedule the next rotation with random interval (5-15 minutes)
      *
-     * Use ThreadLocalRandom for convenient bounded random long.
+     * Use SecureRandom.nextLong() and map into range safely since SecureRandom may not support nextLong(bound).
      */
     private fun scheduleNextRotation() {
-        val range = (MAX_ROTATION_INTERVAL - MIN_ROTATION_INTERVAL)
-        val offset = if (range <= Int.MAX_VALUE) {
-            random.nextInt(range.toInt()).toLong()
-        } else {
-            kotlin.math.abs(random.nextLong()) % range
+        try {
+            val range = MAX_ROTATION_INTERVAL - MIN_ROTATION_INTERVAL
+            val randLong = kotlin.math.abs(random.nextLong())
+            // Map into [0, range] then add MIN_ROTATION_INTERVAL
+            val offset = if (range <= 0L) 0L else (randLong % (range + 1L))
+            val nextInterval = MIN_ROTATION_INTERVAL + offset
+
+            prefs.edit()
+                .putLong(KEY_NEXT_ROTATION_INTERVAL, nextInterval)
+                .apply()
+
+            Log.d(TAG, "Next peer ID rotation scheduled in ${nextInterval / 60000} minutes")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to schedule next rotation: ${e.message}")
+            // fallback to deterministic minimum
+            prefs.edit().putLong(KEY_NEXT_ROTATION_INTERVAL, MIN_ROTATION_INTERVAL).apply()
         }
-
-        val nextInterval = MIN_ROTATION_INTERVAL + offset
-
-        prefs.edit()
-            .putLong(KEY_NEXT_ROTATION_INTERVAL, nextInterval)
-            .apply()
-
-        Log.d(TAG, "Next peer ID rotation scheduled in ${nextInterval / 60000} minutes")
     }
-
 
     /**
      * Get time until next rotation (for debugging)
@@ -201,7 +262,7 @@ class SecureIdentityStateManager(private val context: Context) {
         if (lastRotation == 0L || nextInterval == 0L) return -1
 
         val elapsed = now - lastRotation
-        return maxOf(0L, nextInterval - elapsed)
+        return kotlin.math.max(0L, nextInterval - elapsed)
     }
 
     // MARK: - Identity Validation
@@ -233,7 +294,7 @@ class SecureIdentityStateManager(private val context: Context) {
         // Check for all-zero key
         if (privateKey.all { it == 0.toByte() }) return false
 
-        // Check that clamping doges are correct for Curve25519
+        // Check that clamping bits are correct for Curve25519
         val clampedKey = privateKey.clone()
         clampedKey[0] = (clampedKey[0].toInt() and 248).toByte()
         clampedKey[31] = (clampedKey[31].toInt() and 127).toByte()
@@ -295,5 +356,46 @@ class SecureIdentityStateManager(private val context: Context) {
      */
     fun hasIdentityData(): Boolean {
         return prefs.contains(KEY_STATIC_PRIVATE_KEY) && prefs.contains(KEY_STATIC_PUBLIC_KEY)
+    }
+
+    // MARK: - Public SharedPreferences Access (for favorites and Nostr data)
+
+    /**
+     * Store a string value in secure preferences
+     */
+    fun storeSecureValue(key: String, value: String) {
+        prefs.edit().putString(key, value).apply()
+    }
+
+    /**
+     * Retrieve a string value from secure preferences
+     */
+    fun getSecureValue(key: String): String? {
+        return prefs.getString(key, null)
+    }
+
+    /**
+     * Remove a value from secure preferences
+     */
+    fun removeSecureValue(key: String) {
+        prefs.edit().remove(key).apply()
+    }
+
+    /**
+     * Check if a key exists in secure preferences
+     */
+    fun hasSecureValue(key: String): Boolean {
+        return prefs.contains(key)
+    }
+
+    /**
+     * Clear specific keys from secure preferences
+     */
+    fun clearSecureValues(vararg keys: String) {
+        val editor = prefs.edit()
+        keys.forEach { key ->
+            editor.remove(key)
+        }
+        editor.apply()
     }
 }

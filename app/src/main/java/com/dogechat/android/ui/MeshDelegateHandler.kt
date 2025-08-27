@@ -2,10 +2,9 @@ package com.dogechat.android.ui
 
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.dogechat.android.mesh.BluetoothMeshDelegate
-import com.dogechat.android.model.dogechatMessage
-import com.dogechat.android.model.DeliveryAck
+import com.dogechat.android.mesh.BluetoothMeshService
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.DeliveryStatus
-import com.dogechat.android.model.ReadReceipt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.util.*
@@ -22,10 +21,10 @@ class MeshDelegateHandler(
     private val coroutineScope: CoroutineScope,
     private val onHapticFeedback: () -> Unit,
     private val getMyPeerID: () -> String,
-    private val getMeshService: () -> Any
+    private val getMeshService: () -> BluetoothMeshService
 ) : BluetoothMeshDelegate {
 
-    override fun didReceiveMessage(message: dogechatMessage) {
+    override fun didReceiveMessage(message: DogechatMessage) {
         coroutineScope.launch {
             // FIXED: Deduplicate messages from dual connection paths
             val messageKey = messageManager.generateMessageKey(message)
@@ -71,6 +70,9 @@ class MeshDelegateHandler(
             } else {
                 // Public message
                 messageManager.addMessage(message)
+                
+                // Check for mentions in mesh chat
+                checkAndTriggerMeshMentionNotification(message)
             }
             
             // Periodic cleanup
@@ -103,15 +105,15 @@ class MeshDelegateHandler(
         }
     }
     
-    override fun didReceiveDeliveryAck(ack: DeliveryAck) {
+    override fun didReceiveDeliveryAck(messageID: String, recipientPeerID: String) {
         coroutineScope.launch {
-            messageManager.updateMessageDeliveryStatus(ack.originalMessageID, DeliveryStatus.Delivered(ack.recipientNickname, ack.timestamp))
+            messageManager.updateMessageDeliveryStatus(messageID, DeliveryStatus.Delivered(recipientPeerID, Date()))
         }
     }
     
-    override fun didReceiveReadReceipt(receipt: ReadReceipt) {
+    override fun didReceiveReadReceipt(messageID: String, recipientPeerID: String) {
         coroutineScope.launch {
-            messageManager.updateMessageDeliveryStatus(receipt.originalMessageID, DeliveryStatus.Read(receipt.readerNickname, receipt.timestamp))
+            messageManager.updateMessageDeliveryStatus(messageID, DeliveryStatus.Read(recipientPeerID, Date()))
         }
     }
     
@@ -125,6 +127,48 @@ class MeshDelegateHandler(
         return privateChatManager.isFavorite(peerID)
     }
     
+    /**
+     * Check for mentions in mesh messages and trigger notifications
+     */
+    private fun checkAndTriggerMeshMentionNotification(message: DogechatMessage) {
+        try {
+            // Get user's current nickname
+            val currentNickname = state.getNicknameValue()
+            if (currentNickname.isNullOrEmpty()) {
+                return
+            }
+            
+            // Check if this message mentions the current user using @username format
+            val isMention = checkForMeshMention(message.content, currentNickname)
+            
+            if (isMention) {
+                android.util.Log.d("MeshDelegateHandler", "🔔 Triggering mesh mention notification from ${message.sender}")
+                
+                notificationManager.showMeshMentionNotification(
+                    senderNickname = message.sender,
+                    messageContent = message.content,
+                    senderPeerID = message.senderPeerID
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MeshDelegateHandler", "Error checking mesh mentions: ${e.message}")
+        }
+    }
+    
+    /**
+     * Check if the content mentions the current user with @username format (simple, no hash suffix)
+     */
+    private fun checkForMeshMention(content: String, currentNickname: String): Boolean {
+        // Simple mention pattern for mesh: @username (no hash suffix like geohash)
+        val mentionPattern = "@([\\p{L}0-9_]+)".toRegex()
+        
+        return mentionPattern.findAll(content).any { match ->
+            val mentionedUsername = match.groupValues[1]
+            // Direct comparison for mesh mentions (no hash suffix to remove)
+            mentionedUsername.equals(currentNickname, ignoreCase = true)
+        }
+    }
+
     /**
      * Send read receipts reactively based on UI focus state.
      * Uses same logic as notification system - send read receipt if user is currently
