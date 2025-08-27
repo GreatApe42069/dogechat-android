@@ -59,7 +59,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
     var showLocationChannelsSheet by remember { mutableStateOf(false) }
     var showUserSheet by remember { mutableStateOf(false) }
     var selectedUserForSheet by remember { mutableStateOf("") }
-    var selectedMessageForSheet by remember { mutableStateOf<BitchatMessage?>(null) }
+    var selectedMessageForSheet by remember { mutableStateOf<DogechatMessage?>(null) }
     var forceScrollToBottom by remember { mutableStateOf(false) }
     var isScrolledUp by remember { mutableStateOf(false) }
 
@@ -117,7 +117,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     
                     // Check if we're in a geohash channel to include hash suffix
                     val selectedLocationChannel = viewModel.selectedLocationChannel.value
-                    val mentionText = if (selectedLocationChannel is com.bitchat.android.geohash.ChannelID.Location && hashSuffix.isNotEmpty()) {
+                    val mentionText = if (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location && hashSuffix.isNotEmpty()) {
                         // In geohash chat - include the hash suffix from the full display name
                         "@$baseName$hashSuffix"
                     } else {
@@ -431,7 +431,7 @@ private fun ChatDialogs(
     showUserSheet: Boolean,
     onUserSheetDismiss: () -> Unit,
     selectedUserForSheet: String,
-    selectedMessageForSheet: BitchatMessage?,
+    selectedMessageForSheet: DogechatMessage?,
     viewModel: ChatViewModel
 ) {
     // Password dialog
