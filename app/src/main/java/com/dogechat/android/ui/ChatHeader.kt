@@ -166,7 +166,7 @@ fun PeerCounter(
     
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.clickable { onClick() }.padding(end = 8.dp) // Added right margin to match "bitchat" logo spacing
+        modifier = modifier.clickable { onClick() }.padding(end = 8.dp) // Added right margin to match "dogechat" logo spacing
     ) {
         if (hasUnreadChannels.values.any { it > 0 }) {
             // Channel icon in a Box to ensure consistent size with other icons
