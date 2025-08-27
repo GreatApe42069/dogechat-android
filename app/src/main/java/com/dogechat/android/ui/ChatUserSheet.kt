@@ -116,7 +116,7 @@ fun ChatUserSheet(
                             UserActionRow(
                                 title = "hug $targetNickname",
                                 subtitle = "send a friendly hug message",
-                                titleColor = standardGreen,
+                                titleColor = standardYellow,
                                 onClick = {
                                     // Send hug command
                                     viewModel.sendMessage("/hug $targetNickname")
