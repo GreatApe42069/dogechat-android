@@ -290,7 +290,7 @@ private fun LocationLoadingIndicator() {
             modifier = Modifier
                 .fillMaxSize()
                 .rotate(rotationAngle),
-            color = Color(0xFF4CAF50), // Location green
+            color = Color(0xFFFFFF00), // Location yellow
             strokeWidth = 3.dp
         )
     }
