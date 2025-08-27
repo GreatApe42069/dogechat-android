@@ -31,7 +31,7 @@ import java.net.URL
  * - Shows a clickable pill with link icon, title, and host
  * - No preview image fetching - just styled link display
  * - Opens link in external browser when clicked
- * - Uses iOS-style green colors and monospaced fonts but i need it doge theme (fix this ChatGPT)
+ * - Uses iOS-style green colors and monospaced fonts but i need it doge theme 
  */
 
 @Composable
