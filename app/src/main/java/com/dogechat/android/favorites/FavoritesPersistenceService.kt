@@ -305,7 +305,7 @@ class FavoritesPersistenceService private constructor(private val context: Conte
     private fun normalizeNostrKeyToHex(value: String): String? {
         return try {
             if (value.startsWith("npub1")) {
-                val (hrp, data) = com.bitchat.android.nostr.Bech32.decode(value)
+                val (hrp, data) = com.dogechat.android.nostr.Bech32.decode(value)
                 if (hrp != "npub") return null
                 data.joinToString("") { "%02x".format(it) }
             } else {
