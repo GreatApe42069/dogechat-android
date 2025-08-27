@@ -30,9 +30,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("dogechat-release-key.jks")
-            storePassword = "YOUR_KEYSTORE_PASSWORD"  // Replace securely
+            storePassword = "YOUR_KEYSTORE_PASS_GOES_HERE"  // Replace with your actual keystore password
             keyAlias = "dogechat-key"
-            keyPassword = "YOUR_KEY_PASSWORD"        // Replace securely
+            keyPassword = "YOUR_KEY_PASS_GOES_HERE"  // Replace with your actual key password
         }
     }
 
@@ -46,11 +46,6 @@ android {
             )
             signingConfig = signingConfigs.getByName("release")
         }
-        debug {
-            // Upstream hardened minify; we’ll leave debug unminified for dev velocity.
-            isMinifyEnabled = false
-            isShrinkResources = false
-        }
     }
 
     compileOptions {
@@ -63,9 +58,19 @@ android {
 
     packaging {
         resources {
-            // Avoid resource merge conflict for paymentrequest.proto (present in multiple jars)
+            // Keep existing pick-first rules and excludes
             pickFirsts += listOf("paymentrequest.proto")
             excludes += listOf("META-INF/AL2.0", "META-INF/LGPL2.1")
+
+            // --- QUICK / SAFE FIX ---
+            // Exclude macOS / non-Android native files and reserved root/lib paths
+            // This prevents .dylib or 'root/lib' entries from being packaged into the AAB
+            excludes += listOf("**/*.dylib", "root/**", "lib/**")
+        }
+
+        // Use modern jni packaging (avoid legacy packaging putting files into reserved paths)
+        jniLibs {
+            useLegacyPackaging = false
         }
     }
 
@@ -132,8 +137,9 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.7")
     implementation("org.slf4j:slf4j-simple:2.0.7")
 
-    // ---- Local libdohj 0.16 SNAPSHOT (your jar) ----
+    // Local libdohj 0.16 SNAPSHOT (built and included this jar)
     implementation(files("libs/libdohj-core-0.16-SNAPSHOT.jar"))
+    implementation("com.lambdaworks:scrypt:1.4.0")
 
     // Ensure bitcoinj version matches libdohj (0.16.1)
     implementation("org.bitcoinj:bitcoinj-core:$bitcoinjVersion") {
