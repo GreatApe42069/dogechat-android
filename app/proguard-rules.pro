@@ -32,6 +32,14 @@
 -keep class com.google.protobuf.** { *; }
 -dontwarn com.google.protobuf.**
 
+# Keep SCrypt classes used by libdohj
+-keep class com.lambdaworks.crypto.** { *; }
+-keepclassmembers class com.lambdaworks.crypto.** { *; }
+
+# Keep libdohj class
+-keep class org.libdohj.** { *; }
+-dontwarn org.libdohj.**
+
 # Keep bitcoinj/net and crypto libs
 -keep class org.bitcoinj.** { *; }
 -dontwarn org.bitcoinj.**
