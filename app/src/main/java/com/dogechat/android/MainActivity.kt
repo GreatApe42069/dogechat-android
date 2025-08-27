@@ -600,8 +600,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Set up mesh service delegate and start services
-                // Use safe cast; if ChatViewModel implements BluetoothMeshDelegate this will set it, otherwise null
-                meshService.delegate = chatViewModel as? com.dogechat.android.mesh.BluetoothMeshDelegate
+                meshService.delegate = chatViewModel
                 meshService.startServices()
                 
                 Log.d("MainActivity", "Mesh service started successfully")
