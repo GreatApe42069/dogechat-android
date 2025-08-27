@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.dogechat.android.R
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.withStyle
+import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 
 /**
  * Input components for ChatScreen
@@ -103,7 +104,7 @@ class MentionVisualTransformation : VisualTransformation {
                 // Add the styled mention
                 withStyle(
                     style = SpanStyle(
-                        color = Color(0xFFFF9500), // Orange
+                        color = Color(0xFFFFD700), // Dogecoin Gold
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -239,12 +240,12 @@ fun MessageInput(
                                 // Disabled state - muted grey
                                 colorScheme.onSurface.copy(alpha = 0.3f)
                             } else if (selectedPrivatePeer != null || currentChannel != null) {
-                                // Orange for both private messages and channels when enabled
-                                Color(0xFFFF9500).copy(alpha = 0.75f)
+                                // Dogecoin Gold for both private messages and channels when enabled
+                                Color(0xFFFFD700).copy(alpha = 0.75f)
                             } else if (colorScheme.background == Color.Black) {
                                 Color(0xFFFFFF00).copy(alpha = 0.75f) // Bright yellow for dark theme
                             } else {
-                                Color(0xFFFFFF00).copy(alpha = 0.75f) // Dark yellow for light theme
+                                Color(0xFFE6B800).copy(alpha = 0.75f) // Dark Dogecoin Gold for light theme
                             },
                             shape = CircleShape
                         ),
@@ -326,7 +327,7 @@ fun CommandSuggestionItem(
                 fontWeight = FontWeight.Medium
             ),
             color = colorScheme.primary,
-            fontSize = 11.sp
+            fontSize = (BASE_FONT_SIZE - 4).sp
         )
 
         // Show syntax if any
@@ -337,7 +338,7 @@ fun CommandSuggestionItem(
                     fontFamily = FontFamily.Monospace
                 ),
                 color = colorScheme.onSurface.copy(alpha = 0.8f),
-                fontSize = 10.sp
+                fontSize = (BASE_FONT_SIZE - 5).sp
             )
         }
 
@@ -348,7 +349,7 @@ fun CommandSuggestionItem(
                 fontFamily = FontFamily.Monospace
             ),
             color = colorScheme.onSurface.copy(alpha = 0.7f),
-            fontSize = 10.sp,
+            fontSize = (BASE_FONT_SIZE - 5).sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -399,8 +400,8 @@ fun MentionSuggestionItem(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold
             ),
-            color = Color(0xFFFF9500), // Orange like mentions
-            fontSize = 11.sp
+            color = Color(0xFFFFD700), // Dogecoin Gold like mentions
+            fontSize = (BASE_FONT_SIZE - 4).sp
         )
         
         Spacer(modifier = Modifier.weight(1f))
@@ -411,7 +412,8 @@ fun MentionSuggestionItem(
                 fontFamily = FontFamily.Monospace
             ),
             color = colorScheme.onSurface.copy(alpha = 0.7f),
-            fontSize = 10.sp
+            fontSize = (BASE_FONT_SIZE - 5).sp
         )
     }
 }
+

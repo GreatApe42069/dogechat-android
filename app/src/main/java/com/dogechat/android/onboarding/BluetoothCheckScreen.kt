@@ -98,7 +98,7 @@ private fun BluetoothDisabledContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "dogechat needs Bluetooth to:",
+                    text = "Đogechat needs Bluetooth to:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface
@@ -108,10 +108,10 @@ private fun BluetoothDisabledContent(
                 )
                 
                 Text(
-                    text = "• Discover nearby users\n" +
-                            "• Create mesh network connections\n" +
-                            "• Send and receive messages\n" +
-                            "• Work without internet or servers",
+                    text = "• Điscover Nearby Shibes\n" +
+                            "• Create Much Mesh Network Connections\n" +
+                            "• Such Send and Receive messages\n" +
+                            "• Very Work without internet or servers",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -135,7 +135,7 @@ private fun BluetoothDisabledContent(
                     )
                 ) {
                     Text(
-                        text = "Enable Bluetooth",
+                        text = "Much Enable Bluetooth",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -203,7 +203,7 @@ private fun BluetoothNotSupportedContent(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Text(
-                text = "This device doesn't support Bluetooth Low Energy (BLE), which is required for dogechat to function.\n\ndogechat needs BLE to create mesh networks and communicate with nearby devices without internet.",
+                text = "So Sad... This device doesn't support Bluetooth Low Energy (BLE), which is required for dogechat to function.\n\ndogechat needs BLE to create mesh networks and communicate with nearby devices without internet.",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     color = colorScheme.onSurface
@@ -236,7 +236,7 @@ private fun BluetoothCheckingContent(
         BluetoothLoadingIndicator()
 
         Text(
-            text = "Checking Bluetooth status...",
+            text = "Such Checking Much Bluetooth status...",
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 color = colorScheme.onSurface.copy(alpha = 0.7f)

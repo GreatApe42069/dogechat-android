@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Permission explanation screen shown before requesting permissions
- * Explains why dogechat needs each permission and reassures users about privacy
+ * Explains why Đogechat needs each permission and reassures users about privacy
  */
 @Composable
 fun PermissionExplanationScreen(
@@ -57,7 +57,7 @@ fun PermissionExplanationScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "Such Đecentralized Much Mesh Messaging over Bluetooth....Such LFG!!!",
+                    text = "Decentralized mesh messaging over Bluetooth",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.7f)
@@ -90,7 +90,7 @@ fun PermissionExplanationScreen(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Such Privacy Your Much Protected",
+                            text = "Your Privacy is Protected",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colorScheme.onSurface
@@ -99,10 +99,10 @@ fun PermissionExplanationScreen(
                     }
                     
                     Text(
-                        text = "• dogechat doesn't track you or collect personal data\n" +
+                        text = "• Đogechat doesn't track you or collect any personal data\n" +
                                 "• No servers, no internet required, no data logging\n" +
                                 "• Location permission is only used by Android for Bluetooth scanning\n" +
-                                "• Your messages stay on your device and peer devices only....So Wow",
+                                "• Your messages stay locally on your device and peer devices only",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -114,7 +114,7 @@ fun PermissionExplanationScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "To work properly, dogechat Much needs Such permissions:",
+                text = "To work properly, Đogechat needs these permissions:",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Medium,
                     color = colorScheme.onSurface
@@ -150,7 +150,7 @@ fun PermissionExplanationScreen(
                 )
             ) {
                 Text(
-                    text = "Grant Much Permissions",
+                    text = "Grant Permissions",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -219,7 +219,7 @@ private fun PermissionCategoryCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "dogechat does NOT use GPS or track location",
+                        text = "Đogechat does NOT track your location",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Medium,
@@ -245,8 +245,8 @@ private fun getPermissionEmoji(permissionType: PermissionType): String {
 private fun getPermissionIconColor(permissionType: PermissionType): Color {
     return when (permissionType) {
         PermissionType.NEARBY_DEVICES -> Color(0xFF2196F3) // Blue
-        PermissionType.PRECISE_LOCATION -> Color(0xFFFF9800) // Orange
-        PermissionType.NOTIFICATIONS -> Color(0xFFFFFF00) // yellow
+        PermissionType.PRECISE_LOCATION -> Color(0xFF000000) // Yellow
+        PermissionType.NOTIFICATIONS -> Color(0xFFFFD700) // Gold
         PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
         PermissionType.OTHER -> Color(0xFF9C27B0) // Purple
     }

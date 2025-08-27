@@ -2,7 +2,7 @@
 
 ## Overview
 
-dogeChat implements the Noise Protocol Framework for end-to-end encryption, providing forward secrecy, identity hiding, and cryptographic authentication. This document details our Swift implementation and its integration with dogeChat's decentralized mesh network.
+dogechat implements the Noise Protocol Framework for end-to-end encryption, providing forward secrecy, identity hiding, and cryptographic authentication. This document details our Swift implementation and its integration with dogechat's decentralized mesh network.
 
 ## The Noise Protocol Framework
 
@@ -99,7 +99,7 @@ func removeSession(for peerID: String)
 func getSessionsNeedingRekey() -> [(String, Bool)]
 ```
 
-## Integration with dogeChat
+## Integration with dogechat
 
 ### Peer ID Rotation
 
@@ -214,4 +214,4 @@ case versionAck = 0x21      // Acknowledge and agree on version
 
 ## Conclusion
 
-dogeChat's Noise implementation provides encryption while maintaining the simplicity and performance required for a peer-to-peer messaging application. The protocol's elegant design ensures that people's communications remain private, authenticated, and forward-secure without sacrificing usability.
+dogechat's Noise implementation provides encryption while maintaining the simplicity and performance required for a peer-to-peer messaging application. The protocol's elegant design ensures that people's communications remain private, authenticated, and forward-secure without sacrificing usability.

@@ -2,7 +2,7 @@ package com.dogechat.android.mesh
 
 import android.util.Log
 import com.dogechat.android.crypto.EncryptionService
-import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.model.RoutedPacket
 import com.dogechat.android.util.toHexString
@@ -43,7 +43,7 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
     /**
      * Validate packet security (timestamp, replay attacks, duplicates)
      */
-    fun validatePacket(packet: dogechatPacket, peerID: String): Boolean {
+    fun validatePacket(packet: DogechatPacket, peerID: String): Boolean {
         // Skip validation for our own packets
         if (peerID == myPeerID) {
             Log.d(TAG, "Skipping validation for our own packet")
@@ -88,9 +88,10 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
     }
     
     /**
-     * Handle Noise handshake packet
+     * Handle Noise handshake packet - SIMPLIFIED iOS-compatible version
+     * Single handshake type with automatic response handling
      */
-    suspend fun handleNoiseHandshake(routed: RoutedPacket, step: Int): Boolean {
+    suspend fun handleNoiseHandshake(routed: RoutedPacket): Boolean {
         val packet = routed.packet
         val peerID = routed.peerID ?: "unknown"
 
@@ -120,7 +121,7 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
             Log.d(TAG, "Already processed handshake: $exchangeKey")
             return false
         }
-        Log.d(TAG, "Processing Noise handshake step $step from $peerID (${packet.payload.size} bytes)")
+        Log.d(TAG, "Processing Noise handshake from $peerID (${packet.payload.size} bytes)")
         processedKeyExchanges.add(exchangeKey)
         
         try {
@@ -128,7 +129,7 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
             val response = encryptionService.processHandshakeMessage(packet.payload, peerID)
             
             if (response != null) {
-                Log.d(TAG, "Successfully processed Noise handshake step $step from $peerID, sending response")
+                Log.d(TAG, "Successfully processed Noise handshake from $peerID, sending response")
                 // Send handshake response through delegate
                 delegate?.sendHandshakeResponse(peerID, response)
             }
@@ -149,7 +150,7 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
     /**
      * Verify packet signature
      */
-    fun verifySignature(packet: dogechatPacket, peerID: String): Boolean {
+    fun verifySignature(packet: DogechatPacket, peerID: String): Boolean {
         return packet.signature?.let { signature ->
             try {
                 val isValid = encryptionService.verify(signature, packet.payload, peerID)
@@ -210,9 +211,9 @@ class SecurityManager(private val encryptionService: EncryptionService, private 
     /**
      * Generate message ID for duplicate detection
      */
-    private fun generateMessageID(packet: dogechatPacket, peerID: String): String {
+    private fun generateMessageID(packet: DogechatPacket, peerID: String): String {
         return when (MessageType.fromValue(packet.type)) {
-            MessageType.FRAGMENT_START, MessageType.FRAGMENT_CONTINUE, MessageType.FRAGMENT_END -> {
+            MessageType.FRAGMENT -> {
                 // For fragments, include the payload hash to distinguish different fragments
                 "${packet.timestamp}-$peerID-${packet.type}-${packet.payload.contentHashCode()}"
             }

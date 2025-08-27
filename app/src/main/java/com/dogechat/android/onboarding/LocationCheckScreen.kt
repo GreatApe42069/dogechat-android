@@ -68,7 +68,7 @@ private fun LocationDisabledContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Location icon - using LocationOn outlined icon in app's yellow color
+        // Location icon - using LocationOn outlined icon in app's green color
         Icon(
             imageVector = Icons.Outlined.LocationOn,
             contentDescription = "Location Services",
@@ -77,7 +77,7 @@ private fun LocationDisabledContent(
         )
 
         Text(
-            text = "Location Services Required",
+            text = "Location Services Much Required",
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -105,7 +105,7 @@ private fun LocationDisabledContent(
                     Icon(
                         imageVector = Icons.Filled.Security,
                         contentDescription = "Privacy",
-                        tint = Color(0xFFFFFF00),
+                        tint = Color(0xFF4CAF50),
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -119,7 +119,7 @@ private fun LocationDisabledContent(
                 }
                 
                 Text(
-                    text = "dogechat does NOT track your location or use GPS.\n\nLocation services are required by Android for Bluetooth scanning to work properly. This is an Android system requirement.",
+                    text = "Dogechat does NOT track your location.\n\nLocation services are required for Bluetooth scanning and for the Geohash chat feature.",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -129,7 +129,7 @@ private fun LocationDisabledContent(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "dogechat needs location services for:",
+                    text = "Đogechat needs Much location services for:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         color = colorScheme.onSurface
@@ -139,10 +139,10 @@ private fun LocationDisabledContent(
                 )
                 
                 Text(
-                    text = "• Bluetooth device scanning (Android requirement)\n" +
-                            "• Discovering nearby users on mesh network\n" +
-                            "• Creating connections without internet\n" +
-                            "• No GPS tracking or location collection",
+                    text = "• Bluetooth Đevice scanning (Android requirement)\n" +
+                            "• Điscovering Many nearby users on Much mesh network\n" +
+                            "• Geohash Such Chat Feature\n" +
+                            "• No tracking Shibes or location collection",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -226,7 +226,7 @@ private fun LocationNotAvailableContent(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Text(
-                text = "Location services are not available on this device. This is unusual as location services are standard on Android devices.\n\ndogechat needs location services for Bluetooth scanning to work properly (Android requirement). Without this, the app cannot discover nearby users.",
+                text = "Location services are not available on this device. This is unusual as location services are standard on Android devices.\n\nDogechat needs location services for Bluetooth scanning to work properly (Android requirement). Without this, the app cannot discover nearby users.",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     color = colorScheme.onSurface
@@ -247,7 +247,7 @@ private fun LocationCheckingContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Đogechat",
+            text = "dogechat",
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
