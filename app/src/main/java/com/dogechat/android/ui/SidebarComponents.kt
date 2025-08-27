@@ -359,7 +359,7 @@ private fun PeerItem(
     // Get consistent peer color (iOS-compatible)
     val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
     val assignedColor = viewModel.colorForMeshPeer(peerID, isDark)
-    val baseColor = if (isMe) Color(0xFFFF9500) else assignedColor
+    val baseColor = if (isMe) Color(0xFFFFFF00) else assignedColor
     
     Row(
         modifier = Modifier
@@ -374,12 +374,12 @@ private fun PeerItem(
     ) {
         // Show unread badge or signal strength  
         if (hasUnreadDM) {
-            // Show mail icon for unread DMs (iOS orange)
+            // Show mail icon for unread DMs (Doge Gold)
             Icon(
                 imageVector = Icons.Filled.Email,
                 contentDescription = "Unread message",
                 modifier = Modifier.size(16.dp),
-                tint = Color(0xFFFF9500) // iOS orange
+                tint = Color(0xFFFFD700) // Doge Gold
             )
         } else {
             // Signal strength indicators
