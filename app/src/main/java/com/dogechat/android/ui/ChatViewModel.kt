@@ -155,7 +155,7 @@ class ChatViewModel(
 
         // Ensure NostrTransport knows our mesh peer ID for embedded packets
         try {
-            val nostrTransport = com.bitchat.android.nostr.NostrTransport.getInstance(getApplication())
+            val nostrTransport = com.dogechat.android.nostr.NostrTransport.getInstance(getApplication())
             nostrTransport.senderPeerID = meshService.myPeerID
         } catch (_: Exception) { }
         
@@ -165,7 +165,7 @@ class ChatViewModel(
         viewModelScope.launch {
             delay(10000)
             if (state.getConnectedPeersValue().isEmpty() && state.getMessagesValue().isEmpty()) {
-                val welcomeMessage = BitchatMessage(
+                val welcomeMessage = DogechatMessage(
                     sender = "system",
                     content = "get people around you to download bitchat and chat with them here!",
                     timestamp = Date(),
@@ -217,7 +217,7 @@ class ChatViewModel(
             // Persistently mark all messages in this conversation as read so Nostr fetches
             // after app restarts won't re-mark them as unread.
             try {
-                val seen = com.bitchat.android.services.SeenMessageStore.getInstance(getApplication())
+                val seen = com.dogechat.android.services.SeenMessageStore.getInstance(getApplication())
                 val chats = state.getPrivateChatsValue()
                 val messages = chats[peerID] ?: emptyList()
                 messages.forEach { msg ->
@@ -263,7 +263,7 @@ class ChatViewModel(
                 meshNoiseKeyForPeer = { pid -> meshService.getPeerInfo(pid)?.noisePublicKey },
                 meshHasPeer = { pid -> meshService.getPeerInfo(pid)?.isConnected == true },
                 nostrPubHexForAlias = { alias -> nostrGeohashService.getNostrKeyMapping()[alias] },
-                findNoiseKeyForNostr = { key -> com.bitchat.android.favorites.FavoritesPersistenceService.shared.findNoiseKey(key) }
+                findNoiseKeyForNostr = { key -> com.dogechat.android.favorites.FavoritesPersistenceService.shared.findNoiseKey(key) }
             ).also { canonical ->
                 if (canonical != state.getSelectedPrivateChatPeerValue()) {
                     privateChatManager.startPrivateChat(canonical, meshService)
@@ -279,7 +279,7 @@ class ChatViewModel(
                 meshService.myPeerID
             ) { messageContent, peerID, recipientNicknameParam, messageId ->
                 // Route via MessageRouter (mesh when connected+established, else Nostr)
-                val router = com.bitchat.android.services.MessageRouter.getInstance(getApplication(), meshService)
+                val router = com.dogechat.android.services.MessageRouter.getInstance(getApplication(), meshService)
                 router.sendPrivate(messageContent, peerID, recipientNicknameParam, messageId)
             }
         } else {
@@ -351,7 +351,7 @@ class ChatViewModel(
                 val isNowFavorite = dataManager.favoritePeers.contains(
                     com.dogechat.android.mesh.PeerFingerprintManager.getInstance().getFingerprintForPeer(peerID) ?: ""
                 )
-                com.bitchat.android.favorites.FavoritesPersistenceService.shared.updateFavoriteStatus(
+                com.dogechat.android.favorites.FavoritesPersistenceService.shared.updateFavoriteStatus(
                     noisePublicKey = noiseKey,
                     nickname = nickname,
                     isFavorite = isNowFavorite
