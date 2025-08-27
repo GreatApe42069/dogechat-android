@@ -52,7 +52,7 @@ fun AboutSheet(
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
     val standardBlue = Color(0xFF007AFF) // iOS blue
-    val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D) // iOS green
+    val standardYellow = if (isDark) Color(FFFFFF00) else Color(0xFF248A3D) // standard yellow
     
     if (isPresented) {
         ModalBottomSheet(
@@ -118,7 +118,7 @@ fun AboutSheet(
                         
                         FeatureCard(
                             icon = Icons.Filled.Public,
-                            iconColor = standardGreen,
+                            iconColor = standardYellow,
                             title = "geohash channels",
                             description = "internet-based location channels using coarse geohash coordinates. connect with people in your area while preserving privacy.",
                             modifier = Modifier.fillMaxWidth()
