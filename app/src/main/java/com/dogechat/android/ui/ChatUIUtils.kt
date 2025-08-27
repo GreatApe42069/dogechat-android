@@ -53,7 +53,7 @@ fun formatMessageAsAnnotatedString(
     if (message.sender != "system") {
         // Get base color for this peer (iOS-style color assignment)
         val baseColor = if (isSelf) {
-            Color(0xFFFF9500) // Orange for self (iOS orange)
+            Color(0xFFFFFF00) // Yellow for self
         } else {
             getPeerColor(message, isDark)
         }
