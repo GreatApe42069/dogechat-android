@@ -29,15 +29,9 @@ class CommandProcessor(
 
     // MARK: - Command Processing
 
-    fun processCommand(
-        command: String,
-        meshService: BluetoothMeshService,
-        myPeerID: String,
-        onSendMessage: (String, List<String>, String?) -> Unit,
-        viewModel: ChatViewModel? = null
-    ): Boolean {
+    fun processCommand(command: String, meshService: BluetoothMeshService, myPeerID: String, onSendMessage: (String, List<String>, String?) -> Unit, viewModel: ChatViewModel? = null): Boolean {
         if (!command.startsWith("/")) return false
-
+        
         val parts = command.split(" ")
         val cmd = parts.first()
 
