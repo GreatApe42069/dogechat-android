@@ -104,7 +104,7 @@ class MentionVisualTransformation : VisualTransformation {
                 // Add the styled mention
                 withStyle(
                     style = SpanStyle(
-                        color = Color(0xFFFF9500), // Orange
+                        color = Color(FFFFD700), // Dogecoin Gold
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -240,12 +240,12 @@ fun MessageInput(
                                 // Disabled state - muted grey
                                 colorScheme.onSurface.copy(alpha = 0.3f)
                             } else if (selectedPrivatePeer != null || currentChannel != null) {
-                                // Orange for both private messages and channels when enabled
-                                Color(0xFFFF9500).copy(alpha = 0.75f)
+                                // Dogecoin Gold for both private messages and channels when enabled
+                                Color(0xFFFFD700).copy(alpha = 0.75f)
                             } else if (colorScheme.background == Color.Black) {
                                 Color(0xFFFFFF00).copy(alpha = 0.75f) // Bright yellow for dark theme
                             } else {
-                                Color(0xFFFFFF00).copy(alpha = 0.75f) // Dark yellow for light theme
+                                Color(0xFFE6B800).copy(alpha = 0.75f) // Dark Dogecoin Gold for light theme
                             },
                             shape = CircleShape
                         ),
@@ -400,7 +400,7 @@ fun MentionSuggestionItem(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold
             ),
-            color = Color(0xFFFF9500), // Orange like mentions
+            color = Color(0xFFFFD700), // Dogecoin Gold like mentions
             fontSize = (BASE_FONT_SIZE - 4).sp
         )
         
