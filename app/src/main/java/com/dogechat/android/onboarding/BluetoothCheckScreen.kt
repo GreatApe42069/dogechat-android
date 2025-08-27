@@ -108,7 +108,7 @@ private fun BluetoothDisabledContent(
                 )
                 
                 Text(
-                    text = "• Discover Nearby Shibes\n" +
+                    text = "• Điscover Nearby Shibes\n" +
                             "• Create Much Mesh Network Connections\n" +
                             "• Such Send and Receive messages\n" +
                             "• Very Work without internet or servers",
