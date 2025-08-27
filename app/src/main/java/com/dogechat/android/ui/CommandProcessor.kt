@@ -50,7 +50,7 @@ class CommandProcessor(
             "/block" -> handleBlockCommand(parts, meshService)
             "/unblock" -> handleUnblockCommand(parts, meshService)
             "/hug" -> handleActionCommand(parts, "gives", "a warm hug 🫂", meshService, myPeerID, onSendMessage)
-            "/slap" -> handleActionCommand(parts, "slaps", "around a doge with a large trout 🐟", meshService, myPeerID, onSendMessage)
+            "/slap" -> handleActionCommand(parts, "slaps", "around a bit with a large trout 🐟", meshService, myPeerID, onSendMessage)
             "/channels" -> handleChannelsCommand()
             else -> handleUnknownCommand(cmd)
         }
