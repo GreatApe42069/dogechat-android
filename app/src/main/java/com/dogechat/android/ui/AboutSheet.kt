@@ -52,7 +52,7 @@ fun AboutSheet(
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
     val standardBlue = Color(0xFF007AFF) // iOS blue
-    val standardYellow = if (isDark) Color(FFFFFF00) else Color(0xFF248A3D) // standard yellow
+    val standardYellow = if (isDark) Color(0xFFFFFF00) else Color(0xFF248A3D) // standard yellow
     
     if (isPresented) {
         ModalBottomSheet(
