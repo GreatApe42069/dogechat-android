@@ -9,6 +9,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.lang.reflect.InvocationTargetException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlin.math.*
@@ -24,8 +25,7 @@ import okhttp3.ResponseBody
 /**
  * Loads relay coordinates from assets and provides nearest-relay lookup by geohash.
  *
- * NOTE: This file contains an internal small geohash->center decoder so it doesn't depend on
- * an external API name that may vary across branches.
+ * Uses reflection for okhttp3.Response access to avoid package-private field issues.
  */
 object RelayDirectory {
 
@@ -98,7 +98,6 @@ object RelayDirectory {
         val snapshot = synchronized(relaysLock) { relays.toList() }
         if (snapshot.isEmpty()) return emptyList()
         val center = try {
-            // Use internal decoder to avoid depending on external function name
             decodeGeohashCenter(geohash)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to decode geohash '$geohash': ${e.message}")
@@ -203,13 +202,19 @@ object RelayDirectory {
         return try {
             val req = Request.Builder().url(url).get().build()
             httpClient.newCall(req).execute().use { resp ->
-                // use method invocation via reflection to avoid package-private field access
-                val code = try {
+                // Use reflection exclusively to avoid package-private field access in some okhttp versions.
+                val code: Int = try {
                     val m = resp.javaClass.getMethod("code")
-                    (m.invoke(resp) as? Int) ?: resp.code
-                } catch (e: Exception) {
-                    // fallback to public method/property if available
-                    try { resp.code } catch (_: Throwable) { -1 }
+                    (m.invoke(resp) as? Int) ?: -1
+                } catch (ex: NoSuchMethodException) {
+                    // very unlikely: fallback safe value
+                    try { resp.javaClass.getMethod("code").invoke(resp) as Int } catch (_: Throwable) { -1 }
+                } catch (ex: InvocationTargetException) {
+                    -1
+                } catch (ex: IllegalAccessException) {
+                    -1
+                } catch (ex: Exception) {
+                    -1
                 }
 
                 if (code < 200 || code >= 300) {
@@ -217,12 +222,17 @@ object RelayDirectory {
                     return false
                 }
 
-                val body = try {
+                val body: ResponseBody? = try {
                     val m = resp.javaClass.getMethod("body")
                     m.invoke(resp) as? ResponseBody
-                } catch (e: Exception) {
-                    // last-resort fallback: attempt direct accessor (may still be restricted)
-                    try { resp.body } catch (_: Throwable) { null }
+                } catch (ex: NoSuchMethodException) {
+                    null
+                } catch (ex: InvocationTargetException) {
+                    null
+                } catch (ex: IllegalAccessException) {
+                    null
+                } catch (ex: Exception) {
+                    null
                 }
 
                 val responseBody = body ?: return false
@@ -272,7 +282,6 @@ object RelayDirectory {
             relays.clear()
             relays.addAll(list)
         }
-        // Compute asset hash for logging
         val hash = try {
             application.assets.open(ASSET_FILE).use { input ->
                 streamSha256Hex(input)
@@ -334,7 +343,6 @@ object RelayDirectory {
     private val BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
 
     private fun decodeGeohashCenter(geohash: String): Pair<Double, Double> {
-        // reference algorithm: maintain lat/lon intervals and narrow them per bit
         var even = true
         val latInterval = doubleArrayOf(-90.0, 90.0)
         val lonInterval = doubleArrayOf(-180.0, 180.0)
@@ -345,11 +353,9 @@ object RelayDirectory {
             for (mask in listOf(16, 8, 4, 2, 1)) {
                 val bitSet = (cd and mask) != 0
                 if (even) {
-                    // longitude
                     val mid = (lonInterval[0] + lonInterval[1]) / 2.0
                     if (bitSet) lonInterval[0] = mid else lonInterval[1] = mid
                 } else {
-                    // latitude
                     val mid = (latInterval[0] + latInterval[1]) / 2.0
                     if (bitSet) latInterval[0] = mid else latInterval[1] = mid
                 }
