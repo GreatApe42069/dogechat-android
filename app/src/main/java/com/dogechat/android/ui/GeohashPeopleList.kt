@@ -164,19 +164,19 @@ private fun GeohashPersonItem(
     ) {
         // Icon logic matching iOS exactly
         if (hasUnreadDM) {
-            // Unread DM indicator (orange envelope)
+            // Unread DM indicator (Gold envelope)
             Icon(
                 imageVector = Icons.Filled.Email,
                 contentDescription = "Unread message",
                 modifier = Modifier.size(12.dp),
-                tint = Color(0xFFFF9500) // iOS orange
+                tint = Color(0xFFFFD700) // Dogecoin Gold
             )
         } else {
             // Face icon with teleportation state
             val (iconName, iconColor) = when {
-                isMe && isMyTeleported -> "face.dashed" to Color(0xFFFF9500) // Orange for teleported me
+                isMe && isMyTeleported -> "face.dashed" to Color(0xFFFFD700) // Gold for teleported me
                 isTeleported -> "face.dashed" to colorScheme.onSurface // Regular color for teleported others
-                isMe -> "face.smiling" to Color(0xFFFF9500) // Orange for me
+                isMe -> "face.smiling" to Color(0xFFFFD700) // Gold for me
                 else -> "face.smiling" to colorScheme.onSurface // Regular color for others
             }
 
@@ -202,7 +202,7 @@ private fun GeohashPersonItem(
         // Get consistent peer color (matches iOS color assignment exactly)
         val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
         val assignedColor = viewModel.colorForNostrPubkey(person.id, isDark)
-        val baseColor = if (isMe) Color(0xFFFF9500) else assignedColor
+        val baseColor = if (isMe) Color(0xFFFFFF00) else assignedColor
 
         Row(
             modifier = Modifier.weight(1f),
