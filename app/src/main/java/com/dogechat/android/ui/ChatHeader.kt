@@ -153,7 +153,7 @@ fun PeerCounter(
             // Geohash channel: show geohash participants
             val count = geohashPeople.size
             val yellow = Color(0xFFFFFF00) // Standard yellow
-            Pair(count, if (count > 0) green else Color.Gray)
+            Pair(count, if (count > 0) yellow else Color.Gray)
         }
         is com.dogechat.android.geohash.ChannelID.Mesh,
         null -> {
