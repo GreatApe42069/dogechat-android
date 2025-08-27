@@ -149,13 +149,13 @@ fun PeerCounter(
     
     // Compute channel-aware people count and color (matches iOS logic exactly)
     val (peopleCount, countColor) = when (selectedLocationChannel) {
-        is com.bitchat.android.geohash.ChannelID.Location -> {
+        is com.dogechat.android.geohash.ChannelID.Location -> {
             // Geohash channel: show geohash participants
             val count = geohashPeople.size
             val green = Color(0xFF00C851) // Standard green
             Pair(count, if (count > 0) green else Color.Gray)
         }
-        is com.bitchat.android.geohash.ChannelID.Mesh,
+        is com.dogechat.android.geohash.ChannelID.Mesh,
         null -> {
             // Mesh channel: show Bluetooth-connected peers (excluding self)
             val count = connectedPeers.size
@@ -198,7 +198,7 @@ fun PeerCounter(
         Icon(
             imageVector = Icons.Default.Group,
             contentDescription = when (selectedLocationChannel) {
-                is com.bitchat.android.geohash.ChannelID.Location -> "Geohash participants"
+                is com.dogechat.android.geohash.ChannelID.Location -> "Geohash participants"
                 else -> "Connected peers"
             },
             modifier = Modifier.size(16.dp),
@@ -324,7 +324,7 @@ private fun PrivateChatHeader(
 
     // Compute title text: for NIP-17 chats show "#geohash/@username" (iOS parity)
     val titleText: String = if (isNostrDM) {
-        val geohash = (selectedLocationChannel as? com.bitchat.android.geohash.ChannelID.Location)?.channel?.geohash
+        val geohash = (selectedLocationChannel as? com.dogechat.android.geohash.ChannelID.Location)?.channel?.geohash
         val shortId = peerID.removePrefix("nostr_").removePrefix("nostr:")
         val person = geohashPeople.firstOrNull { it.id.startsWith(shortId, ignoreCase = true) }
         val baseName = person?.displayName?.substringBefore('#') ?: peerNicknames[peerID] ?: "unknown"
@@ -574,11 +574,11 @@ private fun LocationChannelsButton(
     val teleported by viewModel.isTeleported.observeAsState(false)
     
     val (badgeText, badgeColor) = when (selectedChannel) {
-        is com.bitchat.android.geohash.ChannelID.Mesh -> {
+        is com.dogechat.android.geohash.ChannelID.Mesh -> {
             "#mesh" to Color(0xFF007AFF) // iOS blue for mesh
         }
         is com.dogechat.android.geohash.ChannelID.Location -> {
-            val geohash = (selectedChannel as com.bitchat.android.geohash.ChannelID.Location).channel.geohash
+            val geohash = (selectedChannel as com.dogechat.android.geohash.ChannelID.Location).channel.geohash
             "#$geohash" to Color(0xFF00C851) // Green for location
         }
         null -> "#mesh" to Color(0xFF007AFF) // Default to mesh
