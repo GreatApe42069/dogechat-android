@@ -35,6 +35,7 @@ import com.dogechat.android.R
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.withStyle
 import com.dogechat.android.ui.theme.BASE_FONT_SIZE
+import androidx.compose.foundation.isSystemInDarkTheme
 
 /**
  * Input components for ChatScreen

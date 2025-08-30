@@ -4,6 +4,107 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+
+## [0.9.4] - 2025-08-30
+### Added
+## Commit 846cd97    (DONE)
+### 1 Files Changed
+- app/src/main/java/com/dogechat/android/geohash/LocationChannelManager.kt
+### Details
+* Bug fix: the app should show the correct geohash 
+
+### Commit 28abd3c    (DONE)
+## 6 Files Changed
+- app/src/main/java/com/dogechat/android/DogechatApplication.kt
+- app/src/main/java/com/dogechat/android/MainActivity.kt
+- app/src/main/java/com/dogechat/android/ui/AboutSheet.kt
+- app/src/main/java/com/dogechat/android/ui/InputComponents.kt
+- app/src/main/java/com/dogechat/android/ui/theme/Theme.kt
+- app/src/main/java/com/dogechat/android/ui/theme/ThemePreference.kt
+### Details
+* allow user to select a theme preference over light/dark/system
+
+# Commit 02d5466    (DONE)
+## 6 Files Changed
+- app/src/main/java/com/dogechat/android/ui/ChatViewModel.kt
+- app/src/main/java/com/dogechat/android/ui/MeshDelegateHandler.kt
+- app/src/main/java/com/dogechat/android/ui/NotificationManager.kt
+- app/src/main/java/com/dogechat/android/util/NotificationIntervalManager.kt
+- app/src/test/kotlin/com/dogechat/NotificationManagerTest.kt
+- gradle/libs.versions.toml
+### Details
+* adding notification for active peers + tests
+
+* adding a recently seen peer set to track if we've seen that peer before
+
+* changing back to notificationManager naming
+
+* fixing some weird formatting that occurred during merge conflict fix
+
+# Commit 3ea2aed    (DONE)
+##  Files Changed
+1 file changed
+- CHANGELOG.md
+### Details
+* fixed bulletpoint
+
+# Commit 5505207      (DONE)
+## 12 Files Changed
+- app/src/main/java/com/dogechat/android/mesh/MessageHandler.kt
+- app/src/main/java/com/dogechat/android/nostr/NostrGeohashService.kt
+- app/src/main/java/com/dogechat/android/nostr/NostrRelayManager.kt
+- app/src/main/java/com/dogechat/android/onboarding/LocationCheckScreen.kt
+- app/src/main/java/com/dogechat/android/services/ConversationAliasResolver.kt
+- app/src/main/java/com/dogechat/android/ui/ChatUIUtils.kt
+- app/src/main/java/com/dogechat/android/ui/ChatViewModel.kt 
+- app/src/main/java/com/dogechat/android/ui/MessageComponents.kt
+- app/src/main/java/com/dogechat/android/ui/MessageManager.kt   
+- app/src/main/java/com/dogechat/android/ui/MessageSpecialParser.kt 
+- app/src/main/java/com/dogechat/android/ui/PrivateChatManager.kt 
+- app/src/main/java/com/dogechat/android/ui/NotificationManager.kt
+### Details
+* location name in notifications
+
+* remove tests
+
+* panic nostr
+
+* mentions with hashes, otherwise none
+
+* fix timestamps
+
+* parse geohashes in messages
+
+* works
+
+* fix country name
+
+* mention notifications work
+
+# Commit 9c10318     (DONE)
+## 3 FILES CHANGED 
+- app/src/main/java/com/dogechat/android/ui/ChatUIUtils.kt
+- app/src/main/java/com/dogechat/android/ui/GeohashPeopleList.kt
+- app/src/main/java/com/dogechat/android/ui/SidebarComponents.kt 
+### Details
+* limit nick length 
+
+# Commit 2ec3141
+## 3 Files Changed
+- app/src/main/java/com/dogechat/android/ui/ChatUIUtils.kt 
+- app/src/main/java/com/dogechat/android/ui/MessageComponents.kt
+- app/src/main/java/com/dogechat/android/ui/MessageSpecialParser.kt
+### Details
+* render links normally
+
+# Commit 7f4bd96  (DONE)
+## 1 File Changed
+- app/src/main/java/com/dogechat/android/ui/ChatUIConstants.kt
+### Details
+* fix missing file 
+
+
+
 ## [0.9.3] - 2025-08-17
 ### Added
 - Implemented all geohash updates from bitchat
@@ -28,7 +129,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.7.1] - 2025-07-19
 
 ### Added
--feat(battery): add battery optimization management for background reliability
+- feat(battery): add battery optimization management for background reliability
 
 ### Fixed
 - fix: center align toolbar item in ChatHeader - passed modifier.fillmaxHeight so the content inside the row can actually be centered
