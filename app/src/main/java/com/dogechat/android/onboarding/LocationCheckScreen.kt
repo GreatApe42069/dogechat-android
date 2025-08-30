@@ -68,7 +68,7 @@ private fun LocationDisabledContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Location icon - using LocationOn outlined icon in app's green color
+        // Location icon - using LocationOn outlined icon in app's yellow color
         Icon(
             imageVector = Icons.Outlined.LocationOn,
             contentDescription = "Location Services",
@@ -119,7 +119,7 @@ private fun LocationDisabledContent(
                 }
                 
                 Text(
-                    text = "Dogechat does NOT track your location.\n\nLocation services are required for Bluetooth scanning and for the Geohash chat feature.",
+                    text = "Đogechat does NOT track your location.\n\nLocation services are required for Bluetooth scanning and for the Geohash chat feature.",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -139,7 +139,7 @@ private fun LocationDisabledContent(
                 )
                 
                 Text(
-                    text = "• Bluetooth Đevice scanning (Android requirement)\n" +
+                    text = "• Bluetooth Đevice Much Scanning\n" +
                             "• Điscovering Many nearby users on Much mesh network\n" +
                             "• Geohash Such Chat Feature\n" +
                             "• No tracking Shibes or location collection",

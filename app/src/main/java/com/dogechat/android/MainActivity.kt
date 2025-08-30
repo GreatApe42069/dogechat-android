@@ -11,13 +11,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
@@ -43,6 +41,8 @@ import com.dogechat.android.onboarding.PermissionManager
 import com.dogechat.android.ui.ChatScreen
 import com.dogechat.android.ui.ChatViewModel
 import com.dogechat.android.ui.theme.DogechatTheme
+import com.dogechat.android.ui.theme.ThemePreference
+import com.dogechat.android.ui.theme.ThemePreferenceManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
