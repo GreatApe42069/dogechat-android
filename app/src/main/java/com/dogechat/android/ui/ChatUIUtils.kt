@@ -5,29 +5,31 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.mesh.BluetoothMeshService
 import androidx.compose.material3.ColorScheme
 import com.dogechat.android.ui.theme.ThemeColors
+import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
  * Utility functions for ChatScreen UI components
- * Centralized color usage through ThemeColors for consistency.
+ * Extracted from ChatScreen.kt for better organization
  */
 
 /**
- * RSSI -> color gradient (Green → Yellow → Orange → Darker Orange → Red)
+ * Get RSSI-based color for signal strength visualization
  */
 fun getRSSIColor(rssi: Int): Color {
     return when {
-        rssi >= -50 -> ThemeColors.RssiStrong
-        rssi >= -60 -> ThemeColors.RssiGood
-        rssi >= -70 -> ThemeColors.RssiMedium
-        rssi >= -80 -> ThemeColors.RssiWeak
-        else -> ThemeColors.RssiBad
+        rssi >= -50 -> Color(0xFF00FF00) // Bright green
+        rssi >= -60 -> Color(0xFF80FF00) // Green-yellow
+        rssi >= -70 -> Color(0xFFFFFF00) // Yellow
+        rssi >= -80 -> Color(0xFFFF8000) // Orange
+        else -> Color(0xFFFF4444) // Red
     }
 }
 
@@ -53,7 +55,7 @@ fun formatMessageAsAnnotatedString(
     if (message.sender != "system") {
         // Get base color for this peer (iOS-style color assignment)
         val baseColor = if (isSelf) {
-            Color(0xFFFFFF00) // Yellow for self
+            Color(0xFFFFFF00) // Yellow for self (doge yellow)
         } else {
             getPeerColor(message, isDark)
         }
@@ -64,26 +66,39 @@ fun formatMessageAsAnnotatedString(
         // Sender prefix "<@"
         builder.pushStyle(SpanStyle(
             color = baseColor,
-            fontSize = 14.sp,
+            fontSize = BASE_FONT_SIZE.sp,
             fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
         ))
         builder.append("<@")
         builder.pop()
         
-        // Base name
+        // Base name (clickable)
         builder.pushStyle(SpanStyle(
             color = baseColor,
-            fontSize = 14.sp,
+            fontSize = BASE_FONT_SIZE.sp,
             fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
         ))
-        builder.append(baseName)
+        val nicknameStart = builder.length
+        val truncatedBase = truncateNickname(baseName)
+        builder.append(truncatedBase)
+        val nicknameEnd = builder.length
+        
+        // Add click annotation for nickname (store canonical sender name with hash if available)
+        if (!isSelf) {
+            builder.addStringAnnotation(
+                tag = "nickname_click",
+                annotation = (message.originalSender ?: message.sender),
+                start = nicknameStart,
+                end = nicknameEnd
+            )
+        }
         builder.pop()
         
         // Hashtag suffix in lighter color (iOS style)
         if (suffix.isNotEmpty()) {
             builder.pushStyle(SpanStyle(
                 color = baseColor.copy(alpha = 0.6f),
-                fontSize = 14.sp,
+                fontSize = BASE_FONT_SIZE.sp,
                 fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
             ))
             builder.append(suffix)
@@ -93,7 +108,7 @@ fun formatMessageAsAnnotatedString(
         // Sender suffix "> "
         builder.pushStyle(SpanStyle(
             color = baseColor,
-            fontSize = 14.sp,
+            fontSize = BASE_FONT_SIZE.sp,
             fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
         ))
         builder.append("> ")
@@ -105,7 +120,7 @@ fun formatMessageAsAnnotatedString(
         // iOS-style timestamp at the END (smaller, grey)
         builder.pushStyle(SpanStyle(
             color = Color.Gray.copy(alpha = 0.7f),
-            fontSize = 10.sp
+            fontSize = (BASE_FONT_SIZE - 4).sp
         ))
         builder.append(" [${timeFormatter.format(message.timestamp)}]")
         builder.pop()
@@ -114,8 +129,8 @@ fun formatMessageAsAnnotatedString(
         // System message - iOS style
         builder.pushStyle(SpanStyle(
             color = Color.Gray,
-            fontSize = 12.sp,
-            fontStyle = FontStyle.Italic
+            fontSize = (BASE_FONT_SIZE - 2).sp,
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
         ))
         builder.append("* ${message.content} *")
         builder.pop()
@@ -123,7 +138,7 @@ fun formatMessageAsAnnotatedString(
         // Timestamp for system messages too
         builder.pushStyle(SpanStyle(
             color = Color.Gray.copy(alpha = 0.5f),
-            fontSize = 10.sp
+            fontSize = (BASE_FONT_SIZE - 4).sp
         ))
         builder.append(" [${timeFormatter.format(message.timestamp)}]")
         builder.pop()
@@ -133,28 +148,80 @@ fun formatMessageAsAnnotatedString(
 }
 
 /**
- * Get color for peer based on peer ID (iOS-compatible deterministic colors)
+ * iOS-style peer color assignment using djb2 hash algorithm
+ * Avoids orange (~30°) reserved for self messages
  */
 fun getPeerColor(message: DogechatMessage, isDark: Boolean): Color {
-    val seed = message.senderPeerID ?: message.sender
+    // Create seed from peer identifier (prioritizing stable keys)
+    val seed = when {
+        message.senderPeerID?.startsWith("nostr:") == true || message.senderPeerID?.startsWith("nostr_") == true -> {
+            // For Nostr peers, use the full key if available, otherwise the peer ID
+            "nostr:${message.senderPeerID.lowercase()}"
+        }
+        message.senderPeerID?.length == 16 -> {
+            // For ephemeral peer IDs, try to get stable Noise key, fallback to peer ID  
+            "noise:${message.senderPeerID.lowercase()}"
+        }
+        message.senderPeerID?.length == 64 -> {
+            // This is already a stable Noise key
+            "noise:${message.senderPeerID.lowercase()}"
+        }
+        else -> {
+            // Fallback to sender name
+            message.sender.lowercase()
+        }
+    }
+    
     return colorForPeerSeed(seed, isDark)
 }
 
 /**
- * Split username into base and hashtag suffix (iOS-compatible)
+ * Generate consistent peer color using djb2 hash (matches iOS algorithm exactly)
  */
-fun splitSuffix(name: String): Pair<String, String> {
-    val parts = name.split("#", limit = 2)
-    return if (parts.size > 1) {
-        parts[0] to "#${parts[1]}"
-    } else {
-        name to ""
+fun colorForPeerSeed(seed: String, isDark: Boolean): Color {
+    // djb2 hash algorithm (matches iOS implementation)
+    var hash = 5381UL
+    for (byte in seed.toByteArray()) {
+        hash = ((hash shl 5) + hash) + byte.toUByte().toULong()
     }
+    
+    var hue = (hash % 360UL).toDouble() / 360.0
+    
+    // Avoid orange (~30°) reserved for self (matches iOS logic)
+    val orange = 30.0 / 360.0
+    if (kotlin.math.abs(hue - orange) < 0.05) {
+        hue = (hue + 0.12) % 1.0
+    }
+    
+    val saturation = if (isDark) 0.50 else 0.70
+    val brightness = if (isDark) 0.85 else 0.35
+    
+    return Color.hsv(
+        hue = (hue * 360).toFloat(),
+        saturation = saturation.toFloat(),
+        value = brightness.toFloat()
+    )
 }
 
 /**
- * Append content with iOS-style formatting
- * Hashtags treated as normal text, mentions get special styling
+ * Split a name into base and a '#abcd' suffix if present (matches iOS splitSuffix exactly)
+ */
+fun splitSuffix(name: String): Pair<String, String> {
+    if (name.length < 5) return Pair(name, "")
+    
+    val suffix = name.takeLast(5)
+    if (suffix.startsWith("#") && suffix.drop(1).all { 
+        it.isDigit() || it.lowercaseChar() in 'a'..'f' 
+    }) {
+        val base = name.dropLast(5)
+        return Pair(base, suffix)
+    }
+    
+    return Pair(name, "")
+}
+
+/**
+ * iOS-style content formatting with proper hashtag and mention handling
  */
 private fun appendIOSFormattedContent(
     builder: AnnotatedString.Builder,
@@ -165,9 +232,9 @@ private fun appendIOSFormattedContent(
     isSelf: Boolean,
     isDark: Boolean
 ) {
-    // Patterns for #hashtags and @mentions (supports hashtags as suffixes)
-    val hashtagPattern = """#[\w]+""".toRegex()
-    val mentionPattern = """@[\w#]+""".toRegex()
+    // iOS-style patterns: allow optional '#abcd' suffix in mentions
+    val hashtagPattern = "#([a-zA-Z0-9_]+)".toRegex()
+    val mentionPattern = "@([\\p{L}0-9_]+(?:#[a-fA-F0-9]{4})?)".toRegex()
     
     val hashtagMatches = hashtagPattern.findAll(content).toList()
     val mentionMatches = mentionPattern.findAll(content).toList()
@@ -193,6 +260,42 @@ private fun appendIOSFormattedContent(
     for (match in mentionMatches) {
         allMatches.add(match.range to "mention") 
     }
+
+    // Add standalone geohash matches (e.g., "#9q") that are not part of another word
+    // We use MessageSpecialParser to find exact ranges; then merge with existing ranges avoiding overlaps
+    val geoMatches = MessageSpecialParser.findStandaloneGeohashes(content)
+    for (gm in geoMatches) {
+        val range = gm.start until gm.endExclusive
+        if (!overlapsMention(range)) {
+            allMatches.add(range to "geohash")
+        }
+    }
+
+    // Add URL matches (http/https/www/bare domains). Exclude overlaps with mentions.
+    val urlMatches = MessageSpecialParser.findUrls(content)
+    for (um in urlMatches) {
+        val range = um.start until um.endExclusive
+        if (!overlapsMention(range)) {
+            allMatches.add(range to "url")
+        }
+    }
+
+    // Remove generic hashtag matches that overlap with detected geohash ranges to avoid duplicate rendering
+    fun rangesOverlap(a: IntRange, b: IntRange): Boolean {
+        return a.first < b.last && a.last > b.first
+    }
+    val urlRanges = allMatches.filter { it.second == "url" }.map { it.first }
+    val geoRanges = allMatches.filter { it.second == "geohash" }.map { it.first }
+    if (geoRanges.isNotEmpty() || urlRanges.isNotEmpty()) {
+        val iterator = allMatches.listIterator()
+        while (iterator.hasNext()) {
+            val (range, type) = iterator.next()
+            // Remove generic hashtags that overlap with geohashes, and geohashes that overlap with URLs
+            val overlapsGeo = geoRanges.any { rangesOverlap(range, it) }
+            val overlapsUrl = urlRanges.any { rangesOverlap(range, it) }
+            if ((type == "hashtag" && overlapsGeo) || (type == "geohash" && overlapsUrl)) iterator.remove()
+        }
+    }
     
     allMatches.sortBy { it.first.first }
     
@@ -206,7 +309,7 @@ private fun appendIOSFormattedContent(
             if (beforeText.isNotEmpty()) {
                 builder.pushStyle(SpanStyle(
                     color = baseColor,
-                    fontSize = 14.sp,
+                    fontSize = BASE_FONT_SIZE.sp,
                     fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Normal
                 ))
                 if (isMentioned) {
@@ -236,26 +339,26 @@ private fun appendIOSFormattedContent(
                 // "@" symbol
                 builder.pushStyle(SpanStyle(
                     color = mentionColor,
-                    fontSize = 14.sp,
+                    fontSize = BASE_FONT_SIZE.sp,
                     fontWeight = if (isSelf) FontWeight.Bold else FontWeight.SemiBold
                 ))
                 builder.append("@")
                 builder.pop()
                 
-                // Base name
+                // Base name (truncate for rendering)
                 builder.pushStyle(SpanStyle(
                     color = mentionColor,
-                    fontSize = 14.sp,
+                    fontSize = BASE_FONT_SIZE.sp,
                     fontWeight = if (isSelf) FontWeight.Bold else FontWeight.SemiBold
                 ))
-                builder.append(mBase)
+                builder.append(truncateNickname(mBase))
                 builder.pop()
                 
                 // Hashtag suffix in lighter color
                 if (mSuffix.isNotEmpty()) {
                     builder.pushStyle(SpanStyle(
                         color = mentionColor.copy(alpha = 0.6f),
-                        fontSize = 14.sp,
+                        fontSize = BASE_FONT_SIZE.sp,
                         fontWeight = if (isSelf) FontWeight.Bold else FontWeight.SemiBold
                     ))
                     builder.append(mSuffix)
@@ -263,10 +366,10 @@ private fun appendIOSFormattedContent(
                 }
             }
             "hashtag" -> {
-                // iOS-style: render hashtags like normal content (no special styling)
+                // Render general hashtags like normal content
                 builder.pushStyle(SpanStyle(
                     color = baseColor,
-                    fontSize = 14.sp,
+                    fontSize = BASE_FONT_SIZE.sp,
                     fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Normal
                 ))
                 if (isMentioned) {
@@ -278,17 +381,66 @@ private fun appendIOSFormattedContent(
                 }
                 builder.pop()
             }
+            else -> {
+                if (type == "geohash") {
+                    // Style geohash in blue, underlined, and add click annotation
+                    builder.pushStyle(SpanStyle(
+                        color = Color(0xFF007AFF),
+                        fontSize = BASE_FONT_SIZE.sp,
+                        fontWeight = if (isSelf) FontWeight.Bold else FontWeight.SemiBold,
+                        textDecoration = TextDecoration.Underline
+                    ))
+                    val start = builder.length
+                    builder.append(matchText)
+                    val end = builder.length
+                    val geohash = matchText.removePrefix("#").lowercase()
+                    builder.addStringAnnotation(
+                        tag = "geohash_click",
+                        annotation = geohash,
+                        start = start,
+                        end = end
+                    )
+                    builder.pop()
+                } else if (type == "url") {
+                    // Style URL in blue, underlined, and add click annotation with the raw text
+                    builder.pushStyle(SpanStyle(
+                        color = Color(0xFF007AFF),
+                        fontSize = BASE_FONT_SIZE.sp,
+                        fontWeight = if (isSelf) FontWeight.Bold else FontWeight.SemiBold,
+                        textDecoration = TextDecoration.Underline
+                    ))
+                    val start = builder.length
+                    builder.append(matchText)
+                    val end = builder.length
+                    builder.addStringAnnotation(
+                        tag = "url_click",
+                        annotation = matchText,
+                        start = start,
+                        end = end
+                    )
+                    builder.pop()
+                } else {
+                    // Fallback: treat as normal text
+                    builder.pushStyle(SpanStyle(
+                        color = baseColor,
+                        fontSize = BASE_FONT_SIZE.sp,
+                        fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Normal
+                    ))
+                    builder.append(matchText)
+                    builder.pop()
+                }
+            }
         }
         
         lastEnd = range.last + 1
     }
-
+    
     // Add remaining text
     if (lastEnd < content.length) {
         val remainingText = content.substring(lastEnd)
         builder.pushStyle(SpanStyle(
             color = baseColor,
-            fontSize = 14.sp,
+            fontSize = BASE_FONT_SIZE.sp,
             fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Normal
         ))
         if (isMentioned) {
@@ -300,17 +452,4 @@ private fun appendIOSFormattedContent(
         }
         builder.pop()
     }
-}
-
-/**
- * Deterministic color generation for peers (iOS-compatible)
- */
-fun colorForPeerSeed(seed: String, isDark: Boolean): Color {
-    // Simple hash-based color selection (matches iOS hue/saturation)
-    val hash = seed.hashCode()
-    val hue = (hash % 360).toFloat()
-    val saturation = 0.6f + (hash % 10) / 20f  // 0.6 to 0.7
-    val brightness = if (isDark) 0.8f else 0.6f
-    
-    return Color.hsl(hue, saturation, brightness)
 }

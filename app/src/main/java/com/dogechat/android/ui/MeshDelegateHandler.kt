@@ -7,7 +7,7 @@ import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.DeliveryStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Date
 
 /**
  * Handles all BluetoothMeshDelegate callbacks and routes them to appropriate managers
@@ -70,11 +70,11 @@ class MeshDelegateHandler(
             } else {
                 // Public message
                 messageManager.addMessage(message)
-                
+
                 // Check for mentions in mesh chat
                 checkAndTriggerMeshMentionNotification(message)
             }
-            
+
             // Periodic cleanup
             if (messageManager.isMessageProcessed("cleanup_check_${System.currentTimeMillis()/30000}")) {
                 messageManager.cleanupDeduplicationCaches()
@@ -86,10 +86,11 @@ class MeshDelegateHandler(
         coroutineScope.launch {
             state.setConnectedPeers(peers)
             state.setIsConnected(peers.isNotEmpty())
-            
+            notificationManager.showActiveUserNotification(peers)
+
             // Clean up channel members who disconnected
             channelManager.cleanupDisconnectedMembers(peers, getMyPeerID())
-            
+
             // Exit private chat if peer disconnected
             state.getSelectedPrivateChatPeerValue()?.let { currentPeer ->
                 if (!peers.contains(currentPeer)) {
@@ -126,7 +127,7 @@ class MeshDelegateHandler(
     override fun isFavorite(peerID: String): Boolean {
         return privateChatManager.isFavorite(peerID)
     }
-    
+
     /**
      * Check for mentions in mesh messages and trigger notifications
      */
@@ -137,7 +138,7 @@ class MeshDelegateHandler(
             if (currentNickname.isNullOrEmpty()) {
                 return
             }
-            
+
             // Check if this message mentions the current user using @username format
             val isMention = checkForMeshMention(message.content, currentNickname)
             
@@ -154,7 +155,7 @@ class MeshDelegateHandler(
             android.util.Log.e("MeshDelegateHandler", "Error checking mesh mentions: ${e.message}")
         }
     }
-    
+
     /**
      * Check if the content mentions the current user with @username format (simple, no hash suffix)
      */
@@ -178,7 +179,7 @@ class MeshDelegateHandler(
         // Get notification manager's focus state (mirror the notification logic)
         val isAppInBackground = notificationManager.getAppBackgroundState()
         val currentPrivateChatPeer = notificationManager.getCurrentPrivateChatPeer()
-        
+
         // Send read receipt if user is currently focused on this specific chat
         val shouldSendReadReceipt = !isAppInBackground && currentPrivateChatPeer == senderPeerID
         
@@ -189,6 +190,6 @@ class MeshDelegateHandler(
             android.util.Log.d("MeshDelegateHandler", "Skipping read receipt - chat not focused (background: $isAppInBackground, current peer: $currentPrivateChatPeer, sender: $senderPeerID)")
         }
     }
-    
+
     // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager
 }

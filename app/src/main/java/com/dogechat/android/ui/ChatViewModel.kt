@@ -1,8 +1,8 @@
 package com.dogechat.android.ui
 
 import android.app.Application
-import android.content.Context
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.viewModelScope
@@ -12,9 +12,11 @@ import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.nostr.NostrGeohashService
 
+import kotlinx.coroutines.launch
+import com.dogechat.android.util.NotificationIntervalManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Date
 import kotlin.random.Random
 
 /**
@@ -47,7 +49,12 @@ class ChatViewModel(
     
     val privateChatManager = PrivateChatManager(state, messageManager, dataManager, noiseSessionDelegate)
     private val commandProcessor = CommandProcessor(state, messageManager, channelManager, privateChatManager)
-    private val notificationManager = NotificationManager(application.applicationContext)
+    private val notificationManager = NotificationManager(
+      application.applicationContext,
+      NotificationManagerCompat.from(application.applicationContext),
+      NotificationIntervalManager()
+    )
+    
     // Delegate handler for mesh callbacks
     private val meshDelegateHandler = MeshDelegateHandler(
         state = state,
@@ -180,7 +187,7 @@ class ChatViewModel(
         super.onCleared()
         // Note: Mesh service lifecycle is now managed by MainActivity
     }
-    
+
     // MARK: - Nickname Management
     
     fun setNickname(newNickname: String) {
@@ -188,7 +195,7 @@ class ChatViewModel(
         dataManager.saveNickname(newNickname)
         meshService.sendBroadcastAnnounce()
     }
-    
+
     // MARK: - Channel Management (delegated)
     
     fun joinChannel(channel: String, password: String? = null): Boolean {
@@ -203,7 +210,7 @@ class ChatViewModel(
         channelManager.leaveChannel(channel)
         meshService.sendMessage("left $channel")
     }
-    
+
     // MARK: - Private Chat Management (delegated)
     
     fun startPrivateChat(peerID: String) {
@@ -234,12 +241,12 @@ class ChatViewModel(
         // Clear mesh mention notifications since user is now back in mesh chat
         clearMeshMentionNotifications()
     }
-    
+
     // MARK: - Message Sending
     
     fun sendMessage(content: String) {
         if (content.isEmpty()) return
-        
+
         // Check for commands
         if (content.startsWith("/")) {
             commandProcessor.processCommand(content, meshService, meshService.myPeerID, { messageContent, mentions, channel ->
@@ -247,7 +254,7 @@ class ChatViewModel(
             }, this)
             return
         }
-        
+
         val mentions = messageManager.parseMentions(content, meshService.getPeerNicknames().values.toSet(), state.getNicknameValue())
         // REMOVED: Auto-join mentioned channels feature that was incorrectly parsing hashtags from @mentions
         // This was causing messages like "test @jack#1234 test" to auto-join channel "#1234"
@@ -302,13 +309,13 @@ class ChatViewModel(
                 
                 if (currentChannelValue != null) {
                     channelManager.addChannelMessage(currentChannelValue, message, meshService.myPeerID)
-                    
+
                     // Check if encrypted channel
                     if (channelManager.hasChannelKey(currentChannelValue)) {
                         channelManager.sendEncryptedChannelMessage(
-                            content, 
-                            mentions, 
-                            currentChannelValue, 
+                            content,
+                            mentions,
+                            currentChannelValue,
                             state.getNicknameValue(),
                             meshService.myPeerID,
                             onEncryptedPayload = { encryptedData ->
@@ -329,9 +336,7 @@ class ChatViewModel(
             }
         }
     }
-    
 
-    
     // MARK: - Utility Functions
     
     fun getPeerIDForNickname(nickname: String): String? {
@@ -491,7 +496,7 @@ class ChatViewModel(
     fun clearMeshMentionNotifications() {
         notificationManager.clearMeshMentionNotifications()
     }
-    
+
     // MARK: - Command Autocomplete (delegated)
     
     fun updateCommandSuggestions(input: String) {
@@ -501,7 +506,7 @@ class ChatViewModel(
     fun selectCommandSuggestion(suggestion: CommandSuggestion): String {
         return commandProcessor.selectCommandSuggestion(suggestion)
     }
-    
+
     // MARK: - Mention Autocomplete
     
     fun updateMentionSuggestions(input: String) {
@@ -511,7 +516,7 @@ class ChatViewModel(
     fun selectMentionSuggestion(nickname: String, currentText: String): String {
         return commandProcessor.selectMentionSuggestion(nickname, currentText)
     }
-    
+
     // MARK: - BluetoothMeshDelegate Implementation (delegated)
     
     override fun didReceiveMessage(message: DogechatMessage) {
@@ -545,9 +550,9 @@ class ChatViewModel(
     override fun isFavorite(peerID: String): Boolean {
         return meshDelegateHandler.isFavorite(peerID)
     }
-    
+
     // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager
-    
+
     // MARK: - Emergency Clear
     
     fun panicClearAllData() {
@@ -568,8 +573,12 @@ class ChatViewModel(
         // Clear all notifications
         notificationManager.clearAllNotifications()
         
-        // Clear geohash message history
-        nostrGeohashService.clearGeohashMessageHistory()
+        // Clear Nostr/geohash state, keys, connections, and reinitialize from scratch
+        try {
+            nostrGeohashService.panicResetNostrAndGeohash()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to reset Nostr/geohash: ${e.message}")
+        }
         
         // Reset nickname
         val newNickname = "anon${Random.nextInt(1000, 9999)}"
@@ -577,11 +586,11 @@ class ChatViewModel(
         dataManager.saveNickname(newNickname)
         
         Log.w(TAG, "🚨 PANIC MODE COMPLETED - All sensitive data Much cleared")
-        
+
         // Note: Mesh service restart is now handled by MainActivity
         // This method now only clears data, not mesh service lifecycle
     }
-    
+
     /**
      * Clear all mesh service related data
      */
@@ -595,7 +604,7 @@ class ChatViewModel(
             Log.e(TAG, "❌ Error clearing mesh service data: ${e.message}")
         }
     }
-    
+
     /**
      * Clear all cryptographic data including persistent identity
      */
@@ -618,15 +627,7 @@ class ChatViewModel(
             Log.e(TAG, "❌ Error clearing cryptographic data: ${e.message}")
         }
     }
-    
 
-    
-
-    
-
-    
-
-    
     /**
      * Get participant count for a specific geohash (5-minute activity window)
      */
@@ -647,19 +648,7 @@ class ChatViewModel(
     fun endGeohashSampling() {
         nostrGeohashService.endGeohashSampling()
     }
-    
 
-    
-
-    
-
-    
-
-    
-
-    
-
-    
     /**
      * Check if a geohash person is teleported (iOS-compatible)
      */
@@ -675,11 +664,7 @@ class ChatViewModel(
             startPrivateChat(convKey)
         }
     }
-    
 
-    
-
-    
     fun selectLocationChannel(channel: com.dogechat.android.geohash.ChannelID) {
         nostrGeohashService.selectLocationChannel(channel)
     }
@@ -690,15 +675,7 @@ class ChatViewModel(
     fun blockUserInGeohash(targetNickname: String) {
         nostrGeohashService.blockUserInGeohash(targetNickname)
     }
-    
 
-    
-
-    
-
-    
-
-    
     // MARK: - Navigation Management
     
     fun showAppInfo() {
@@ -716,7 +693,7 @@ class ChatViewModel(
     fun hideSidebar() {
         state.setShowSidebar(false)
     }
-    
+
     /**
      * Handle Android back navigation
      * Returns true if the back press was handled, false if it should be passed to the system
@@ -753,9 +730,9 @@ class ChatViewModel(
             else -> false
         }
     }
-    
+
     // MARK: - iOS-Compatible Color System
-    
+
     /**
      * Get consistent color for a mesh peer by ID (iOS-compatible)
      */
@@ -764,13 +741,11 @@ class ChatViewModel(
         val seed = "noise:${peerID.lowercase()}"
         return colorForPeerSeed(seed, isDark).copy()
     }
-    
+
     /**
      * Get consistent color for a Nostr pubkey (iOS-compatible)
      */
     fun colorForNostrPubkey(pubkeyHex: String, isDark: Boolean): androidx.compose.ui.graphics.Color {
         return nostrGeohashService.colorForNostrPubkey(pubkeyHex, isDark)
     }
-    
-
 }
