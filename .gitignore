@@ -29,11 +29,7 @@ gradle.properties
 
 
 # APK/AAB and intermediates
-<<<<<<< HEAD
-=======
-*.apk
 *.aab
->>>>>>> 273cfac5917795c149b4c8f573e34421656a9ff4
 *.ap_
 *.dex
 
