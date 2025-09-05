@@ -291,7 +291,7 @@ class NotificationManager(
         )
 
         // Build notification content
-        val contentTitle = "👥 bitchatters nearby!"
+        val contentTitle = "👥 Đogechatters nearby Much Wow! 🐶"
         val contentText = if (peersSize == 1) {
             "1 person around"
         } else {

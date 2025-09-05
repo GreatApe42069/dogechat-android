@@ -57,7 +57,7 @@ fun PermissionExplanationScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "Decentralized mesh messaging over Bluetooth",
+                    text = "Đecentralized mesh messaging over Bluetooth",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.7f)
@@ -100,8 +100,8 @@ fun PermissionExplanationScreen(
                     
                     Text(
                         text = "• Đogechat doesn't track you or collect any personal data\n" +
-                                "• No servers, no internet required, no data logging\n" +
-                                "• Location permission is only used by Android for Bluetooth scanning\n" +
+                                "• Bluetooth mesh chats are fully offline and require no internet\n" +
+                                "• Geohash chats use the internet but your location is generalized\n" +
                                 "• Your messages stay locally on your device and peer devices only",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,

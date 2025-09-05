@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PinDrop
 import androidx.compose.material3.*
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -20,7 +21,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dogechat.android.ui.theme.BASE_FONT_SIZE
@@ -52,7 +52,8 @@ fun LocationChannelsSheet(
     val selectedChannel by locationManager.selectedChannel.observeAsState()
     val teleported by locationManager.teleported.observeAsState(false)
     val locationNames by locationManager.locationNames.observeAsState(emptyMap())
-    
+    val locationServicesEnabled by locationManager.locationServicesEnabled.observeAsState(false)
+
     // CRITICAL FIX: Observe reactive participant counts for real-time updates
     val geohashParticipantCounts by viewModel.geohashParticipantCounts.observeAsState(emptyMap())
     
@@ -109,62 +110,90 @@ fun LocationChannelsSheet(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
                 
-                // Permission handling
-                when (permissionState) {
-                    LocationChannelManager.PermissionState.NOT_DETERMINED -> {
-                        Button(
-                            onClick = { locationManager.enableLocationChannels() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = standardYellow.copy(alpha = 0.12f),
-                                contentColor = standardYellow
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "get location and my geohashes",
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-                    
-                    LocationChannelManager.PermissionState.DENIED,
-                    LocationChannelManager.PermissionState.RESTRICTED -> {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "location permission denied. enable in settings to use location channels.",
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
-                            
-                            TextButton(
-                                onClick = {
-                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.fromParts("package", context.packageName, null)
-                                    }
-                                    context.startActivity(intent)
-                                }
+                // Location Services Control - Show permission handling if enabled
+                if (locationServicesEnabled) {
+                    when (permissionState) {
+                        LocationChannelManager.PermissionState.NOT_DETERMINED -> {
+                            Button(
+                                onClick = { locationManager.enableLocationChannels() },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = standardYellow.copy(alpha = 0.12f),
+                                    contentColor = standardYellow
+                                ),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "open settings",
+                                    text = "grant location permission",
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
                             }
                         }
+                        
+                        LocationChannelManager.PermissionState.DENIED,
+                        LocationChannelManager.PermissionState.RESTRICTED -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "location permission denied. enable in settings to use location channels.",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color.Red.copy(alpha = 0.8f)
+                                )
+                                
+                                TextButton(
+                                    onClick = {
+                                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = Uri.fromParts("package", context.packageName, null)
+                                        }
+                                        context.startActivity(intent)
+                                    }
+                                ) {
+                                    Text(
+                                        text = "open settings",
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                        }
+                        
+                        LocationChannelManager.PermissionState.AUTHORIZED -> {
+                            Text(
+                                text = "✓ location permission Much granted",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = standardYellow
+                            )
+                        }
+                        
+                        null -> {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+
+
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(12.dp))
+                                Text(
+                                    text = "checking permissions...",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
                     }
-                    
-                    LocationChannelManager.PermissionState.AUTHORIZED -> {
-                        // Authorized - show channels below
-                    }
-                    
-                    null -> {
-                        // Loading state
-                        CircularProgressIndicator()
-                    }
+
+
+
+
+
+
+
+
+
                 }
-                
+
                 // Channel list (iOS-style plain list)
                 LazyColumn(
                     state = listState,
@@ -184,9 +213,9 @@ fun LocationChannelsSheet(
                             }
                         )
                     }
-                    
-                    // Nearby options
-                    if (availableChannels.isNotEmpty()) {
+
+                    // Nearby options (only show if location services are enabled)
+                    if (availableChannels.isNotEmpty() && locationServicesEnabled) {
                         items(availableChannels) { channel ->
                             val coverage = coverageString(channel.geohash.length)
                             val nameBase = locationNames[channel.level]
@@ -195,7 +224,7 @@ fun LocationChannelsSheet(
                             // CRITICAL FIX: Use reactive participant count from LiveData
                             val participantCount = geohashParticipantCounts[channel.geohash] ?: 0
                             val highlight = participantCount > 0
-                            
+
                             ChannelRow(
                                 title = geohashTitleWithCount(channel, participantCount),
                                 subtitle = subtitlePrefix + (namePart?.let { " • $it" } ?: ""),
@@ -210,7 +239,7 @@ fun LocationChannelsSheet(
                                 }
                             )
                         }
-                    } else if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED) {
+                    } else if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED && locationServicesEnabled) {
                         item {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -225,7 +254,7 @@ fun LocationChannelsSheet(
                             }
                         }
                     }
-                    
+
                     // Custom geohash teleport (iOS-style inline form)
                     item {
                         Surface(
@@ -245,7 +274,7 @@ fun LocationChannelsSheet(
                                         fontFamily = FontFamily.Monospace,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                     )
-                                    
+
                                     BasicTextField(
                                         value = customGeohash,
                                         onValueChange = { newValue ->
@@ -256,7 +285,7 @@ fun LocationChannelsSheet(
                                                 .replace("#", "")
                                                 .filter { it in allowed }
                                                 .take(12)
-                                            
+
                                             customGeohash = filtered
                                             customError = null
                                         },
@@ -292,10 +321,10 @@ fun LocationChannelsSheet(
                                             innerTextField()
                                         }
                                     )
-                                    
+
                                     val normalized = customGeohash.trim().lowercase().replace("#", "")
                                     val isValid = validateGeohash(normalized)
-                                    
+
                                     // iOS-style teleport button
                                     Button(
                                         onClick = {
@@ -335,7 +364,7 @@ fun LocationChannelsSheet(
                                         }
                                     }
                                 }
-                                
+
                                 customError?.let { error ->
                                     Text(
                                         text = error,
@@ -347,46 +376,59 @@ fun LocationChannelsSheet(
                             }
                         }
                     }
-                    
-                    // Footer action - remove location access
-                    if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED) {
-                        item {
-                            Button(
-                                onClick = {
-                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.fromParts("package", context.packageName, null)
-                                    }
-                                    context.startActivity(intent)
+
+                    // Location services toggle button
+                    item {
+                        Button(
+                            onClick = {
+                                if (locationServicesEnabled) {
+                                    locationManager.disableLocationServices()
+                                } else {
+                                    locationManager.enableLocationServices()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (locationServicesEnabled) {
+                                    Color.Red.copy(alpha = 0.08f)
+                                } else {
+                                    standardYellow.copy(alpha = 0.12f)
                                 },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.Red.copy(alpha = 0.08f),
-                                    contentColor = Color(0xFFBF1A1A)
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "remove location access",
-                                    fontSize = 12.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
+                                contentColor = if (locationServicesEnabled) {
+                                    Color(0xFFBF1A1A)
+                                } else {
+                                    standardYellow
+                                }
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (locationServicesEnabled) {
+                                    "disable location services"
+                                } else {
+                                    "enable location services"
+                                },
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
                     }
                 }
             }
         }
     }
-    
+
     // Lifecycle management
     LaunchedEffect(isPresented) {
         if (isPresented) {
-            // Refresh channels when opening
-            if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED) {
+            // Refresh channels when opening (only if location services are enabled)
+            if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED && locationServicesEnabled) {
                 locationManager.refreshChannels()
             }
-            // Begin periodic refresh while sheet is open
-            locationManager.beginLiveRefresh()
-            
+            // Begin periodic refresh while sheet is open (only if location services are enabled)
+            if (locationServicesEnabled) {
+                locationManager.beginLiveRefresh()
+            }
+
             // Begin multi-channel sampling for counts
             val geohashes = availableChannels.map { it.geohash }
             viewModel.beginGeohashSampling(geohashes)
@@ -395,14 +437,21 @@ fun LocationChannelsSheet(
             viewModel.endGeohashSampling()
         }
     }
-    
+
     // React to permission changes
     LaunchedEffect(permissionState) {
-        if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED) {
+        if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED && locationServicesEnabled) {
             locationManager.refreshChannels()
         }
     }
     
+    // React to location services enable/disable
+    LaunchedEffect(locationServicesEnabled) {
+        if (locationServicesEnabled && permissionState == LocationChannelManager.PermissionState.AUTHORIZED) {
+            locationManager.refreshChannels()
+        }
+    }
+
     // React to available channels changes
     LaunchedEffect(availableChannels) {
         val geohashes = availableChannels.map { it.geohash }
@@ -443,7 +492,7 @@ private fun ChannelRow(
             ) {
                 // Split title to handle count part with smaller font (iOS style)
                 val (baseTitle, countSuffix) = splitTitleAndCount(title)
-                
+
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = baseTitle,
@@ -452,7 +501,7 @@ private fun ChannelRow(
                         fontWeight = if (titleBold) FontWeight.Bold else FontWeight.Normal,
                         color = titleColor ?: MaterialTheme.colorScheme.onSurface
                     )
-                    
+
                     countSuffix?.let { count ->
                         Text(
                             text = count,
@@ -462,7 +511,7 @@ private fun ChannelRow(
                         )
                     }
                 }
-                
+
                 Text(
                     text = subtitle,
                     fontSize = 12.sp,
@@ -470,7 +519,7 @@ private fun ChannelRow(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
-            
+
             if (isSelected) {
                 Text(
                     text = "✔︎",
@@ -552,7 +601,7 @@ private fun coverageString(precision: Int): String {
         10 -> 1.19
         else -> if (precision <= 1) 5_000_000.0 else 1.19 * Math.pow(0.25, (precision - 10).toDouble())
     }
-    
+
     // Use metric system for simplicity (could be made locale-aware)
     val km = maxMeters / 1000.0
     return "~${formatDistance(km)} km"

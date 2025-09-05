@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dogechat.android.nostr.NostrProofOfWork
+import com.dogechat.android.nostr.PoWPreferenceManager
 
 /**
  * About Sheet for dogechat app information
@@ -33,27 +36,27 @@ fun AboutSheet(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    
+
     // Get version name from package info
     val versionName = remember {
         try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         } catch (e: Exception) {
-            "0.9.3" // fallback version
+            "0.9.5" // fallback version
         }
     }
-    
+
     // Bottom sheet state
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false
     )
-    
+
     // Color scheme matching LocationChannelsSheet
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
     val standardBlue = Color(0xFF007AFF) // iOS blue
-    val standardYellow = if (isDark) Color(0xFFFFFF00) else Color(0xFF248A3D) // standard yellow
-    
+    val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D) // iOS green
+
     if (isPresented) {
         ModalBottomSheet(
             onDismissRequest = onDismiss,
@@ -84,7 +87,7 @@ fun AboutSheet(
                                 fontWeight = FontWeight.Medium,
                                 color = colorScheme.onSurface
                             )
-                            
+
                             Text(
                                 text = "v$versionName",
                                 fontSize = 11.sp,
@@ -95,16 +98,16 @@ fun AboutSheet(
                                 )
                             )
                         }
-                        
+
                         Text(
-                            text = "decentralized mesh messaging with end-to-end encryption",
+                            text = "Đecentralized mesh messaging with Much end-to-end encryption",
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     }
                 }
-                
+
                 // Features section
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -115,55 +118,31 @@ fun AboutSheet(
                             description = "communicate directly via bluetooth le without internet or servers. messages relay through nearby devices to extend range.",
                             modifier = Modifier.fillMaxWidth()
                         )
-                        
+
                         FeatureCard(
                             icon = Icons.Filled.Public,
-                            iconColor = standardYellow,
-                            title = "geohash channels",
-                            description = "internet-based location channels using coarse geohash coordinates. connect with people in your area while preserving privacy.",
+                            iconColor = standardGreen,
+                            title = "online geohash channels",
+                            description = "connect with people in your area using geohash-based channels. extend the mesh using public internet relays.",
                             modifier = Modifier.fillMaxWidth()
                         )
-                        
+
                         FeatureCard(
                             icon = Icons.Filled.Lock,
                             iconColor = if (isDark) Color(0xFFFFD60A) else Color(0xFFF5A623),
                             title = "end-to-end encryption",
-                            description = "all direct messages use noise protocol encryption. channel messages are protected with optional passwords.",
+                            description = "private messages are encrypted. channel messages are public.",
                             modifier = Modifier.fillMaxWidth()
                         )
-                    }
-                }
-                
-                // Additional features
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "additional features",
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Medium,
-                                color = colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                            
-                            FeatureItem("store-and-forward messaging for offline peers")
-                            FeatureItem("ephemeral messaging with automatic cleanup")
-                            FeatureItem("peer discovery and identity verification")
-                            FeatureItem("minimal metadata leakage")
-                        }
                     }
                 }
 
                 // Appearance section (theme toggle)
                 item {
-                    val themePref by com.dogechat.android.ui.theme.ThemePreferenceManager.themeFlow.collectAsState()
+                    // provide a safe initial value for collectAsState to avoid delegate errors
+                    val themePref by com.dogechat.android.ui.theme.ThemePreferenceManager.themeFlow.collectAsState(
+                        initial = com.dogechat.android.ui.theme.ThemePreference.System
+                    )
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -193,8 +172,221 @@ fun AboutSheet(
                             )
                         }
                     }
-                } 
-               
+                }
+
+                // Proof of Work section
+                item {
+                    val ctx = LocalContext.current
+
+                    // Initialize PoW preferences if not already done
+                    LaunchedEffect(Unit) {
+                        PoWPreferenceManager.init(ctx)
+                    }
+
+                    // provide initial values to avoid delegate errors
+                    val powEnabled by PoWPreferenceManager.powEnabled.collectAsState(initial = false)
+                    val powDifficulty by PoWPreferenceManager.powDifficulty.collectAsState(initial = 8)
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Such Proof of Work",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilterChip(
+                                selected = !powEnabled,
+                                onClick = { PoWPreferenceManager.setPowEnabled(false) },
+                                label = { Text("pow off", fontFamily = FontFamily.Monospace) }
+                            )
+                            FilterChip(
+                                selected = powEnabled,
+                                onClick = { PoWPreferenceManager.setPowEnabled(true) },
+                                label = {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("pow on", fontFamily = FontFamily.Monospace)
+                                        // Show current difficulty
+                                        if (powEnabled) {
+                                            Surface(
+                                                color = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D),
+                                                shape = RoundedCornerShape(50)
+                                            ) { Box(Modifier.size(8.dp)) }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+
+                        Text(
+                            text = "Add Much Proof of Work to geohash messages for Such spam deterrence.",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+
+                        // Show difficulty slider when enabled
+                        if (powEnabled) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "difficulty: $powDifficulty bits (~${NostrProofOfWork.estimateMiningTime(powDifficulty)})",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+
+                                Slider(
+                                    value = powDifficulty.toFloat(),
+                                    onValueChange = { PoWPreferenceManager.setPowDifficulty(it.toInt()) },
+                                    valueRange = 0f..32f,
+                                    steps = 33, // 33 discrete values (0-32)
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D),
+                                        activeTrackColor = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
+                                    )
+                                )
+
+                                // Show difficulty description
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "difficulty $powDifficulty requires ~${NostrProofOfWork.estimateWork(powDifficulty)} hash attempts",
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = colorScheme.onSurface.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            text = when {
+                                                powDifficulty == 0 -> "no proof of work required"
+                                                powDifficulty <= 8 -> "very low - minimal spam protection"
+                                                powDifficulty <= 12 -> "low - basic spam protection"
+                                                powDifficulty <= 16 -> "medium - good spam protection"
+                                                powDifficulty <= 20 -> "high - strong spam protection"
+                                                powDifficulty <= 24 -> "very high - may cause delays"
+                                                else -> "extreme - significant computation required"
+                                            },
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Network (Tor) section
+                item {
+                    val ctx = LocalContext.current
+                    val torMode = remember { mutableStateOf(com.dogechat.android.net.TorPreferenceManager.get(ctx)) }
+                    val torStatus by com.dogechat.android.net.TorManager.statusFlow.collectAsState()
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Network",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            FilterChip(
+                                selected = torMode.value == com.dogechat.android.net.TorMode.OFF,
+                                onClick = {
+                                    torMode.value = com.dogechat.android.net.TorMode.OFF
+                                    com.dogechat.android.net.TorPreferenceManager.set(ctx, torMode.value)
+                                },
+                                label = { Text("tor off", fontFamily = FontFamily.Monospace) }
+                            )
+                            FilterChip(
+                                selected = torMode.value == com.dogechat.android.net.TorMode.ON,
+                                onClick = {
+                                    torMode.value = com.dogechat.android.net.TorMode.ON
+                                    com.dogechat.android.net.TorPreferenceManager.set(ctx, torMode.value)
+                                },
+                                label = {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("tor on", fontFamily = FontFamily.Monospace)
+                                        // Status indicator (red/orange/green) moved inside the "tor on" button
+                                        val statusColor = when {
+                                            torStatus.running && torStatus.bootstrapPercent < 100 -> Color(0xFFFF9500)
+                                            torStatus.running && torStatus.bootstrapPercent >= 100 -> if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
+                                            else -> Color.Red
+                                        }
+                                        Surface(
+                                            color = statusColor,
+                                            shape = RoundedCornerShape(50)
+                                        ) { Box(Modifier.size(8.dp)) }
+                                    }
+                                }
+                            )
+                        }
+                        Text(
+                            text = "Such route internet over tor for Very Enhanced privacy.",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+
+                        // Debug status (temporary)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "tor status: " +
+                                            (if (torStatus.running) "running" else "stopped") +
+                                            ", bootstrap=" + torStatus.bootstrapPercent + "%",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = colorScheme.onSurface.copy(alpha = 0.75f)
+                                )
+                                val last = torStatus.lastLogLine
+                                if (last.isNotEmpty()) {
+                                    Text(
+                                        text = "last: " + last.take(160),
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Emergency warning
                 item {
                     Surface(
@@ -213,18 +405,18 @@ fun AboutSheet(
                                 tint = Color(0xFFBF1A1A),
                                 modifier = Modifier.size(16.dp)
                             )
-                            
+
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
-                                    text = "emergency data deletion",
+                                    text = "Emergency data deletion",
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFFBF1A1A)
                                 )
-                                
+
                                 Text(
-                                    text = "tip: triple-click the app title to emergency delete all stored data including messages, keys, and settings.",
+                                    text = "Such tip: triple-click the app title to emergency delete all stored data including messages, keys, and settings...Very Wiped!",
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     color = colorScheme.onSurface.copy(alpha = 0.7f)
@@ -233,7 +425,7 @@ fun AboutSheet(
                         }
                     }
                 }
-                
+
                 // Version and footer space
                 item {
                     Column(
@@ -242,12 +434,12 @@ fun AboutSheet(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "open source • privacy first • decentralized",
+                            text = "Very Open Source • Such Privacy First • Much Đecentralized",
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.5f)
                         )
-                        
+
                         // Add extra space at bottom for gesture area
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -281,7 +473,7 @@ private fun FeatureCard(
                 tint = iconColor,
                 modifier = Modifier.size(20.dp)
             )
-            
+
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -293,7 +485,7 @@ private fun FeatureCard(
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                
+
                 Text(
                     text = description,
                     fontSize = 11.sp,
@@ -318,7 +510,7 @@ private fun FeatureItem(text: String) {
             fontFamily = FontFamily.Monospace,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
-        
+
         Text(
             text = text,
             fontSize = 11.sp,
@@ -344,7 +536,7 @@ fun PasswordPromptDialog(
 ) {
     if (show && channelName != null) {
         val colorScheme = MaterialTheme.colorScheme
-        
+
         AlertDialog(
             onDismissRequest = onDismiss,
             title = {
@@ -362,7 +554,7 @@ fun PasswordPromptDialog(
                         color = colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     OutlinedTextField(
                         value = passwordInput,
                         onValueChange = onPasswordChange,

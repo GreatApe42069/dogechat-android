@@ -4,16 +4,142 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+## [0.9.5] - 2025-09-04
+### Updated
+
+# Commit 686e2e7    (Done)
+## 12 Files Changed
+- app/build.gradle.kts  (DONE)
+- app/src/main/java/com/dogechat/android/DogechatApplication.kt   (DONE)
+- app/src/main/java/com/dogechat/android/net/OkHttpProvider.kt   (DONE)
+- app/src/main/java/com/dogechat/android/net/TorManager.kt    (DONE)
+- app/src/main/java/com/dogechat/android/net/TorMode.kt     (DONE)
+- app/src/main/java/com/dogechat/android/net/TorPreferenceManager.kt    (DONE)
+- app/src/main/java/com/dogechat/android/nostr/NostrRelayManager.kt    (DONE)
+- app/src/main/java/com/dogechat/android/nostr/RelayDirectory.kt     (DONE)
+- app/src/main/java/com/dogechat/android/ui/AboutSheet.kt      (DONE)
+- app/src/main/java/com/bitchat/android/ui/ChatHeader.kt     (DONE)
+- gradle/libs.versions.toml   (DONE)
+- settings.gradle.kts    (DONE)
+### Details
+* Bundle tor
+
+* tor started
+
+* tor works
+
+* tor code
+
+* improve manager
+
+* works
+
+* move tor icon
+
+* werks
+
+* arti works
+
+* arti works
+
+* arti works with reconnect
+
+* delay fix
+
+* refactor
+
+
+
+# Commit 4c7786a  (DONE)
+## 1 file changed
+- app/proguard-rules.pro (DONE)
+### Details
+* proguard arti
+
+
+# Commit 3248f37   (DONE)
+## 3 Files Changed
+- PRIVACY_POLICY.md   (DONE)
+- README.md     (DONE)
+- android/onboarding/PermissionExplanationScreen.kt   (DONE)
+### Details 
+* Update Info in Readme, Privacy Policy, & Permisions screen
+
+
+# Commit 85ddf3c   (Done)
+## 1 file changed
+- app/src/main/java/com/dogechat/android/net/TorManager.kt    (DONE)
+### details 
+* retry on bind error
+
+
+# Commit b1234ff    (Done)
+## 3 Files Changed 
+- app/src/main/java/com/dogechat/android/net/TorManager.kt    (DONE)
+- app/src/main/java/com/dogechat/android/net/TorMode.kt     (DONE)
+- app/src/main/java/com/dogechat/android/ui/AboutSheet.kt    (DONE)
+### Details
+* Simplify
+
+
+# Commit 0aecaf5   (DONE)
+## 3 Files Changed
+- app/src/main/java/com/dogechchat/android/geohash/LocationChannelManager.kt (DONE)
+- app/src/main/java/com/dogechat/android/ui/DataManager.kt     (DONE)
+- app/src/main/java/com/dogechat/android/ui/LocationChannelsSheet.kt    (DONE)
+### Details
+* manually disable location, design needs to be fixed
+* fix ui
+
+
+# Commit 0b44b85    (DONE)
+## 1 file changed
+- app/src/main/java/com/dogechat/android/ui/DataManager.kt    (DONE)
+### Details
+* restore default
+
+
+# Commit cedc655      (DONE)
+## 2 files changed
+- app/src/main/java/com/dogechat/android/onboarding/OnboardingCoordinator.kt (DONE)
+- app/src/main/java/com/dogechat/android/onboarding/PermissionManager.kt   (DONE)
+### Details
+* make notifications optional
+
+
+# Commit 33b5814 (DONE)
+## 2 Files changed
+- app/src/main/java/com/dogechat/android/mesh/BluetoothMeshService.kt    (DONE)
+- app/src/main/java/com/dogechat/android/mesh/SecurityManager.kt    (DONE)
+### Details
+* Sign mesh message
+* sign BLE packets
+* fix x
+
+
+# Commit 202c8ed  (DONE)
+## 1 File changed
+- app/build.gradle.kts
+### Details
+* bump version
+
+
+# Commit 6b77eb9 (DONE)
+## 1 File changed 
+- app/src/main/java/com/dogechat/android/ui/ChatHeader.kt   (DONE)
+### Details
+* move tor icon
 
 ## [0.9.4] - 2025-08-30
-### Added
-## Commit 846cd97    (DONE)
-### 1 Files Changed
+### Updated
+
+# Commit 846cd97    (DONE)
+## 1 Files Changed
 - app/src/main/java/com/dogechat/android/geohash/LocationChannelManager.kt
 ### Details
 * Bug fix: the app should show the correct geohash 
 
-### Commit 28abd3c    (DONE)
+# Commit 28abd3c    (DONE)
 ## 6 Files Changed
 - app/src/main/java/com/dogechat/android/DogechatApplication.kt
 - app/src/main/java/com/dogechat/android/MainActivity.kt

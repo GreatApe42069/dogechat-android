@@ -17,6 +17,13 @@
 -keep class com.dogechat.android.nostr.** { *; }
 -keep class com.dogechat.android.identity.** { *; }
 
+# Arti (Tor) ProGuard rules
+-keep class info.guardianproject.arti.** { *; }
+-keep class org.torproject.jni.** { *; }
+-keepnames class org.torproject.jni.**
+-dontwarn info.guardianproject.arti.**
+-dontwarn org.torproject.jni.**
+
 # Keep model classes used in reflection (GSON)
 -keepclassmembers class com.dogechat.android.** {
     public <fields>;

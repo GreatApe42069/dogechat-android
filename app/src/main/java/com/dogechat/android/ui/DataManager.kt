@@ -61,7 +61,18 @@ class DataManager(private val context: Context) {
         prefs.edit().remove("last_geohash_channel").apply()
         Log.d(TAG, "Cleared last geohash channel")
     }
+
+    // MARK: - Location Services State
     
+    fun saveLocationServicesEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("location_services_enabled", enabled).apply()
+        Log.d(TAG, "Saved location services enabled state: $enabled")
+    }
+    
+    fun isLocationServicesEnabled(): Boolean {
+        return prefs.getBoolean("location_services_enabled", true) // Default to enabled
+    }
+   
     // MARK: - Channel Data Management
     
     fun loadChannelData(): Pair<Set<String>, Set<String>> {
