@@ -4,11 +4,14 @@ import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 import com.dogechat.android.nostr.RelayDirectory
 import com.dogechat.android.ui.theme.ThemePreferenceManager
+import com.dogechat.android.net.TorManager
 
 @HiltAndroidApp
 class DogechatApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        // Initialize Tor first so any early network goes over Tor
+        try { TorManager.init(this) } catch (_: Exception) { }
         // Initialize relay directory (loads assets/nostr_relays.csv)
         RelayDirectory.initialize(this)
         // Hilt initialization happens automatically
@@ -24,5 +27,7 @@ class DogechatApplication : Application() {
 
         // Initialize theme preference
         ThemePreferenceManager.init(this)
+
+        // TorManager already initialized above
     }
 }

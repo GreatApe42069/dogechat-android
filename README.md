@@ -8,7 +8,7 @@
 
 ## 🔍 Overview
 
-A secure, Đecentralized, peer-to-peer messaging app that works over Bluetooth mesh networks. No internet required, no servers, no phone numbers - just pure encrypted communication.
+A secure, Đecentralized, peer-to-peer messaging app that works over Bluetooth mesh networks. No internet required for mesh chats, no servers, no phone numbers - just pure encrypted communication. Dogechat also supports geohash channels, which use an internet connection to connect you with others in your geographic area
 
 This is the **Android port** of the original [bitchat iOS app](https://github.com/jackjackdoges/bitchat), and fork of the [original bitchat-android repository](https://github.com/permissionlesstech/bitchat-android) maintaining 100% protocol compatibility for cross-platform communication.
 
@@ -162,7 +162,9 @@ The app requires the following permissions (automatically requested):
 - **Ephemeral by Default**: Messages exist only in device memory
 - **Cover Traffic**: Random delays and dummy messages prevent traffic analysis
 - **Emergency Wipe**: Triple-tap logo to instantly clear all data
-- **Local-First**: Works completely offline, no servers involved
+- **Local-First**: Mesh Works completely offline, no servers involved
+- **Bundled Tor Support**: Built-in Tor network integration for enhanced privacy when internet connectivity is available for geohash chats
+
 
 ## Performance & Efficiency
 

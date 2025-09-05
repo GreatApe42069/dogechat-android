@@ -19,9 +19,6 @@ gen/
 # Release keystore
 dogechat-release-key.jks
 
-# Sensitive Gradle file (because now it contains signing configs)
-app/build.gradle.kts
-
 # Gradle wrapper & daemon files
 gradle-app.setting
 gradlew.bat
