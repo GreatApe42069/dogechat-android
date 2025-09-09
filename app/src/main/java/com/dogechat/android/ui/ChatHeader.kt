@@ -171,26 +171,23 @@ fun PeerCounter(
     // Compute channel-aware people count and color (matches iOS logic exactly)
     val (peopleCount, countColor) = when (selectedLocationChannel) {
         is com.dogechat.android.geohash.ChannelID.Location -> {
-            // Geohash channel: show geohash participants
             val count = geohashPeople.size
-            val yellow = Color(0xFFFFFF00) // Standard yellow
+            val yellow = Color(0xFFFFFF00)
             Pair(count, if (count > 0) yellow else Color.Gray)
         }
         is com.dogechat.android.geohash.ChannelID.Mesh,
         null -> {
-            // Mesh channel: show Bluetooth-connected peers (excluding self)
             val count = connectedPeers.size
-            val meshBlue = Color(0xFF007AFF) // iOS-style blue for mesh
+            val meshBlue = Color(0xFF007AFF)
             Pair(count, if (isConnected && count > 0) meshBlue else Color.Gray)
         }
     }
     
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.clickable { onClick() }.padding(end = 8.dp) // Added right margin to match "dogechat" logo spacing
+        modifier = modifier.clickable { onClick() }.padding(end = 8.dp)
     ) {
         if (hasUnreadChannels.values.any { it > 0 }) {
-            // Channel icon in a Box to ensure consistent size with other icons
             Box(
                 modifier = Modifier.size(16.dp),
                 contentAlignment = Alignment.Center
@@ -206,12 +203,11 @@ fun PeerCounter(
         }
         
         if (hasUnreadPrivateMessages.isNotEmpty()) {
-            // Filled mail icon to match sidebar style
             Icon(
                 imageVector = Icons.Filled.Email,
                 contentDescription = "Unread private messages",
                 modifier = Modifier.size(16.dp),
-                tint = Color(0xFFFFD700) // Dogecoin Gold to match private message theme
+                tint = Color(0xFFFFD700)
             )
             Spacer(modifier = Modifier.width(6.dp))
         }
@@ -256,19 +252,18 @@ fun ChatHeaderContent(
     onSidebarClick: () -> Unit,
     onTripleClick: () -> Unit,
     onShowAppInfo: () -> Unit,
-    onLocationChannelsClick: () -> Unit
+    onLocationChannelsClick: () -> Unit,
+    onWalletClick: (() -> Unit)? = null // <--- Wallet callback added
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
     when {
         selectedPrivatePeer != null -> {
-            // Private chat header - Fully reactive state tracking
             val favoritePeers by viewModel.favoritePeers.observeAsState(emptySet())
             val peerFingerprints by viewModel.peerFingerprints.observeAsState(emptyMap())
             val peerSessionStates by viewModel.peerSessionStates.observeAsState(emptyMap())
             val peerNicknames by viewModel.peerNicknames.observeAsState(emptyMap())
             
-            // Reactive favorite computation - no more static lookups!
             val isFavorite = isFavoriteReactive(
                 peerID = selectedPrivatePeer,
                 peerFingerprints = peerFingerprints,
@@ -276,9 +271,6 @@ fun ChatHeaderContent(
             )
             val sessionState = peerSessionStates[selectedPrivatePeer]
             
-            Log.d("ChatHeader", "Header recomposing: peer=$selectedPrivatePeer, isFav=$isFavorite, sessionState=$sessionState")
-            
-            // Pass geohash context and people for NIP-17 chat title formatting
             val selectedLocationChannel by viewModel.selectedLocationChannel.observeAsState()
             val geohashPeople by viewModel.geohashPeople.observeAsState(emptyList())
 
@@ -294,7 +286,6 @@ fun ChatHeaderContent(
             )
         }
         currentChannel != null -> {
-            // Channel header
             ChannelHeader(
                 channel = currentChannel,
                 onBackClick = onBackClick,
@@ -303,7 +294,6 @@ fun ChatHeaderContent(
             )
         }
         else -> {
-            // Main header
             MainHeader(
                 nickname = nickname,
                 onNicknameChange = viewModel::setNickname,
@@ -311,201 +301,8 @@ fun ChatHeaderContent(
                 onTripleTitleClick = onTripleClick,
                 onSidebarClick = onSidebarClick,
                 onLocationChannelsClick = onLocationChannelsClick,
-                viewModel = viewModel
-            )
-        }
-    }
-}
-
-@Composable
-private fun PrivateChatHeader(
-    peerID: String,
-    peerNicknames: Map<String, String>,
-    isFavorite: Boolean,
-    sessionState: String?,
-    selectedLocationChannel: com.dogechat.android.geohash.ChannelID?,
-    geohashPeople: List<GeoPerson>,
-    onBackClick: () -> Unit,
-    onToggleFavorite: () -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    val isNostrDM = peerID.startsWith("nostr_") || peerID.startsWith("nostr:")
-    // Determine mutual favorite state for this peer (supports mesh ephemeral 16-hex via favorites lookup)
-    val isMutualFavorite = remember(peerID, peerNicknames) {
-        try {
-            if (isNostrDM) return@remember false
-            if (peerID.length == 64 && peerID.matches(Regex("^[0-9a-fA-F]+$"))) {
-                val noiseKeyBytes = peerID.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-                com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKeyBytes)?.isMutual == true
-            } else if (peerID.length == 16 && peerID.matches(Regex("^[0-9a-fA-F]+$"))) {
-                com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(peerID)?.isMutual == true
-            } else false
-        } catch (_: Exception) { false }
-    }
-
-    // Compute title text: for NIP-17 chats show "#geohash/@username" (iOS parity)
-    val titleText: String = if (isNostrDM) {
-        val geohash = (selectedLocationChannel as? com.dogechat.android.geohash.ChannelID.Location)?.channel?.geohash
-        val shortId = peerID.removePrefix("nostr_").removePrefix("nostr:")
-        val person = geohashPeople.firstOrNull { it.id.startsWith(shortId, ignoreCase = true) }
-        val baseName = person?.displayName?.substringBefore('#') ?: peerNicknames[peerID] ?: "unknown"
-        val geoPart = geohash?.let { "#$it" } ?: "#geohash"
-        "$geoPart/@$baseName"
-    } else {
-        // Prefer live mesh nickname; fallback to favorites nickname (supports 16-hex), finally short key
-        peerNicknames[peerID] ?: run {
-            val titleFromFavorites = try {
-                if (peerID.length == 64 && peerID.matches(Regex("^[0-9a-fA-F]+$"))) {
-                    val noiseKeyBytes = peerID.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-                    com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKeyBytes)?.peerNickname
-                } else if (peerID.length == 16 && peerID.matches(Regex("^[0-9a-fA-F]+$"))) {
-                    com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(peerID)?.peerNickname
-                } else null
-            } catch (_: Exception) { null }
-            titleFromFavorites ?: peerID.take(12)
-        }
-    }
-    
-    Box(modifier = Modifier.fillMaxWidth()) {
-        // Back button - positioned all the way to the left with minimal margin
-        Button(
-            onClick = onBackClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = colorScheme.primary
-            ),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp), // Reduced horizontal padding
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = (-8).dp) // Move even further left to minimize margin
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    modifier = Modifier.size(16.dp),
-                    tint = colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "back",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.primary
-                )
-            }
-        }
-        
-        // Title - perfectly centered regardless of other elements
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.align(Alignment.Center)
-        ) {
-            
-            Text(
-                text = titleText,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFFFFF00) // Yellow
-            )
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Show a globe when chatting via Nostr alias, or when mesh session not established but mutual favorite exists
-            val showGlobe = isNostrDM || (sessionState != "established" && isMutualFavorite)
-            if (showGlobe) {
-                Icon(
-                    imageVector = Icons.Outlined.Public,
-                    contentDescription = "Nostr reachable",
-                    modifier = Modifier.size(14.dp),
-                    tint = Color(0xFF9B59B6) // Purple like iOS
-                )
-            } else {
-                NoiseSessionIcon(
-                    sessionState = sessionState,
-                    modifier = Modifier.size(14.dp)
-                )
-            }
-
-        }
-        
-        // Favorite button - positioned on the right
-        IconButton(
-            onClick = {
-                Log.d("ChatHeader", "Header toggle favorite: peerID=$peerID, currentFavorite=$isFavorite")
-                onToggleFavorite()
-            },
-            modifier = Modifier.align(Alignment.CenterEnd)
-        ) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
-                contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                modifier = Modifier.size(18.dp), // Slightly larger than sidebar icon
-                tint = if (isFavorite) Color(0xFFFFD700) else Color(0x87878700) // Yellow or grey
-            )
-        }
-    }
-}
-
-@Composable
-private fun ChannelHeader(
-    channel: String,
-    onBackClick: () -> Unit,
-    onLeaveChannel: () -> Unit,
-    onSidebarClick: () -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    
-    Box(modifier = Modifier.fillMaxWidth()) {
-        // Back button - positioned all the way to the left with minimal margin
-        Button(
-            onClick = onBackClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = colorScheme.primary
-            ),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp), // Reduced horizontal padding
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = (-8).dp) // Move even further left to minimize margin
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    modifier = Modifier.size(16.dp),
-                    tint = colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "back",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.primary
-                )
-            }
-        }
-        
-        // Title - perfectly centered regardless of other elements
-        Text(
-            text = "channel: $channel",
-            style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFFFFFF00), // Yellow to match input field
-            modifier = Modifier
-                .align(Alignment.Center)
-                .clickable { onSidebarClick() }
-        )
-        
-        // Leave button - positioned on the right
-        TextButton(
-            onClick = onLeaveChannel,
-            modifier = Modifier.align(Alignment.CenterEnd)
-        ) {
-            Text(
-                text = "leave",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Red
+                viewModel = viewModel,
+                onWalletClick = onWalletClick // <--- Wallet callback threaded here
             )
         }
     }
@@ -519,7 +316,8 @@ private fun MainHeader(
     onTripleTitleClick: () -> Unit,
     onSidebarClick: () -> Unit,
     onLocationChannelsClick: () -> Unit,
-    viewModel: ChatViewModel
+    viewModel: ChatViewModel,
+    onWalletClick: (() -> Unit)? = null // <--- Wallet callback parameter
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val connectedPeers by viewModel.connectedPeers.observeAsState(emptyList())
@@ -557,19 +355,17 @@ private fun MainHeader(
             )
         }
         
-        // Right section with location channels button and peer counter
+        // Right section with location channels button, peer counter, and wallet
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
 
-            // Location channels button (matching iOS implementation)
             LocationChannelsButton(
                 viewModel = viewModel,
                 onClick = onLocationChannelsClick
             )
 
-            // Tor status cable icon when Tor is enabled
             TorStatusIcon(modifier = Modifier.size(14.dp))
 
             PeerCounter(
@@ -582,59 +378,19 @@ private fun MainHeader(
                 geohashPeople = geohashPeople,
                 onClick = onSidebarClick
             )
-        }
-    }
-}
 
-@Composable
-private fun LocationChannelsButton(
-    viewModel: ChatViewModel,
-    onClick: () -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    
-    // Get current channel selection from location manager
-    val selectedChannel by viewModel.selectedLocationChannel.observeAsState()
-    val teleported by viewModel.isTeleported.observeAsState(false)
-    
-    val (badgeText, badgeColor) = when (selectedChannel) {
-        is com.dogechat.android.geohash.ChannelID.Mesh -> {
-            "#mesh" to Color(0xFF007AFF) // iOS blue for mesh
-        }
-        is com.dogechat.android.geohash.ChannelID.Location -> {
-            val geohash = (selectedChannel as com.dogechat.android.geohash.ChannelID.Location).channel.geohash
-            "#$geohash" to Color(0xFFFFFF00) // Yellow for location
-        }
-        null -> "#mesh" to Color(0xFF007AFF) // Default to mesh
-    }
-    
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent,
-            contentColor = badgeColor
-        ),
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = badgeText,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = FontFamily.Monospace
-                ),
-                color = badgeColor,
-                maxLines = 1
-            )
-            
-            // Teleportation indicator (like iOS)
-            if (teleported) {
-                Spacer(modifier = Modifier.width(2.dp))
-                Icon(
-                    imageVector = Icons.Default.PinDrop,
-                    contentDescription = "Teleported",
-                    modifier = Modifier.size(12.dp),
-                    tint = badgeColor
-                )
+            // 🔹 Wallet button added to MainHeader
+            onWalletClick?.let {
+                IconButton(
+                    onClick = it,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AccountBalanceWallet,
+                        contentDescription = "Wallet",
+                        tint = Color(0xFFFFD700) // Dogecoin gold
+                    )
+                }
             }
         }
     }
