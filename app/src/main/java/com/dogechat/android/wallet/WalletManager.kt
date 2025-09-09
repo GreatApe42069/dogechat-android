@@ -66,7 +66,10 @@ class WalletManager @Inject constructor(
 
                 val k = object : WalletAppKit(params, Script.ScriptType.P2PKH, null, dir, FILE_PREFIX) {
                     override fun onSetupCompleted() {
-                        wallet().allowSpendingUnconfirmedTransactions()
+                     // allowSpendingUnconfirmedTransactions() may not exist in this bitcoinj/libdohj version.
+                     // If your wallet library supports allowing spending unconfirmed txs, re-enable the call here.
+                     // TODO: Re-enable if the Wallet implementation in your lib provides this function.
+                     // wallet().allowSpendingUnconfirmedTransactions()
                         pushBalance()
                         pushAddress()
                         pushHistory()

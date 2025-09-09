@@ -1,10 +1,9 @@
 package com.dogechat.android.parsing
 
 import android.util.Log
-import org.dogecoinj.core.Address
-import org.dogecoinj.core.NetworkParameters
-import org.dogecoinj.params.MainNetParams
-import org.dogecoinj.core.Coin
+import org.bitcoinj.core.Address
+import org.bitcoinj.core.NetworkParameters
+import org.libdohj.params.DogecoinMainNetParams
 
 /**
  * Parser for Dogecoin payment tokens embedded in messages.
@@ -15,7 +14,7 @@ class DogeTokenParser {
     companion object {
         private const val TAG = "DogeTokenParser"
 
-        private val params: NetworkParameters = MainNetParams.get()
+        private val params: NetworkParameters = DogecoinMainNetParams.get()
 
         // Dogecoin constants
         const val DUST_LIMIT_KOINU: Long = 100_000_000 // 1 DOGE
@@ -42,7 +41,7 @@ class DogeTokenParser {
      */
     fun parseToken(tokenString: String): ParsedDogeToken? {
         try {
-            // Match format Đ<amount>@<address> #optional memo
+            // Match format Đ<amount>@<address> optionally followed by memo after space or #
             val regex = """Đ([0-9]+(?:\.[0-9]+)?)@([DLM][A-Za-z0-9]+)(?:\s+#?(.+))?""".toRegex()
             val match = regex.matchEntire(tokenString.trim())
 
@@ -52,15 +51,15 @@ class DogeTokenParser {
                 val addressStr = match.groups[2]?.value ?: return null
                 val memo = match.groups[3]?.value
 
-                // Validate address
+                // Validate address using bitcoinj Address (works with libdohj params)
                 try {
-                    Address.fromBase58(params, addressStr)
+                    Address.fromString(params, addressStr)
                 } catch (e: Exception) {
                     logWarning("Invalid Dogecoin address: $addressStr", e)
                     return null
                 }
 
-                // Ensure dust limit
+                // Enforce dust
                 if (amountKoinu < DUST_LIMIT_KOINU) {
                     logWarning("Amount below dust limit: $amountKoinu Koinu")
                     return null
@@ -84,13 +83,3 @@ class DogeTokenParser {
         }
     }
 }
-
-/**
- * Represents a parsed Dogecoin payment token
- */
-data class ParsedDogeToken(
-    val originalString: String,
-    val amountKoinu: Long,
-    val address: String,
-    val memo: String?
-)
