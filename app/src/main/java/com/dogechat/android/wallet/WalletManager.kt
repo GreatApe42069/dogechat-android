@@ -191,3 +191,4 @@ class WalletManager @Inject constructor(
         _history.value = rows
     }
 }
+
