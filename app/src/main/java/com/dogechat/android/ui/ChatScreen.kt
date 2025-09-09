@@ -36,7 +36,7 @@ import com.dogechat.android.model.DogechatMessage
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel,
-    onWalletClick: (addressOrToken: String) -> Unit // Added wallet callback
+    onWalletClick: (String) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val messages by viewModel.messages.observeAsState(emptyList())
@@ -143,8 +143,9 @@ fun ChatScreen(
                     selectedMessageForSheet = message
                     showUserSheet = true
                 },
-                onTokenClick = { token ->
-                    onWalletClick(token) // Wallet integration on token click
+                onDogePaymentClick = { tokenString ->
+                // tokenString is the original token/address string
+                onWalletClick(tokenString)
                 }
             )
             // Input area - stays at bottom

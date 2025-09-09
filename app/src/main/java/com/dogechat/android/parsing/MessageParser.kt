@@ -1,11 +1,12 @@
 package com.dogechat.android.parsing
 
+import android.net.Uri
 import android.util.Log
-import java.util.regex.Pattern
+import org.bitcoinj.core.Coin
 
 /**
  * Main message parser for Dogechat messages
- * Detects Dogecoin payment tokens and normal text
+ * Detects Dogecoin payment requests and normal text
  */
 class MessageParser {
 
@@ -51,37 +52,64 @@ class MessageParser {
         try {
             var currentIndex = 0
 
-            // Pattern: Đ<amount>@<address> optionally followed by memo after a space or #
+            // Regex: "Đ<amount>@<address> [#memo]"
             val dogePattern = """Đ([0-9]+(?:\.[0-9]+)?)@([DLM][A-Za-z0-9]+)(?:\s+#?(.+))?""".toRegex()
             val matches = dogePattern.findAll(content).toList()
 
             for (match in matches) {
-                // Add text before the match
+                // Add text before match
                 if (match.range.first > currentIndex) {
                     val beforeText = content.substring(currentIndex, match.range.first)
                     if (beforeText.isNotEmpty()) elements.add(MessageElement.Text(beforeText))
                 }
 
-                // Extract token details
+                // Parse details
                 val amountDoge = match.groups[1]?.value?.toDoubleOrNull() ?: 0.0
-                val amountKoinu = (amountDoge * 100_000_000).toLong() // Convert to Koinu
+                val amount = Coin.valueOf((amountDoge * 100_000_000).toLong())
                 val address = match.groups[2]?.value ?: ""
                 val memo = match.groups[3]?.value
 
-                val token = ParsedDogeToken(
-                    amountKoinu = amountKoinu,
+                val payment = ParsedDogePayment(
+                    amount = amount,
                     address = address,
                     memo = memo,
                     originalString = match.value
                 )
 
-                elements.add(MessageElement.DogePayment(token))
-                logDebug("Parsed Doge token: $amountDoge Đ to $address, memo=$memo")
+                elements.add(MessageElement.DogePayment(payment))
+                logDebug("Parsed Doge payment: $amountDoge Ð to $address, memo=$memo")
 
                 currentIndex = match.range.last + 1
             }
 
-            // Add remaining text
+            // Handle BIP21 dogecoin: URIs
+            val bip21Pattern = """dogecoin:([DLM][A-Za-z0-9]+)(\?[^\s]+)?""".toRegex()
+            bip21Pattern.findAll(content).forEach { match ->
+                val address = match.groups[1]?.value ?: return@forEach
+                val query = match.groups[2]?.value ?: ""
+                val uri = Uri.parse("dogecoin:$address$query")
+
+                val amountParam = uri.getQueryParameter("amount")
+                val memo = uri.getQueryParameter("message")
+
+                val amount = try {
+                    Coin.valueOf(((amountParam?.toDoubleOrNull() ?: 0.0) * 100_000_000).toLong())
+                } catch (e: Exception) {
+                    Coin.ZERO
+                }
+
+                val payment = ParsedDogePayment(
+                    amount = amount,
+                    address = address,
+                    memo = memo,
+                    originalString = match.value
+                )
+
+                elements.add(MessageElement.DogePayment(payment))
+                logDebug("Parsed Dogecoin URI: ${amount.toFriendlyString()} to $address, memo=$memo")
+            }
+
+            // Add trailing text
             if (currentIndex < content.length) {
                 val remainingText = content.substring(currentIndex)
                 if (remainingText.isNotEmpty()) elements.add(MessageElement.Text(remainingText))
@@ -104,14 +132,14 @@ class MessageParser {
  */
 sealed class MessageElement {
     data class Text(val content: String) : MessageElement()
-    data class DogePayment(val token: ParsedDogeToken) : MessageElement()
+    data class DogePayment(val payment: ParsedDogePayment) : MessageElement()
 }
 
 /**
- * Represents a parsed Dogecoin payment token
+ * Represents a parsed Dogecoin payment
  */
-data class ParsedDogeToken(
-    val amountKoinu: Long, // smallest unit
+data class ParsedDogePayment(
+    val amount: Coin,
     val address: String,
     val memo: String?,
     val originalString: String
