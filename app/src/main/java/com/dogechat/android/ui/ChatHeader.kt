@@ -587,7 +587,7 @@ private fun MainHeader(
             onWalletClick?.let {
                 IconButton(
                     onClick = it,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(18.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.AccountBalanceWallet,

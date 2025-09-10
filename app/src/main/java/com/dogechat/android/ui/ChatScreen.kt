@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -24,7 +23,6 @@ import androidx.compose.ui.zIndex
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.parsing.ParsedDogeToken
 import com.dogechat.android.geohash.ChannelID
-
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -36,12 +34,12 @@ import com.dogechat.android.geohash.ChannelID
  * - AboutSheet: App info and password prompts
  * - ChatUIUtils: Utility functions for formatting and colors
  * - Keeps the exact working main-branch UI (no regressions).
- * - Adds wallet icon, and integration hooks (DOGE receive/send using libdohj).
+ * - Added wallet icon and integration hooks (DOGE receive/send using libdohj).
  */
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel,
-    onWalletClick: (ParsedDogeToken) -> Unit = {},
+    onWalletClick: (ParsedDogeToken?) -> Unit = {},
     onDogeReceive: (ParsedDogeToken) -> Unit = {},
     onDogeSend: (ParsedDogeToken) -> Unit = {}
 ) {
@@ -116,15 +114,11 @@ fun ChatScreen(
                 onNicknameClick = { fullSenderName ->
                     // Single click - mention user in text input
                     val currentText = messageText.text
-                    // Extract base nickname and hash suffix from full sender name
                     val (baseName, hashSuffix) = splitSuffix(fullSenderName)
-                    // Check if we're in a geohash channel to include hash suffix
                     val selectedLocationChannel = viewModel.selectedLocationChannel.value
                     val mentionText = if (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location && hashSuffix.isNotEmpty()) {
-                        // In geohash chat - include the hash suffix from the full display name
                         "@$baseName$hashSuffix"
                     } else {
-                        // Regular chat - just the base nickname
                         "@$baseName"
                     }
 
@@ -140,8 +134,6 @@ fun ChatScreen(
                     )
                 },
                 onMessageLongPress = { message ->
-                    // Message long press - open user action sheet with message context
-                    // Extract base nickname from message sender (contains all necessary info)
                     val senderStr = try {
                         val prop = message.javaClass.getMethod("getSender")
                         prop?.invoke(message)?.toString()
@@ -208,7 +200,8 @@ fun ChatScreen(
             onSidebarToggle = { viewModel.showSidebar() },
             onShowAppInfo = { viewModel.showAppInfo() },
             onPanicClear = { viewModel.panicClearAllData() },
-            onLocationChannelsClick = { showLocationChannelsSheet = true }
+            onLocationChannelsClick = { showLocationChannelsSheet = true },
+            onWalletClick = { onWalletClick(null) }
         )
 
         // Divider under header - positioned after status bar + header height
@@ -391,14 +384,15 @@ private fun ChatFloatingHeader(
     onSidebarToggle: () -> Unit,
     onShowAppInfo: () -> Unit,
     onPanicClear: () -> Unit,
-    onLocationChannelsClick: () -> Unit
+    onLocationChannelsClick: () -> Unit,
+    onWalletClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .zIndex(1f)
-            .windowInsetsPadding(WindowInsets.statusBars), // Extend into status bar area
-        color = colorScheme.background // Solid background color extending into status bar
+            .windowInsetsPadding(WindowInsets.statusBars),
+        color = colorScheme.background
     ) {
         TopAppBar(
             title = {
@@ -417,13 +411,13 @@ private fun ChatFloatingHeader(
                     onTripleClick = onPanicClear,
                     onShowAppInfo = onShowAppInfo,
                     onLocationChannelsClick = onLocationChannelsClick,
-                    onWalletClick = { /* Put our wallet navigation here! */ }
+                    onWalletClick = onWalletClick
                 )
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent
             ),
-            modifier = Modifier.height(headerHeight) // Ensure compact header height
+            modifier = Modifier.height(headerHeight)
         )
     }
 }
