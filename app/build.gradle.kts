@@ -30,12 +30,11 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("dogechat-release-key.jks")
-            storePassword = "MichaelHailey0608!"  // Replace with your actual keystore password
+            storePassword = "Your_Keystore_pass_goes_Here"  // Replace with your actual keystore password
             keyAlias = "dogechat-key"
-            keyPassword = "MichaelHailey0608!"  // Replace with your actual key password
+            keyPassword = "Your_Key_Pass_goes_Here"  // Replace with your actual key password
         }
     }
-
     buildTypes {
         release {
             isMinifyEnabled = true

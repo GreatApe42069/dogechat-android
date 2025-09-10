@@ -261,19 +261,21 @@ class MainActivity : ComponentActivity() {
 // For now we start an Activity named WalletActivity (create it or replace with your navigation code).
 ChatScreen(
     viewModel = chatViewModel,
-    onWalletClick = { tokenOrAddress ->
-        // tokenOrAddress is the token string or address from Messages/Parser
-        // Example: open a wallet screen or launch an Activity with the token in extras.
+    onWalletClick = { parsedToken: com.dogechat.android.parsing.ParsedDogeToken ->
+        // Launch WalletActivity (create it), pass token details as extras:
         try {
             val intent = Intent(this, com.dogechat.android.wallet.WalletActivity::class.java)
-            intent.putExtra("token_or_address", tokenOrAddress)
+            intent.putExtra("token_amount_koinu", parsedToken.amountKoinu)
+            intent.putExtra("token_address", parsedToken.address)
+            intent.putExtra("token_memo", parsedToken.memo)
+            intent.putExtra("token_original", parsedToken.originalString)
             startActivity(intent)
         } catch (e: Exception) {
-            // If WalletActivity doesn't exist yet, fallback to logging
-            Log.d("MainActivity", "Wallet click: $tokenOrAddress")
+            Log.d("MainActivity", "Wallet click fallback: $parsedToken", e)
         }
     }
 )
+
             }
             
             OnboardingState.ERROR -> {

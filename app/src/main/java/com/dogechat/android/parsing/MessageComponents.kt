@@ -16,20 +16,25 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.bitcoinj.core.Coin
-import com.dogechat.android.wallet.WalletManager
+
+/**
+ * Compose UI for parsed messages. Shows inline DOGE chips with both Receive and Send actions.
+ *
+ * Note: ParsedDogeToken uses amountKoinu (Long) as the smallest unit. Convert to DOGE double for display.
+ */
 
 @Composable
 fun ParsedMessageContent(
     elements: List<MessageElement>,
     modifier: Modifier = Modifier,
-    onDogePaymentClick: ((ParsedDogeToken) -> Unit)? = null
+    onDogeReceive: ((ParsedDogeToken) -> Unit)? = null,
+    onDogeSend: ((ParsedDogeToken) -> Unit)? = null
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val textRow = mutableListOf<MessageElement.Text>()
-
         fun flushTextRow() {
             if (textRow.isNotEmpty()) {
                 TextRow(elements = textRow.toList())
@@ -42,7 +47,11 @@ fun ParsedMessageContent(
                 is MessageElement.Text -> textRow.add(el)
                 is MessageElement.DogePayment -> {
                     flushTextRow()
-                    DogePaymentChip(token = el.token, onPaymentClick = onDogePaymentClick)
+                    DogePaymentChip(
+                        token = el.token,
+                        onReceive = onDogeReceive,
+                        onSend = onDogeSend
+                    )
                 }
             }
         }
@@ -68,12 +77,16 @@ private fun TextRow(elements: List<MessageElement.Text>) {
 fun DogePaymentChip(
     token: ParsedDogeToken,
     modifier: Modifier = Modifier,
-    onPaymentClick: ((ParsedDogeToken) -> Unit)? = null
+    onReceive: ((ParsedDogeToken) -> Unit)? = null,
+    onSend: ((ParsedDogeToken) -> Unit)? = null
 ) {
+    // Convert koinu -> DOGE (koinu = 10^-8 DOGE)
+    val amountDoge = token.amountKoinu / 100_000_000.0
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onPaymentClick?.invoke(token) ?: handlePaymentClick(token, isSend = false) },
+            .clickable { onReceive?.invoke(token) ?: handleDogeClick(token) },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0E0E0E)),
         border = androidx.compose.foundation.BorderStroke(0.25.dp, Color(0xFFFFD54F))
@@ -91,7 +104,7 @@ fun DogePaymentChip(
                             .background(Color(0xFFFFD54F), shape = androidx.compose.foundation.shape.CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Ð", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = Color.Black)
+                        Text("Ð", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = Color.Black, textAlign = TextAlign.Center)
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -99,9 +112,8 @@ fun DogePaymentChip(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val amountCoin = Coin.valueOf(token.amountKoinu)
                     Text(
-                        text = amountCoin.toPlainString(),
+                        text = String.format("%.8f", amountDoge),
                         fontSize = 20.sp,
                         color = Color(0xFFFFD54F),
                         fontWeight = FontWeight.Medium,
@@ -116,59 +128,41 @@ fun DogePaymentChip(
                 }
             }
 
-            Row {
-                // Receive button
-                Button(
-                    onClick = { onPaymentClick?.invoke(token) ?: handlePaymentClick(token, isSend = false) },
-                    modifier = Modifier.height(40.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50), contentColor = Color.White),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(imageVector = Icons.Filled.Download, contentDescription = "Receive", modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Receive", fontSize = 12.sp)
-                }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row {
+                    Button(
+                        onClick = { onReceive?.invoke(token) ?: handleDogeClick(token) },
+                        modifier = Modifier.height(40.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD54F), contentColor = Color.Black),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Filled.Download, contentDescription = "Receive", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Receive", fontSize = 12.sp)
+                    }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                // Send button
-                Button(
-                    onClick = { onPaymentClick?.invoke(token) ?: handlePaymentClick(token, isSend = true) },
-                    modifier = Modifier.height(40.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2979FF), contentColor = Color.White),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(imageVector = Icons.Filled.Send, contentDescription = "Send", modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Send", fontSize = 12.sp)
+                    Button(
+                        onClick = { onSend?.invoke(token) ?: handleDogeSend(token) },
+                        modifier = Modifier.height(40.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCCCCCC), contentColor = Color.Black),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Filled.Send, contentDescription = "Send", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Send", fontSize = 12.sp)
+                    }
                 }
             }
         }
     }
 }
 
-/**
- * Handles payment click, routing to WalletManager for either sending or requesting (receiving) DOGE.
- */
-private fun handlePaymentClick(token: ParsedDogeToken, isSend: Boolean) {
-    val amountCoin = Coin.valueOf(token.amountKoinu)
-    Log.d("DogePayment", (if (isSend) "Sending" else "Requesting") +
-        " ${amountCoin.toPlainString()} DOGE ${if (isSend) "→" else "from"} ${token.address} mem=”${token.memo}”"
-    )
-    try {
-        if (isSend) {
-            WalletManager.instance.sendCoins(
-                address = token.address,
-                amount = amountCoin,
-                memo = token.memo
-            )
-        } else {
-            WalletManager.instance.requestCoins(
-                amount = amountCoin,
-                memo = token.memo
-            )
-        }
-    } catch (e: Exception) {
-        Log.e("DogePayment", "Failed to ${if (isSend) "send" else "request"} DOGE", e)
-    }
+private fun handleDogeClick(token: ParsedDogeToken) {
+    Log.d("DogePayment", "Clicked token: ${token.originalString} (${token.amountKoinu} koinu) -> ${token.address}")
+}
+
+private fun handleDogeSend(token: ParsedDogeToken) {
+    Log.d("DogePayment", "Send action for token: ${token.originalString} (${token.amountKoinu} koinu) -> invoke wallet send UI")
 }

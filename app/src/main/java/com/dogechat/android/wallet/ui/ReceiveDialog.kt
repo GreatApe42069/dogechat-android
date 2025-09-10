@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,24 +13,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * Dogechat - Receive Dialog (DOGE only)
- *
- * This is a simplified, DOGE-only replacement for the original ReceiveView from bitchat.
- * It uses callbacks and keeps the WalletScreen look-and-feel.
- *
- * Parameters:
- *  - currentAddress: currently-generated receiving address, or null if none yet
- *  - onRequestAddress: callback invoked to generate/request a new address. Accepts optional amount string.
- *  - onCopy: callback invoked with the address when user copies it
- *  - onShare: callback invoked with the address when user requests sharing
- *  - onNavigateBack: back action
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReceiveDialog(
     currentAddress: String?,
@@ -88,7 +76,6 @@ fun ReceiveDialog(
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
-
                 Spacer(modifier = Modifier.width(44.dp))
             }
 
@@ -109,7 +96,6 @@ fun ReceiveDialog(
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // QR placeholder (apps can replace this with real QR generator)
                         Icon(
                             imageVector = Icons.Default.QrCode,
                             contentDescription = "QR",
@@ -132,7 +118,7 @@ fun ReceiveDialog(
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             TextButton(onClick = {
-                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(currentAddress))
+                                clipboardManager.setText(AnnotatedString(currentAddress))
                                 onCopy(currentAddress)
                             }) {
                                 Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copy")
@@ -169,14 +155,13 @@ fun ReceiveDialog(
 
                         OutlinedTextField(
                             value = amount,
-                            onValueChange = { new -> if (new.matches(Regex("^\\d*\\\.?\\d*\$"))) amount = new },
+                            onValueChange = { new -> if (new.isEmpty() || new.toBigDecimalOrNull() != null) amount = new },
                             label = { Text("Amount (optional)") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
                                 focusedBorderColor = Color(0xFF00C851),
                                 unfocusedBorderColor = Color(0xFF2A2A2A),
-                                textColor = Color.White,
                                 cursorColor = Color(0xFF00C851)
                             )
                         )

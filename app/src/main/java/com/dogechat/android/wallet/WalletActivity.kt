@@ -8,9 +8,11 @@ import com.dogechat.android.wallet.ui.WalletScreen
 class WalletActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val tokenOrAddress = intent?.getStringExtra("token_or_address")
+
+        // We intentionally do NOT wrap Compose call in try/catch.
+        // Let WalletScreen/ViewModel handle missing/invalid extras.
         setContent {
-            WalletScreen(tokenOrAddress = tokenOrAddress) // implement WalletScreen to accept this
+            WalletScreen()
         }
     }
 }

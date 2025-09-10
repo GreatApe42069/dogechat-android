@@ -6,7 +6,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,19 +20,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * Dogechat - Send Dialog (DOGE only)
- *
- * A simplified, DOGE-only replacement for the original SendView from bitchat.
- * This composable intentionally uses callbacks (onSend) instead of Cashu/Lightning
- * concepts. It is styled to match the WalletScreen/WalletOverview look-and-feel.
- *
- * Parameters:
- *  - balanceText: display-ready balance string (e.g. "12.345 DOGE")
- *  - onNavigateBack: callback when user presses back
- *  - onSend: callback invoked with (address, amountString) when user taps Send
- *  - isLoading: optional flag to show a loading state
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SendDialog(
     balanceText: String,
@@ -47,15 +34,12 @@ fun SendDialog(
     var amount by remember { mutableStateOf("") }
     var memo by remember { mutableStateOf("") }
 
-    // Helper: extract numeric portion of balanceText (e.g. "12.34 DOGE" -> "12.34")
     fun balanceNumeric(): String {
-        val regex = Regex("[0-9]+(?:\\.[0-9]+)?")
-        return regex.find(balanceText)?.value ?: "0"
+        return balanceText.split(" ").firstOrNull()?.toBigDecimalOrNull()?.toPlainString() ?: "0"
     }
 
     Card(
-        modifier = modifier
-            .fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         shape = RoundedCornerShape(0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Black)
     ) {
@@ -97,8 +81,6 @@ fun SendDialog(
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
-
-                // placeholder to keep title centered
                 Spacer(modifier = Modifier.width(44.dp))
             }
 
@@ -154,14 +136,13 @@ fun SendDialog(
                     .fillMaxWidth()
                     .height(60.dp),
                 trailingIcon = {
-                    IconButton(onClick = { /* TODO: paste from clipboard if desired */ }) {
+                    IconButton(onClick = { /* TODO: paste from clipboard */ }) {
                         Icon(imageVector = Icons.Default.ContentPaste, contentDescription = "Paste")
                     }
                 },
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = Color(0xFF00C851),
                     unfocusedBorderColor = Color(0xFF2A2A2A),
-                    textColor = Color.White,
                     cursorColor = Color(0xFF00C851)
                 ),
                 keyboardOptions = KeyboardOptions(
@@ -177,8 +158,7 @@ fun SendDialog(
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { new ->
-                        // allow only digits and dot
-                        if (new.matches(Regex("^\\d*\\\.?\\d*\$"))) amount = new
+                        if (new.isEmpty() || new.toBigDecimalOrNull() != null) amount = new
                     },
                     label = { Text("Amount (DOGE)") },
                     singleLine = true,
@@ -188,7 +168,6 @@ fun SendDialog(
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = Color(0xFF00C851),
                         unfocusedBorderColor = Color(0xFF2A2A2A),
-                        textColor = Color.White,
                         cursorColor = Color(0xFF00C851)
                     ),
                     keyboardOptions = KeyboardOptions(
@@ -220,7 +199,6 @@ fun SendDialog(
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = Color(0xFF00C851),
                     unfocusedBorderColor = Color(0xFF2A2A2A),
-                    textColor = Color.White,
                     cursorColor = Color(0xFF00C851)
                 ),
                 keyboardOptions = KeyboardOptions(
@@ -235,7 +213,6 @@ fun SendDialog(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(
                     onClick = {
-                        // clear fields and return
                         address = ""
                         amount = ""
                         memo = ""

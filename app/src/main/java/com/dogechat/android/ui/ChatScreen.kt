@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -36,7 +37,9 @@ import com.dogechat.android.model.DogechatMessage
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel,
-    onWalletClick: (String) -> Unit = {}
+    onWalletClick: (com.dogechat.android.parsing.ParsedDogeToken) -> Unit = {},
+    onDogeReceive: (com.dogechat.android.parsing.ParsedDogeToken) -> Unit = {},
+    onDogeSend: (com.dogechat.android.parsing.ParsedDogeToken) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val messages by viewModel.messages.observeAsState(emptyList())
@@ -143,9 +146,14 @@ fun ChatScreen(
                     selectedMessageForSheet = message
                     showUserSheet = true
                 },
-                onDogePaymentClick = { tokenString ->
-                // tokenString is the original token/address string
-                onWalletClick(tokenString)
+                // new handlers — these expect ParsedDogeToken
+                onDogeReceive = { parsedToken ->
+                    // open wallet receive/claim UI
+                    onWalletClick(parsedToken) // if your outer ChatScreen uses onWalletClick(parsedToken)
+                },
+                onDogeSend = { parsedToken ->
+                    // show send dialog prefilled with address/amount
+                    viewModel.openSendDialog(parsedToken.address, parsedToken.amountKoinu)
                 }
             )
             // Input area - stays at bottom
