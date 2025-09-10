@@ -34,8 +34,13 @@ import java.util.Locale
 @Composable
 fun WalletScreen(
     viewModel: WalletViewModel = hiltViewModel(),
-    uiStateManager: UIStateManager = remember { UIStateManager() }
+    uiStateManager: UIStateManager = remember { UIStateManager() },
+    initialTokenAmountKoinu: Long? = null,
+    initialTokenAddress: String? = null,
+    initialTokenMemo: String? = null,
+    initialTokenOriginal: String? = null
 ) {
+    // In viewModel.startWallet() you can check these and prefill send/receive dialogs
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 

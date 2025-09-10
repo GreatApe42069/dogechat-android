@@ -22,8 +22,6 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Compose UI for parsed messages. Shows inline DOGE chips with both Receive and Send actions.
- *
- * Note: ParsedDogeToken uses amountKoinu (Long) as the smallest unit. Convert to DOGE double for display.
  */
 
 @Composable
@@ -35,6 +33,9 @@ fun ParsedMessageContent(
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val textRow = mutableListOf<MessageElement.Text>()
+
+        // Local composable to flush any collected text
+        @Composable
         fun flushTextRow() {
             if (textRow.isNotEmpty()) {
                 TextRow(elements = textRow.toList())
@@ -55,19 +56,22 @@ fun ParsedMessageContent(
                 }
             }
         }
+        // flush trailing text
         flushTextRow()
     }
 }
 
 @Composable
 private fun TextRow(elements: List<MessageElement.Text>) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         elements.forEach { t ->
             Text(
                 text = t.content,
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.primary,
-                fontFamily = FontFamily.Monospace
+                color = MaterialTheme.colorScheme.onBackground,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.fillMaxWidth(),
+                softWrap = true
             )
         }
     }
@@ -80,9 +84,6 @@ fun DogePaymentChip(
     onReceive: ((ParsedDogeToken) -> Unit)? = null,
     onSend: ((ParsedDogeToken) -> Unit)? = null
 ) {
-    // Convert koinu -> DOGE (koinu = 10^-8 DOGE)
-    val amountDoge = token.amountKoinu / 100_000_000.0
-
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -113,7 +114,7 @@ fun DogePaymentChip(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = String.format("%.8f", amountDoge),
+                        text = String.format("%.8f", token.amountDoge),
                         fontSize = 20.sp,
                         color = Color(0xFFFFD54F),
                         fontWeight = FontWeight.Medium,
@@ -160,9 +161,8 @@ fun DogePaymentChip(
 }
 
 private fun handleDogeClick(token: ParsedDogeToken) {
-    Log.d("DogePayment", "Clicked token: ${token.originalString} (${token.amountKoinu} koinu) -> ${token.address}")
+    Log.d("DogePayment", "Clicked token: ${token.originalString} (${token.amountDoge} DOGE) - ${token.address}")
 }
-
 private fun handleDogeSend(token: ParsedDogeToken) {
-    Log.d("DogePayment", "Send action for token: ${token.originalString} (${token.amountKoinu} koinu) -> invoke wallet send UI")
+    Log.d("DogePayment", "Send action for token: ${token.originalString} (${token.amountDoge} DOGE) -> invoke wallet send UI")
 }
