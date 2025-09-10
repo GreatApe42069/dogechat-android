@@ -9,7 +9,7 @@ plugins {
     id("com.google.dagger.hilt.android") version "2.51.1"
 }
 
-val bitcoinjVersion = libs.versions.bitcoinj.get() // 0.16.1
+val bitcoinjVersion = libs.versions.bitcoinj.get() // // must match libdohj's bitcoinj target
 
 android {
     namespace = "com.dogechat.android"
@@ -139,7 +139,7 @@ dependencies {
     implementation(libs.slf4j.api)
     implementation(libs.slf4j.simple)
 
-    // ---- Local libdohj 0.16 SNAPSHOT ----
+    // ---- Local libdohj 0.16 SNAPSHOT (built and included this jar) ----
     implementation(files("libs/libdohj-core-0.16-SNAPSHOT.jar"))
     implementation("com.lambdaworks:scrypt:1.4.0")
     // Ensure bitcoinj version matches libdohj (0.16.1)

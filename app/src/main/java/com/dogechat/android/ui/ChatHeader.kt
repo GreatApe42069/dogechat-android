@@ -310,8 +310,9 @@ fun ChatHeaderContent(
                 onTripleTitleClick = onTripleClick,
                 onSidebarClick = onSidebarClick,
                 onLocationChannelsClick = onLocationChannelsClick,
-                viewModel = viewModel,
-                onWalletClick = onWalletClick // <--- Wallet callback threaded here
+                onWalletClick = onWalletClick,
+                viewModel = viewModel
+                
             )
         }
     }
@@ -519,8 +520,8 @@ private fun MainHeader(
     onTripleTitleClick: () -> Unit,
     onSidebarClick: () -> Unit,
     onLocationChannelsClick: () -> Unit,
-    viewModel: ChatViewModel,
-    onWalletClick: (() -> Unit)? = null // <--- Wallet callback parameter
+    onWalletClick: (() -> Unit)? = null,
+    viewModel: ChatViewModel
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val connectedPeers by viewModel.connectedPeers.observeAsState(emptyList())
