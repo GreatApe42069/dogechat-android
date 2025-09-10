@@ -71,7 +71,6 @@ fun MessagesList(
     val listState = rememberLazyListState()
     // Track if this is the first time messages are being loaded
     var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
-    val coroutine = rememberCoroutineScope()
     val context = LocalContext.current
 
     // Smart scroll: auto-scroll to bottom for initial load, then only when user is at or near the bottom
@@ -119,58 +118,17 @@ fun MessagesList(
     ) {
         // Only one of items or itemsIndexed, not both, and not nested!
         itemsIndexed(messages.asReversed(), key = { _, item -> item.hashCode() }) { _, msg ->
-            val isMine = msg.sender == currentUserNickname
-            MessageRow(
+            MessageItem(
                 message = msg,
-                isMine = isMine,
-                onNicknameClick = { nickname -> onNicknameClick?.invoke(nickname) },
-                onLongPress = { onMessageLongPress?.invoke(msg) },
-                onOpenLink = { url ->
-                    try {
-                        val i = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(i)
-                    } catch (_: Exception) { }
-                },
+                currentUserNickname = currentUserNickname,
+                meshService = meshService,
+                onNicknameClick = onNicknameClick,
+                onMessageLongPress = onMessageLongPress,
                 onDogeReceive = onDogeReceive,
                 onDogeSend = onDogeSend
             )
             Spacer(modifier = Modifier.height(6.dp))
         }
-    }
-}
-
-/** MessageRow: keep timestamp handling robust to String/Long */
-@Composable
-fun MessageRow(
-    message: DogechatMessage,
-    isMine: Boolean,
-    onNicknameClick: (String) -> Unit,
-    onLongPress: (Offset) -> Unit,
-    onOpenLink: (String) -> Unit,
-    onDogeReceive: (ParsedDogeToken) -> Unit,
-    onDogeSend: (ParsedDogeToken) -> Unit
-) {
-    val tsText: String = run {
-        val tsMillis: Long = when (val t = message.timestamp) {
-            is Long -> t
-            is Int -> t.toLong()
-            is String -> t.toLongOrNull() ?: 0L
-            else -> 0L
-        }
-        try {
-            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(tsMillis))
-        } catch (e: Exception) {
-            ""
-        }
-    }
-    Row(
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        // keep our existing UI or use the previously provided MessageRow implementation,
-        // which uses tsText for the time string.
     }
 }
 
@@ -181,7 +139,9 @@ fun MessageItem(
     currentUserNickname: String,
     meshService: BluetoothMeshService,
     onNicknameClick: ((String) -> Unit)? = null,
-    onMessageLongPress: ((DogechatMessage) -> Unit)? = null
+    onMessageLongPress: ((DogechatMessage) -> Unit)? = null,
+    onDogeReceive: (ParsedDogeToken) -> Unit = {},
+    onDogeSend: (ParsedDogeToken) -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val timeFormatter = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
