@@ -65,10 +65,10 @@ fun MessagesList(
     onScrolledUpChanged: ((Boolean) -> Unit)? = null,
     onNicknameClick: ((String) -> Unit)? = null,
     onMessageLongPress: ((DogechatMessage) -> Unit)? = null,
-    onDogeReceive: (com.dogechat.android.parsing.ParsedDogeToken) -> Unit = {},
-    onDogeSend: (com.dogechat.android.parsing.ParsedDogeToken) -> Unit = {}
+    onDogeReceive: (ParsedDogeToken) -> Unit = {},
+    onDogeSend: (ParsedDogeToken) -> Unit = {}
 ) {
-    val listState = rememberLazyListState() // <- now resolved
+    val listState = rememberLazyListState()
     // Track if this is the first time messages are being loaded
     var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
     val coroutine = rememberCoroutineScope()
@@ -83,7 +83,6 @@ fun MessagesList(
             // With reverseLayout=true and reversed data, index 0 is the latest message at the bottom
             val isFirstLoad = !hasScrolledToInitialPosition
             val isNearLatest = firstVisibleIndex <= 2
-            
             if (isFirstLoad || isNearLatest) {
                 listState.animateScrollToItem(0)
                 if (isFirstLoad) {
@@ -107,11 +106,10 @@ fun MessagesList(
     // Force scroll to bottom when requested (e.g., when user sends a message)
     LaunchedEffect(forceScrollToBottom) {
         if (messages.isNotEmpty()) {
-            // With reverseLayout=true and reversed data, latest is at index 0
             listState.animateScrollToItem(0)
         }
     }
-    
+
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -119,22 +117,14 @@ fun MessagesList(
         modifier = modifier,
         reverseLayout = true
     ) {
-                    items(messages.asReversed()) { message ->
-                MessageItem(
-                    message = message,
-                    currentUserNickname = currentUserNickname,
-                    meshService = meshService,
-                    onNicknameClick = onNicknameClick,
-                    onMessageLongPress = onMessageLongPress
-                )
-
-        itemsIndexed(messages, key = { _, item -> item.hashCode() }) { _, msg ->
+        // Only one of items or itemsIndexed, not both, and not nested!
+        itemsIndexed(messages.asReversed(), key = { _, item -> item.hashCode() }) { _, msg ->
             val isMine = msg.sender == currentUserNickname
             MessageRow(
                 message = msg,
                 isMine = isMine,
-                onNicknameClick = onNicknameClick,
-                onLongPress = { onMessageLongPress(msg) },
+                onNicknameClick = { nickname -> onNicknameClick?.invoke(nickname) },
+                onLongPress = { onMessageLongPress?.invoke(msg) },
                 onOpenLink = { url ->
                     try {
                         val i = Intent(Intent.ACTION_VIEW, Uri.parse(url))
@@ -150,11 +140,10 @@ fun MessagesList(
     }
 }
 
-
 /** MessageRow: keep timestamp handling robust to String/Long */
 @Composable
-private fun MessageRow(
-    message: com.dogechat.android.model.DogechatMessage,
+fun MessageRow(
+    message: DogechatMessage,
     isMine: Boolean,
     onNicknameClick: (String) -> Unit,
     onLongPress: (Offset) -> Unit,
@@ -175,14 +164,12 @@ private fun MessageRow(
             ""
         }
     }
-
     Row(
         verticalAlignment = Alignment.Top,
         horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
         modifier = Modifier.fillMaxWidth()
     ) {
-        // ... avatar, header, bubble as in earlier example ...
-        // keep your existing UI or use the previously provided MessageRow implementation,
+        // keep our existing UI or use the previously provided MessageRow implementation,
         // which uses tsText for the time string.
     }
 }
@@ -392,5 +379,4 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
             )
         }
     }
-}
 }
