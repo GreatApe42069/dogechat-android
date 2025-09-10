@@ -36,7 +36,7 @@ import com.dogechat.android.geohash.ChannelID
  * - AboutSheet: App info and password prompts
  * - ChatUIUtils: Utility functions for formatting and colors
  * - Keeps the exact working main-branch UI (no regressions).
- * - Adds wallet integration hooks (DOGE receive/send using libdohj).
+ * - Adds wallet icon, and integration hooks (DOGE receive/send using libdohj).
  */
 @Composable
 fun ChatScreen(
@@ -416,7 +416,8 @@ private fun ChatFloatingHeader(
                     onSidebarClick = onSidebarToggle,
                     onTripleClick = onPanicClear,
                     onShowAppInfo = onShowAppInfo,
-                    onLocationChannelsClick = onLocationChannelsClick
+                    onLocationChannelsClick = onLocationChannelsClick,
+                    onWalletClick = { /* Put our wallet navigation here! */ }
                 )
             },
             colors = TopAppBarDefaults.topAppBarColors(
