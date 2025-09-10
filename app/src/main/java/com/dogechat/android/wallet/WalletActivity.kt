@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.dogechat.android.wallet.ui.WalletScreen
+import com.dogechat.android.ui.theme.DogechatTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -21,12 +22,14 @@ class WalletActivity : ComponentActivity() {
         Log.d("WalletActivity", "start with amountKoinu=$amountKoinu address=$address memo=$memo original=$original raw=$raw")
 
         setContent {
-            WalletScreen(
-                initialTokenAmountKoinu = if (amountKoinu != null && amountKoinu >= 0L) amountKoinu else null,
-                initialTokenAddress = address,
-                initialTokenMemo = memo,
-                initialTokenOriginal = original ?: raw
-            )
+            DogechatTheme {
+                WalletScreen(
+                    initialTokenAmountKoinu = if (amountKoinu != null && amountKoinu >= 0L) amountKoinu else null,
+                    initialTokenAddress = address,
+                    initialTokenMemo = memo,
+                    initialTokenOriginal = original ?: raw
+                )
+            }
         }
     }
 }
