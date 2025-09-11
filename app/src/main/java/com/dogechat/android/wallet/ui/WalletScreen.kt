@@ -68,7 +68,7 @@ fun WalletScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Wallet") },
+                title = { Text("Đogecoin Wallet") },
                 actions = {
                     IconButton(onClick = {
                         viewModel.startWallet()
@@ -96,7 +96,7 @@ fun WalletScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(text = "Transactions", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Much Transactions", style = MaterialTheme.typography.titleMedium)
                 Divider(modifier = Modifier.padding(vertical = 6.dp))
 
                 TransactionHistory(
@@ -188,7 +188,7 @@ private fun WalletOverview(
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Balance", style = MaterialTheme.typography.bodySmall)
+                    Text(text = "Such Balance", style = MaterialTheme.typography.bodySmall)
                     Text(text = balance, style = MaterialTheme.typography.titleLarge)
                 }
                 Column(horizontalAlignment = Alignment.End) {
@@ -205,11 +205,11 @@ private fun WalletOverview(
                 Button(onClick = onReceiveClick) {
                     Icon(Icons.Default.QrCode, contentDescription = "Receive")
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Receive")
+                    Text("Much Receive")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(onClick = onSendClick) {
-                    Text("Send")
+                    Text("Very Send")
                 }
             }
 
@@ -242,25 +242,25 @@ private fun SendDialog(
             TextButton(onClick = {
                 val amt = amountText.toLongOrNull()
                 if (amt == null || amt <= 0L) {
-                    Toast.makeText(context, "Enter amount (whole DOGE)", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Enter amount (whole ĐOGE)", Toast.LENGTH_SHORT).show()
                     return@TextButton
                 }
                 onSend(toAddress, amt)
             }) {
-                Text(if (isLoading) "Sending..." else "Send")
+                Text(if (isLoading) "Sending ĐOGE..." else "Send ĐOGE")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text("Very Cancel") }
         },
-        title = { Text("Send DOGE") },
+        title = { Text("Send ĐOGE") },
         text = {
             Column {
-                OutlinedTextField(value = toAddress, onValueChange = { toAddress = it }, label = { Text("Recipient address") }, singleLine = true)
+                OutlinedTextField(value = toAddress, onValueChange = { toAddress = it }, label = { Text("Recipient Shibes Address") }, singleLine = true)
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = amountText, onValueChange = { amountText = it }, label = { Text("Amount (whole DOGE)") }, singleLine = true)
+                OutlinedTextField(value = amountText, onValueChange = { amountText = it }, label = { Text("Amount (whole ĐOGE)") }, singleLine = true)
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(text = "Note: network fees apply", style = MaterialTheme.typography.bodySmall)
+                Text(text = "Note: Such network fees So apply", style = MaterialTheme.typography.bodySmall)
             }
         }
     )
@@ -282,13 +282,13 @@ private fun ReceiveDialog(
         confirmButton = {
             TextButton(onClick = {
                 clipboard.setText(AnnotatedString(address))
-                Toast.makeText(context, "Copied address", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Copied Shibes Address", Toast.LENGTH_SHORT).show()
             }) { Icon(Icons.Default.ContentCopy, contentDescription = "Copy") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Close") }
         },
-        title = { Text("Receive DOGE") },
+        title = { Text("Much Receive ĐOGE") },
         text = {
             Column {
                 Text(text = "Address:", style = MaterialTheme.typography.bodySmall)
