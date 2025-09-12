@@ -4,7 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -149,7 +153,11 @@ fun ReceiveDialog(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A))
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
                         Text(text = "Generate a receiving address", color = Color.White)
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -159,10 +167,12 @@ fun ReceiveDialog(
                             label = { Text("Amount (optional)") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = TextFieldDefaults.outlinedTextFieldColors(
-                                focusedBorderColor = Color(0xFF00C851),
-                                unfocusedBorderColor = Color(0xFF2A2A2A),
-                                cursorColor = Color(0xFF00C851)
+                            colors = TextFieldDefaults.colors(
+                                focusedIndicatorColor = Color(0xFF00C851),
+                                unfocusedIndicatorColor = Color(0xFF2A2A2A),
+                                cursorColor = Color(0xFF00C851),
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
                             )
                         )
 

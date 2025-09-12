@@ -8,10 +8,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.bitcoinj.core.Transaction
-import org.libdohj.params.DogecoinMainNetParams
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.ByteBuffer
 
 class BluetoothService(
     private val socket: BluetoothSocket,
@@ -26,7 +26,6 @@ class BluetoothService(
 
     private val mmInStream: InputStream = socket.inputStream
     private val mmOutStream: OutputStream = socket.outputStream
-    private val networkParameters = DogecoinMainNetParams.get()
 
     // single scope to post results to main dispatcher; cancel on close()
     private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -58,9 +57,9 @@ class BluetoothService(
 
                     val payload = buffer.copyOf(bytesRead)
 
-                    // parse transaction defensively
+                    // parse transaction defensively using the new API
                     try {
-                        val tx = Transaction(networkParameters, payload)
+                        val tx = Transaction.read(ByteBuffer.wrap(payload))
                         mainScope.launch {
                             try {
                                 onTransactionReceived(tx)
@@ -69,9 +68,9 @@ class BluetoothService(
                             }
                         }
                     } catch (e: Exception) {
-                        // bitcoinj can throw various parsing exceptions (ProtocolException etc.)
+                        // bitcoinj can throw various parsing exceptions (ProtocolException, BufferUnderflow, etc.)
                         Log.w(TAG, "Failed to parse transaction from payload (${bytesRead} bytes): ${e.message}")
-                        // we continue reading; don't break the service for a bad payload
+                        // continue reading; don't break the service for a bad payload
                     }
                 }
             }

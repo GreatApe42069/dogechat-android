@@ -53,9 +53,9 @@ fun PermissionExplanationScreen(
                     ),
                     textAlign = TextAlign.Center
                 )
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Text(
                     text = "Đecentralized mesh messaging over Bluetooth",
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -97,7 +97,7 @@ fun PermissionExplanationScreen(
                             )
                         )
                     }
-                    
+
                     Text(
                         text = "• Đogechat doesn't track you or collect any personal data\n" +
                                 "• Bluetooth mesh chats are fully offline and require no internet\n" +
@@ -128,6 +128,57 @@ fun PermissionExplanationScreen(
                     colorScheme = colorScheme
                 )
             }
+
+            // --- Network/Internet Permission Explanation Section ---
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🌐",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Internet & Network Permissions",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colorScheme.onSurface
+                            )
+                        )
+                    }
+                    Text(
+                        text = "Đogechat only uses internet/network permissions for advanced features:",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                    )
+                    Text(
+                        text = "• Dogecoin wallet (SPV) sync and blockchain access\n" +
+                                "• Tor Enhanced privacy mode (routes wallet and chat traffic over Tor)\n" +
+                                "• Geohash channels and relays (optional online chat)\n\n" +
+                                "Offline Bluetooth mesh chat does NOT require internet. You can always use Đogechat fully offline unless you want blockchain or Tor features.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.75f)
+                        )
+                    )
+                }
+            }
+            // --- End Network/Internet Section ---
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -188,7 +239,7 @@ private fun PermissionCategoryCard(
                     color = getPermissionIconColor(category.type),
                     modifier = Modifier.size(24.dp)
                 )
-                
+
                 Text(
                     text = category.type.nameValue,
                     style = MaterialTheme.typography.titleSmall.copy(
@@ -197,7 +248,7 @@ private fun PermissionCategoryCard(
                     )
                 )
             }
-            
+
             Text(
                 text = category.description,
                 style = MaterialTheme.typography.bodySmall.copy(
@@ -238,6 +289,8 @@ private fun getPermissionEmoji(permissionType: PermissionType): String {
         PermissionType.PRECISE_LOCATION -> "📍"
         PermissionType.NOTIFICATIONS -> "🔔"
         PermissionType.BATTERY_OPTIMIZATION -> "🔋"
+        PermissionType.NETWORK -> "🌐"
+        PermissionType.STORAGE -> "💾"
         PermissionType.OTHER -> "🔧"
     }
 }
@@ -248,6 +301,8 @@ private fun getPermissionIconColor(permissionType: PermissionType): Color {
         PermissionType.PRECISE_LOCATION -> Color(0xFF000000) // Yellow
         PermissionType.NOTIFICATIONS -> Color(0xFFFFD700) // Gold
         PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
+        PermissionType.NETWORK -> Color(0xFF1976D2) // Deep blue for network
+        PermissionType.STORAGE -> Color(0xFF8D6E63) // Brown for storage
         PermissionType.OTHER -> Color(0xFF9C27B0) // Purple
     }
 }

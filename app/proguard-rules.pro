@@ -1,65 +1,61 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# Core project specifics
 -keep class com.dogechat.android.protocol.** { *; }
 -keep class com.dogechat.android.crypto.** { *; }
+
 -dontwarn org.bouncycastle.**
 -keep class org.bouncycastle.** { *; }
 
-# Keep SecureIdentityStateManager from being obfuscated to prevent reflection issues
+# Identity manager (reflection safety)
 -keep class com.dogechat.android.identity.SecureIdentityStateManager {
     private android.content.SharedPreferences prefs;
     *;
 }
 
-# Keep all classes that might use reflection
+# Reflection-heavy / model packages
 -keep class com.dogechat.android.favorites.** { *; }
 -keep class com.dogechat.android.nostr.** { *; }
 -keep class com.dogechat.android.identity.** { *; }
 
-# Arti (Tor) ProGuard rules
+# Tor / Arti
 -keep class info.guardianproject.arti.** { *; }
 -keep class org.torproject.jni.** { *; }
 -keepnames class org.torproject.jni.**
 -dontwarn info.guardianproject.arti.**
 -dontwarn org.torproject.jni.**
 
-# Keep model classes used in reflection (GSON)
+# GSON models
 -keepclassmembers class com.dogechat.android.** {
     public <fields>;
 }
 
-# Keep Dagger / Hilt generated classes
+# Dagger / Hilt
 -keep class dagger.** { *; }
 -keep class javax.inject.** { *; }
 -dontwarn dagger.**
 -dontwarn javax.inject.**
 
-# Keep protobuf lite generated classes
+# Protobuf lite
 -keep class com.google.protobuf.** { *; }
 -dontwarn com.google.protobuf.**
 
-# Keep SCrypt classes used by libdohj
+# SCrypt
 -keep class com.lambdaworks.crypto.** { *; }
 -keepclassmembers class com.lambdaworks.crypto.** { *; }
 
-# Keep libdohj class
--keep class org.libdohj.** { *; }
--dontwarn org.libdohj.**
-
-# Keep bitcoinj/net and crypto libs
+# bitcoinj (now supplied via dogecoinj-core jar)
 -keep class org.bitcoinj.** { *; }
 -dontwarn org.bitcoinj.**
 
-# Keep BouncyCastle crypto providers
--keep class org.bouncycastle.** { *; }
--dontwarn org.bouncycastle.**
+# (Removed) libdohj keep rules unless still present:
+# -keep class org.libdohj.** { *; }
+# -dontwarn org.libdohj.**
 
-# OkHttp3 + logging
+# BouncyCastle already handled above
+# OkHttp
 -keep class okhttp3.** { *; }
 -dontwarn okhttp3.**
 
-# Keep AndroidX Hilt/Room/LiveData reflection bits (if present)
+# Room / Compose / Keep annotations
 -keepclassmembers class * {
     @androidx.annotation.Keep *;
 }
@@ -68,6 +64,6 @@
     @androidx.room.* <fields>;
 }
 
-# Keep Compose runtime classes that may be reflection accessed
+# Compose runtime (defensive)
 -keep class androidx.compose.runtime.** { *; }
 -dontwarn androidx.compose.runtime.**

@@ -5,7 +5,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -140,10 +143,12 @@ fun SendDialog(
                         Icon(imageVector = Icons.Default.ContentPaste, contentDescription = "Paste")
                     }
                 },
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = Color(0xFF00C851),
-                    unfocusedBorderColor = Color(0xFF2A2A2A),
-                    cursorColor = Color(0xFF00C851)
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color(0xFF00C851),
+                    unfocusedIndicatorColor = Color(0xFF2A2A2A),
+                    cursorColor = Color(0xFF00C851),
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 ),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -165,10 +170,12 @@ fun SendDialog(
                     modifier = Modifier
                         .weight(1f)
                         .height(60.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = Color(0xFF00C851),
-                        unfocusedBorderColor = Color(0xFF2A2A2A),
-                        cursorColor = Color(0xFF00C851)
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color(0xFF00C851),
+                        unfocusedIndicatorColor = Color(0xFF2A2A2A),
+                        cursorColor = Color(0xFF00C851),
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
@@ -196,10 +203,12 @@ fun SendDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(96.dp),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = Color(0xFF00C851),
-                    unfocusedBorderColor = Color(0xFF2A2A2A),
-                    cursorColor = Color(0xFF00C851)
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color(0xFF00C851),
+                    unfocusedIndicatorColor = Color(0xFF2A2A2A),
+                    cursorColor = Color(0xFF00C851),
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 ),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
