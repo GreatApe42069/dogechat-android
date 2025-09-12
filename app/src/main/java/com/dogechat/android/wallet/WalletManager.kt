@@ -43,14 +43,14 @@ class WalletManager @Inject constructor(
         private const val PREF_KEY_RECEIVE_ADDRESS = "receive_address"
         private const val PREF_KEY_SPV_ENABLED = "spv_enabled"
 
-        // Lightweight controller for UI surfaces (AboutSheet, etc.)
+        // Expose a small controller the UI can use to toggle and observe SPV
         object SpvController {
             val enabled = MutableStateFlow(false)
-            val status = MutableStateFlow(SpvStatus(running = false, peerCount = 0, syncPercent = 0, lastLogLine = "stopped"))
+            val status = MutableStateFlow(SpvStatus(running = false, peerCount = 0, syncPercent = 0, lastLogLine = ""))
 
             fun get(context: Context): Boolean {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                val isOn = prefs.getBoolean(PREF_KEY_SPV_ENABLED, true)
+                val isOn = prefs.getBoolean(PREF_KEY_SPV_ENABLED, false) // default OFF
                 enabled.value = isOn
                 return isOn
             }
@@ -68,25 +68,21 @@ class WalletManager @Inject constructor(
                 val cur = status.value
                 status.value = cur.copy(running = running)
             }
-
             internal fun updatePeers(count: Int) {
                 val cur = status.value
                 status.value = cur.copy(peerCount = count)
             }
-
-            internal fun updateSync(pct: Int) {
+            internal fun updateSync(p: Int) {
                 val cur = status.value
-                status.value = cur.copy(syncPercent = pct)
+                status.value = cur.copy(syncPercent = p)
             }
-
             internal fun log(line: String) {
                 val cur = status.value
                 status.value = cur.copy(lastLogLine = line)
             }
         }
 
-        @Volatile
-        internal var instanceRef: WalletManager? = null
+        @Volatile internal var instanceRef: WalletManager? = null
     }
 
     data class TxRow(
@@ -99,7 +95,7 @@ class WalletManager @Inject constructor(
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // Network selection
+    // IMPORTANT: This is what your JAR actually uses. If this is Bitcoin params, you won’t sync Dogecoin.
     private val network: BitcoinNetwork = BitcoinNetwork.MAINNET
     private val params: NetworkParameters = NetworkParameters.of(network)
 
@@ -129,14 +125,10 @@ class WalletManager @Inject constructor(
 
     init {
         instanceRef = this
-        // Auto-start SPV based on saved preference (default ON)
-        val shouldStart = prefs.getBoolean(PREF_KEY_SPV_ENABLED, true)
+        // Default OFF unless explicitly enabled by user
+        val shouldStart = prefs.getBoolean(PREF_KEY_SPV_ENABLED, false)
         SpvController.enabled.value = shouldStart
-        if (shouldStart) {
-            startNetwork()
-        } else {
-            SpvController.updateRunning(false)
-        }
+        if (shouldStart) startNetwork() else SpvController.updateRunning(false)
     }
 
     fun startNetwork(
@@ -145,7 +137,8 @@ class WalletManager @Inject constructor(
     ) {
         scope.launch {
             try {
-                Log.i(TAG, "Starting SPV…")
+                // Diagnostics: confirm which network the JAR is actually using
+                Log.i(TAG, "Starting SPV… params.id=${params.id} port=${params.port}")
                 BcjContext.propagate(BcjContext())
 
                 val dir = File(appContext.filesDir, "wallet")
@@ -177,8 +170,7 @@ class WalletManager @Inject constructor(
                             _syncPercent.value = p
                             SpvController.updateSync(p)
                             _spvStatus.value = if (p < 100) "Syncing" else "Synced"
-                            SpvController.log("sync $p% (${blocksSoFar} blocks)")
-                            Log.i(TAG, "SPV sync: $p%")
+                            if (blocksSoFar % 100 == 0) SpvController.log("sync $p% ($blocksSoFar blocks)")
                         }
                         override fun doneDownload() {
                             _syncPercent.value = 100
@@ -191,14 +183,12 @@ class WalletManager @Inject constructor(
                     })
                 }
 
-                // Tor proxy not supported here in this fork; log only.
                 if (torProxyHost != null && torProxyPort != null) {
                     Log.i(TAG, "Tor proxy requested ($torProxyHost:$torProxyPort) but setProxy is unavailable; skipping.")
                 }
 
                 kit = k
 
-                // Peer events
                 k.peerGroup().addConnectedEventListener { _, pc ->
                     _peerCount.value = pc
                     SpvController.updatePeers(pc)

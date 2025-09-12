@@ -258,7 +258,7 @@ fun AboutSheet(
                     }
                 }
 
-                // Network (Tor) section (existing)
+                // Network (Tor)
                 item {
                     val ctx = LocalContext.current
                     val torMode = remember { mutableStateOf(com.dogechat.android.net.TorPreferenceManager.get(ctx)) }
@@ -331,10 +331,10 @@ fun AboutSheet(
                     }
                 }
 
-                // Wallet (SPV) new section (preference-only toggle to avoid unresolved refs)
+                // Wallet (SPV) — preference only; default OFF
                 item {
                     val prefs = remember(context) { context.getSharedPreferences("dogechat_wallet", Context.MODE_PRIVATE) }
-                    var spvEnabled by remember { mutableStateOf(prefs.getBoolean("spv_enabled", true)) }
+                    var spvEnabled by remember { mutableStateOf(prefs.getBoolean("spv_enabled", false)) }
 
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
