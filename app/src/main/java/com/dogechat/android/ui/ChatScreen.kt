@@ -476,3 +476,68 @@ private fun ChatDialogs(
         )
     }
 }
+
+/**
+ * Simple reusable password prompt dialog for password-protected channels.
+ * Kept here so ChatScreen builds regardless of other files.
+ */
+@Composable
+fun PasswordPromptDialog(
+    show: Boolean,
+    channelName: String?,
+    passwordInput: String,
+    onPasswordChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (!show || channelName == null) return
+
+    val colorScheme = MaterialTheme.colorScheme
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Enter Channel Password",
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onSurface
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Channel $channelName is password protected. Enter the password to join.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = passwordInput,
+                    onValueChange = onPasswordChange,
+                    label = { Text("Password", style = MaterialTheme.typography.bodyMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = "Join",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.primary
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurface
+                )
+            }
+        },
+        containerColor = colorScheme.surface,
+        tonalElevation = 8.dp
+    )
+}
