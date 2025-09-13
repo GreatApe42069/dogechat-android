@@ -1,0 +1,8 @@
+# One host or host:port per line. Lines starting with '#' are comments.
+# IPv4 only to avoid IPv6 issues via SOCKS.
+65.108.131.152:22556
+2.100.114.7:22556
+5.9.68.211:22556
+173.71.69.156:22556
+66.94.118.198:22556
+23.117.67.180:22556

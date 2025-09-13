@@ -3,27 +3,33 @@ package com.dogechat.android.wallet
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.dogechat.android.net.TorManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import org.bitcoinj.base.Address
-import org.bitcoinj.base.AddressParser
-import org.bitcoinj.base.BitcoinNetwork
-import org.bitcoinj.base.Coin
-import org.bitcoinj.base.ScriptType
-import org.bitcoinj.core.Context as BcjContext
+import org.bitcoinj.core.Address
+import org.bitcoinj.core.LegacyAddress
 import org.bitcoinj.core.NetworkParameters
+import org.bitcoinj.core.PeerAddress
 import org.bitcoinj.core.listeners.DownloadProgressTracker
 import org.bitcoinj.kits.WalletAppKit
-import org.bitcoinj.wallet.KeyChainGroupStructure
+import org.bitcoinj.wallet.Wallet
+import org.libdohj.params.DogecoinMainNetParams
+import java.io.BufferedReader
 import java.io.File
-import java.time.Instant
+import java.io.InputStreamReader
+import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.util.Date
+
+// Alias bitcoinj Context to avoid clashing with android.content.Context
+import org.bitcoinj.core.Context as BtcContext
 
 data class SpvStatus(
     val running: Boolean,
@@ -42,11 +48,21 @@ class WalletManager @Inject constructor(
         private const val PREFS_NAME = "dogechat_wallet"
         private const val PREF_KEY_RECEIVE_ADDRESS = "receive_address"
         private const val PREF_KEY_SPV_ENABLED = "spv_enabled"
+        private const val PEERS_ASSET = "dogecoin_peers.csv"
+        private const val TOR_WAIT_MS = 20_000L
+        private const val TOR_POLL_MS = 300L
+        private const val MAX_PEERS = 4
 
-        // Expose a small controller the UI can use to toggle and observe SPV
         object SpvController {
             val enabled = MutableStateFlow(false)
-            val status = MutableStateFlow(SpvStatus(running = false, peerCount = 0, syncPercent = 0, lastLogLine = ""))
+            val status = MutableStateFlow(
+                SpvStatus(
+                    running = false,
+                    peerCount = 0,
+                    syncPercent = 0,
+                    lastLogLine = ""
+                )
+            )
 
             fun get(context: Context): Boolean {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -95,13 +111,12 @@ class WalletManager @Inject constructor(
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // IMPORTANT: This is what your JAR actually uses. If this is Bitcoin params, you won’t sync Dogecoin.
-    private val network: BitcoinNetwork = BitcoinNetwork.MAINNET
-    private val params: NetworkParameters = NetworkParameters.of(network)
+    // Dogecoin params (libdohj)
+    private val params: NetworkParameters = DogecoinMainNetParams.get()
 
     private var kit: WalletAppKit? = null
 
-    private val _balance = MutableStateFlow("0 ĐOGE")
+    private val _balance = MutableStateFlow("0 DOGE")
     val balance: StateFlow<String> = _balance
 
     private val _address = MutableStateFlow<String?>(null)
@@ -125,47 +140,66 @@ class WalletManager @Inject constructor(
 
     init {
         instanceRef = this
-        // Default OFF unless explicitly enabled by user
         val shouldStart = prefs.getBoolean(PREF_KEY_SPV_ENABLED, false)
         SpvController.enabled.value = shouldStart
         if (shouldStart) startNetwork() else SpvController.updateRunning(false)
     }
 
-    fun startNetwork(
-        torProxyHost: String? = null,
-        torProxyPort: Int? = null
-    ) {
+    fun startNetwork() {
         scope.launch {
             try {
-                // Diagnostics: confirm which network the JAR is actually using
+                // Diagnostics: confirm we’re on Dogecoin (port should be 22556)
                 Log.i(TAG, "Starting SPV… params.id=${params.id} port=${params.port}")
-                BcjContext.propagate(BcjContext())
+                BtcContext.propagate(BtcContext(params))
+
+                // Configure Tor SOCKS if enabled
+                configureTorSocksIfAvailable()
 
                 val dir = File(appContext.filesDir, "wallet")
                 if (!dir.exists()) dir.mkdirs()
 
-                val k = object : WalletAppKit(network, ScriptType.P2PKH, KeyChainGroupStructure.BIP32, dir, FILE_PREFIX) {
-                    override fun onSetupCompleted() {
-                        pushBalance()
-                        pushAddress()
-                        pushHistory()
+                val usingSocks = System.getProperty("socksProxyHost")?.isNotBlank() == true
+                val staticPeers = loadStaticPeersFromAssets(params, preferUnresolvedHostnames = usingSocks)
 
-                        wallet().addCoinsReceivedEventListener { _, _, _, _ ->
-                            pushBalance(); pushHistory()
-                            SpvController.log("coins received")
-                        }
-                        wallet().addCoinsSentEventListener { _, _, _, _ ->
-                            pushBalance(); pushHistory()
-                            SpvController.log("coins sent")
-                        }
-                        wallet().addChangeEventListener {
-                            pushBalance(); pushHistory()
+                val k = object : WalletAppKit(params, dir, FILE_PREFIX) {
+                    override fun onSetupCompleted() {
+                        try {
+                            try { peerGroup().setUseLocalhostPeerWhenPossible(false) } catch (_: Throwable) {}
+                            try { peerGroup().setMaxConnections(MAX_PEERS) } catch (_: Throwable) {}
+
+                            // If we have static peers, lock to them before start
+                            if (staticPeers.isNotEmpty()) {
+                                try {
+                                    setPeerNodes(*staticPeers.toTypedArray())
+                                    Log.i(TAG, "Using ${staticPeers.size} static peers from assets ($PEERS_ASSET)")
+                                } catch (t: Throwable) {
+                                    Log.w(TAG, "Failed to set static peers: ${t.message}")
+                                }
+                            }
+
+                            pushBalance()
+                            pushAddress()
+                            pushHistory()
+
+                            wallet().addCoinsReceivedEventListener { _: Wallet, _, _, _ ->
+                                pushBalance(); pushHistory()
+                                SpvController.log("coins received")
+                            }
+                            wallet().addCoinsSentEventListener { _: Wallet, _, _, _ ->
+                                pushBalance(); pushHistory()
+                                SpvController.log("coins sent")
+                            }
+                            wallet().addChangeEventListener { _ ->
+                                pushBalance(); pushHistory()
+                            }
+                        } catch (t: Throwable) {
+                            Log.w(TAG, "onSetupCompleted tuning failed: ${t.message}")
                         }
                     }
                 }.apply {
                     setBlockingStartup(false)
                     setDownloadListener(object : DownloadProgressTracker() {
-                        override fun progress(pct: Double, blocksSoFar: Int, date: Instant?) {
+                        override fun progress(pct: Double, blocksSoFar: Int, date: Date?) {
                             val p = pct.toInt().coerceIn(0, 100)
                             _syncPercent.value = p
                             SpvController.updateSync(p)
@@ -183,28 +217,30 @@ class WalletManager @Inject constructor(
                     })
                 }
 
-                if (torProxyHost != null && torProxyPort != null) {
-                    Log.i(TAG, "Tor proxy requested ($torProxyHost:$torProxyPort) but setProxy is unavailable; skipping.")
-                }
-
                 kit = k
 
-                k.peerGroup().addConnectedEventListener { _, pc ->
-                    _peerCount.value = pc
-                    SpvController.updatePeers(pc)
-                    SpvController.log("peer connected ($pc)")
-                    updateSpvStatus()
-                }
-                k.peerGroup().addDisconnectedEventListener { _, pc ->
-                    _peerCount.value = pc
-                    SpvController.updatePeers(pc)
-                    SpvController.log("peer disconnected ($pc)")
-                    updateSpvStatus()
+                // Peer event listeners differ by version; wrap in try
+                try {
+                    k.peerGroup().addConnectedEventListener { _, pc ->
+                        _peerCount.value = pc
+                        SpvController.updatePeers(pc)
+                        SpvController.log("peer connected ($pc)")
+                        updateSpvStatus()
+                    }
+                    k.peerGroup().addDisconnectedEventListener { _, pc ->
+                        _peerCount.value = pc
+                        SpvController.updatePeers(pc)
+                        SpvController.log("peer disconnected ($pc)")
+                        updateSpvStatus()
+                    }
+                } catch (_: Throwable) {
+                    // If not available on this version, we’ll still show sync status
                 }
 
                 _spvStatus.value = "Connecting"
                 SpvController.updateRunning(true)
                 SpvController.log("starting…")
+
                 k.startAsync()
                 k.awaitRunning()
 
@@ -213,6 +249,19 @@ class WalletManager @Inject constructor(
                 pushBalance()
                 pushHistory()
                 updateSpvStatus()
+
+                // Extra periodic diagnostics if stuck
+                scope.launch {
+                    var tries = 0
+                    while (tries < 20 && kit != null) {
+                        delay(2000)
+                        tries++
+                        val pc = _peerCount.value
+                        val sp = _syncPercent.value
+                        SpvController.log("diag peers=$pc sync=$sp%")
+                        if (pc > 0 || sp > 0) break
+                    }
+                }
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to start SPV wallet: ${e.message}", e)
                 _spvStatus.value = "Error"
@@ -242,6 +291,7 @@ class WalletManager @Inject constructor(
                 SpvController.updatePeers(0)
                 SpvController.updateSync(0)
                 SpvController.log("stopped")
+                clearSocksProxy()
             }
         }
     }
@@ -292,8 +342,8 @@ class WalletManager @Inject constructor(
                 return@launch
             }
             try {
-                val address: Address = AddressParser.getDefault(network).parseAddress(toAddress)
-                val amount = Coin.valueOf(amountDoge * 100_000_000L)
+                val address: Address = LegacyAddress.fromBase58(params, toAddress)
+                val amount = org.bitcoinj.core.Coin.valueOf(amountDoge * 100_000_000L)
                 localKit.wallet().sendCoins(localKit.peerGroup(), address, amount)
                 pushBalance()
                 pushHistory()
@@ -309,8 +359,8 @@ class WalletManager @Inject constructor(
 
     private fun pushBalance() {
         val w = kit?.wallet() ?: return
-        val balanceDoge = w.balance.toPlainString()
-        _balance.value = "$balanceDoge ĐOGE"
+        val balance = w.balance.toPlainString()
+        _balance.value = "$balance DOGE"
     }
 
     private fun pushHistory() {
@@ -319,12 +369,12 @@ class WalletManager @Inject constructor(
             val vToMe = tx.getValueSentToMe(w)
             val vFromMe = tx.getValueSentFromMe(w)
             val delta = vToMe.subtract(vFromMe)
-            val instant: Instant? = tx.updateTime().orElse(null)
+            val time: Date? = tx.updateTime
             TxRow(
                 hash = tx.txId.toString(),
-                value = delta.toPlainString() + " ĐOGE",
+                value = delta.toPlainString() + " DOGE",
                 isIncoming = delta.signum() > 0,
-                time = instant?.let { Date.from(it) },
+                time = time,
                 confirmations = tx.confidence.depthInBlocks
             )
         }
@@ -337,5 +387,99 @@ class WalletManager @Inject constructor(
             _syncPercent.value < 100 -> "Syncing"
             else -> "Synced"
         }
+    }
+
+    private suspend fun configureTorSocksIfAvailable() {
+        try {
+            val status0 = TorManager.statusFlow.value
+            if (status0.mode == com.dogechat.android.net.TorMode.ON) {
+                var waited = 0L
+                while (waited < TOR_WAIT_MS) {
+                    val s = TorManager.statusFlow.value
+                    if (s.running && s.bootstrapPercent >= 100) break
+                    delay(TOR_POLL_MS)
+                    waited += TOR_POLL_MS
+                }
+                val addr = TorManager.currentSocksAddress()
+                if (addr != null) {
+                    System.setProperty("socksProxyHost", addr.hostString)
+                    System.setProperty("socksProxyPort", addr.port.toString())
+                    System.setProperty("socksProxyVersion", "5")
+                    // Prefer IPv4 when tunneling via Tor to avoid IPv6 oddities
+                    System.setProperty("java.net.preferIPv6Addresses", "false")
+                    System.setProperty("java.net.preferIPv4Stack", "true")
+                    SpvController.log("using Tor SOCKS ${addr.hostString}:${addr.port}")
+                    Log.i(TAG, "Using Tor SOCKS ${addr.hostString}:${addr.port} for P2P")
+                } else {
+                    Log.w(TAG, "Tor is ON but socks address is null; will proceed without proxy")
+                    clearSocksProxy()
+                }
+            } else {
+                clearSocksProxy()
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Tor SOCKS configuration failed: ${t.message}")
+        }
+    }
+
+    private fun clearSocksProxy() {
+        try {
+            System.clearProperty("socksProxyHost")
+            System.clearProperty("socksProxyPort")
+            System.clearProperty("socksProxyVersion")
+        } catch (_: Throwable) {}
+    }
+
+    private fun loadStaticPeersFromAssets(
+        params: NetworkParameters,
+        preferUnresolvedHostnames: Boolean
+    ): List<PeerAddress> {
+        val out = mutableListOf<PeerAddress>()
+        try {
+            val am = appContext.assets
+            if (am.list("")?.contains(PEERS_ASSET) != true) {
+                Log.i(TAG, "No $PEERS_ASSET in assets; will use default discovery")
+                return emptyList()
+            }
+            am.open(PEERS_ASSET).use { ins ->
+                BufferedReader(InputStreamReader(ins)).useLines { lines ->
+                    lines.forEach { raw ->
+                        val line = raw.trim()
+                        if (line.isEmpty() || line.startsWith("#")) return@forEach
+                        val host: String
+                        val port: Int
+                        if (line.contains(":")) {
+                            val parts = line.split(":")
+                            host = parts[0].trim()
+                            port = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: params.port
+                        } else {
+                            host = line
+                            port = params.port
+                        }
+                        try {
+                            // If we prefer unresolved hostnames (Tor/SOCKS), avoid local DNS resolution:
+                            // - Use InetSocketAddress(String host, int port) to keep it unresolved.
+                            // If it's clearly an IP literal, either path is fine.
+                            val sock: InetSocketAddress = if (preferUnresolvedHostnames) {
+                                InetSocketAddress(host, port) // unresolved; SOCKS will resolve
+                            } else {
+                                // Best effort: resolve if not using SOCKS
+                                val ip = runCatching { InetAddress.getByName(host) }.getOrNull()
+                                if (ip != null) InetSocketAddress(ip, port) else InetSocketAddress(host, port)
+                            }
+                            out.add(PeerAddress(params, sock))
+                        } catch (e: Throwable) {
+                            Log.w(TAG, "Bad peer entry '$line': ${e.message}")
+                        }
+                    }
+                }
+            }
+            if (out.isEmpty()) {
+                Log.w(TAG, "No valid static peers parsed from $PEERS_ASSET")
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed loading $PEERS_ASSET: ${t.message}")
+        }
+        return out
     }
 }

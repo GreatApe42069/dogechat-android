@@ -9,6 +9,8 @@ plugins {
     id("com.google.dagger.hilt.android") version "2.51.1"
 }
 
+val bitcoinjVersion = "0.16.1" // must match libdohj's bitcoinj target
+
 android {
     namespace = "com.dogechat.android"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -87,7 +89,12 @@ android {
     }
 }
 
-// No more bitcoinj resolutionStrategy forcing (we embed via local jars)
+// Keep bitcoinj consistent across the graph
+configurations.all {
+    resolutionStrategy {
+        force("org.bitcoinj:bitcoinj-core:$bitcoinjVersion")
+    }
+}
 
 dependencies {
     // ---- Compose BOM ----
@@ -145,17 +152,17 @@ dependencies {
     implementation(libs.slf4j.api)
     implementation(libs.slf4j.simple)
 
-    // ---- DogecoinJ (local custom fork jars) ----
-    implementation(files("libs/dogecoinj-core-0.18-doge.jar"))
-    implementation(files("libs/dogecoinj-base-0.18-doge.jar")) // add the base jar alongside core
+    // ---- Dogecoin (libdohj snapshot jar + bitcoinj 0.16.1) ----
+    // Ensure this file exists: app/libs/libdohj-core-0.16-SNAPSHOT.jar
+    implementation(files("libs/libdohj-core-0.16-SNAPSHOT.jar"))
 
-    // ---- Guava (required by WalletAppKit / services) ----
-    implementation("com.google.guava:guava:33.2.1-android")
+    // bitcoinj must match libdohj's target; exclude its older bcprov
+    implementation("org.bitcoinj:bitcoinj-core:$bitcoinjVersion") {
+        exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
+    }
 
-    // SCrypt (wallet encryption/KeyCrypter)
+    // libdohj runtime deps
     implementation("com.lambdaworks:scrypt:1.4.0")
-
-    // Protobuf lite runtime (needed by wallet serialization if fork still uses lite)
     implementation("com.google.protobuf:protobuf-javalite:3.18.0")
 
     // ---- Networking ----

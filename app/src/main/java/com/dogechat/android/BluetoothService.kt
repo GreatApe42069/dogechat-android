@@ -7,11 +7,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.bitcoinj.core.NetworkParameters
 import org.bitcoinj.core.Transaction
+import org.libdohj.params.DogecoinMainNetParams
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import java.nio.ByteBuffer
 
 class BluetoothService(
     private val socket: BluetoothSocket,
@@ -27,6 +28,9 @@ class BluetoothService(
     private val mmInStream: InputStream = socket.inputStream
     private val mmOutStream: OutputStream = socket.outputStream
 
+    // Dogecoin network params for parsing incoming transactions
+    private val params: NetworkParameters = DogecoinMainNetParams.get()
+
     // single scope to post results to main dispatcher; cancel on close()
     private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -36,7 +40,8 @@ class BluetoothService(
         try {
             while (!isInterrupted && socket.isConnected) {
                 val bytesRead = try {
-                    mmInStream.read(buffer)
+                    // Use the explicit 3-arg read to avoid any symbol confusion
+                    mmInStream.read(buffer, 0, buffer.size)
                 } catch (io: IOException) {
                     Log.w(TAG, "IO error while reading from input stream: ${io.message}")
                     -1
@@ -57,9 +62,9 @@ class BluetoothService(
 
                     val payload = buffer.copyOf(bytesRead)
 
-                    // parse transaction defensively using the new API
+                    // Parse transaction using bitcoinj/libdohj
                     try {
-                        val tx = Transaction.read(ByteBuffer.wrap(payload))
+                        val tx = Transaction(params, payload)
                         mainScope.launch {
                             try {
                                 onTransactionReceived(tx)
@@ -68,7 +73,7 @@ class BluetoothService(
                             }
                         }
                     } catch (e: Exception) {
-                        // bitcoinj can throw various parsing exceptions (ProtocolException, BufferUnderflow, etc.)
+                        // bitcoinj can throw various parsing exceptions (ProtocolException, etc.)
                         Log.w(TAG, "Failed to parse transaction from payload (${bytesRead} bytes): ${e.message}")
                         // continue reading; don't break the service for a bad payload
                     }
@@ -103,24 +108,24 @@ class BluetoothService(
             // Cancel any posted coroutines first
             try {
                 mainScope.cancel()
-            } catch (ignored: Exception) { }
+            } catch (_: Exception) { }
 
             try {
                 mmInStream.close()
-            } catch (ignored: Exception) { }
+            } catch (_: Exception) { }
 
             try {
                 mmOutStream.close()
-            } catch (ignored: Exception) { }
+            } catch (_: Exception) { }
 
             try {
                 socket.close()
-            } catch (ignored: Exception) { }
+            } catch (_: Exception) { }
 
             // interrupt the thread if it's still running
             try {
                 if (!isInterrupted) interrupt()
-            } catch (ignored: Exception) { }
+            } catch (_: Exception) { }
 
         } catch (e: Exception) {
             Log.w(TAG, "Error while shutting down BluetoothService: ${e.message}", e)
