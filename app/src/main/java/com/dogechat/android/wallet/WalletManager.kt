@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.bitcoinj.core.Address
+import org.bitcoinj.core.DumpedPrivateKey
 import org.bitcoinj.core.LegacyAddress
 import org.bitcoinj.core.NetworkParameters
 import org.bitcoinj.core.PeerAddress
@@ -36,7 +37,6 @@ data class SpvStatus(
     val peerCount: Int,
     val syncPercent: Int,
     val lastLogLine: String,
-    // SPV-specific Tor status (separate from Network Tor UI)
     val torRunning: Boolean,
     val torBootstrap: Int
 )
@@ -51,6 +51,7 @@ class WalletManager @Inject constructor(
         private const val PREFS_NAME = "dogechat_wallet"
         private const val PREF_KEY_RECEIVE_ADDRESS = "receive_address"
         private const val PREF_KEY_SPV_ENABLED = "spv_enabled"
+        private const val PREF_KEY_CACHED_WIF = "cached_wif"
         private const val PEERS_ASSET = "dogecoin_peers.csv"
         private const val TOR_WAIT_MS = 20_000L
         private const val TOR_POLL_MS = 300L
@@ -71,7 +72,7 @@ class WalletManager @Inject constructor(
 
             fun get(context: Context): Boolean {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                val isOn = prefs.getBoolean(PREF_KEY_SPV_ENABLED, false) // default OFF
+                val isOn = prefs.getBoolean(PREF_KEY_SPV_ENABLED, false)
                 enabled.value = isOn
                 return isOn
             }
@@ -119,10 +120,7 @@ class WalletManager @Inject constructor(
     )
 
     private val scope = CoroutineScope(Dispatchers.IO)
-
-    // Dogecoin params (libdohj)
     private val params: NetworkParameters = DogecoinMainNetParams.get()
-
     private var kit: WalletAppKit? = null
 
     private val _balance = MutableStateFlow("0 DOGE")
@@ -131,7 +129,6 @@ class WalletManager @Inject constructor(
     private val _address = MutableStateFlow<String?>(null)
     val address: StateFlow<String?> = _address
 
-    // Minimal readiness flag (prefs-based only; no file I/O)
     private val _addressReady = MutableStateFlow(false)
     val addressReady: StateFlow<Boolean> = _addressReady
 
@@ -153,9 +150,8 @@ class WalletManager @Inject constructor(
 
     init {
         instanceRef = this
-
-        // Prime readiness from prefs without touching the wallet file or startup flow
         _addressReady.value = !prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null).isNullOrBlank()
+        _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
 
         val shouldStart = prefs.getBoolean(PREF_KEY_SPV_ENABLED, false)
         SpvController.enabled.value = shouldStart
@@ -167,8 +163,6 @@ class WalletManager @Inject constructor(
             try {
                 Log.i(TAG, "Starting SPV… params.id=${params.id} port=${params.port}")
                 BtcContext.propagate(BtcContext(params))
-
-                // Configure Tor SOCKS if enabled (updates SPV-specific tor status)
                 configureTorSocksIfAvailable()
 
                 val dir = File(appContext.filesDir, "wallet")
@@ -182,31 +176,22 @@ class WalletManager @Inject constructor(
                         try {
                             try { peerGroup().setUseLocalhostPeerWhenPossible(false) } catch (_: Throwable) {}
                             try { peerGroup().setMaxConnections(MAX_PEERS) } catch (_: Throwable) {}
-
                             if (staticPeers.isNotEmpty()) {
-                                try {
-                                    setPeerNodes(*staticPeers.toTypedArray())
-                                    Log.i(TAG, "Using ${staticPeers.size} static peers from assets ($PEERS_ASSET)")
-                                } catch (t: Throwable) {
+                                try { setPeerNodes(*staticPeers.toTypedArray()) } catch (t: Throwable) {
                                     Log.w(TAG, "Failed to set static peers: ${t.message}")
                                 }
                             }
-
+                            importCachedWifIfPresent()
                             pushBalance()
                             pushAddress()
                             pushHistory()
-
                             wallet().addCoinsReceivedEventListener { _: Wallet, _, _, _ ->
-                                pushBalance(); pushHistory()
-                                SpvController.log("coins received")
+                                pushBalance(); pushHistory(); SpvController.log("coins received")
                             }
                             wallet().addCoinsSentEventListener { _: Wallet, _, _, _ ->
-                                pushBalance(); pushHistory()
-                                SpvController.log("coins sent")
+                                pushBalance(); pushHistory(); SpvController.log("coins sent")
                             }
-                            wallet().addChangeEventListener { _ ->
-                                pushBalance(); pushHistory()
-                            }
+                            wallet().addChangeEventListener { _ -> pushBalance(); pushHistory() }
                         } catch (t: Throwable) {
                             Log.w(TAG, "onSetupCompleted tuning failed: ${t.message}")
                         }
@@ -302,7 +287,6 @@ class WalletManager @Inject constructor(
                 SpvController.updatePeers(0)
                 SpvController.updateSync(0)
                 SpvController.log("stopped")
-                // Clear SOCKS and mark SPV Tor as stopped
                 clearSocksProxy()
                 SpvController.updateTor(false, 0)
             }
@@ -320,7 +304,10 @@ class WalletManager @Inject constructor(
         scope.launch {
             val address = kit?.wallet()?.freshReceiveAddress()?.toString()
             if (address != null) {
-                prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, address).apply()
+                prefs.edit()
+                    .remove(PREF_KEY_CACHED_WIF)
+                    .putString(PREF_KEY_RECEIVE_ADDRESS, address)
+                    .apply()
                 _address.value = address
                 _addressReady.value = true
             }
@@ -329,15 +316,18 @@ class WalletManager @Inject constructor(
 
     private fun pushAddress() {
         try {
-            val address = kit?.wallet()?.currentReceiveAddress()?.toString()
-            if (address != null) {
-                prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, address).apply()
-                _address.value = address
+            val prev = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
+            val addr = kit?.wallet()?.currentReceiveAddress()?.toString()
+            if (addr != null) {
+                if (prev != null && prev != addr) {
+                    prefs.edit().remove(PREF_KEY_CACHED_WIF).apply()
+                }
+                prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, addr).apply()
+                _address.value = addr
                 _addressReady.value = true
             } else {
-                val prefAddr = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
-                _address.value = prefAddr
-                _addressReady.value = !prefAddr.isNullOrBlank()
+                _address.value = prev
+                _addressReady.value = !prev.isNullOrBlank()
             }
         } catch (_: Throwable) {
             val prefAddr = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
@@ -376,7 +366,32 @@ class WalletManager @Inject constructor(
         }
     }
 
-    // NEW: Export current receive key as WIF (for backup/import). Returns null if not available.
+    // -------------- WIF persistence and import/restore ----------------
+
+    fun getOrExportAndCacheWif(): String? {
+        return try {
+            val cached = prefs.getString(PREF_KEY_CACHED_WIF, null)
+            if (!cached.isNullOrBlank()) {
+                cached
+            } else {
+                val wif = exportCurrentReceivePrivateKeyWif()
+                if (!wif.isNullOrBlank()) {
+                    val addr = try {
+                        val key = DumpedPrivateKey.fromBase58(params, wif).key
+                        LegacyAddress.fromKey(params, key).toString()
+                    } catch (_: Throwable) {
+                        prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
+                    }
+                    persistWif(wif, addr)
+                }
+                wif
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "getOrExportAndCacheWif failed: ${t.message}")
+            null
+        }
+    }
+
     fun exportCurrentReceivePrivateKeyWif(): String? = try {
         val w = kit?.wallet() ?: return null
         val key = w.currentReceiveKey() ?: return null
@@ -385,6 +400,109 @@ class WalletManager @Inject constructor(
         Log.w(TAG, "export WIF failed: ${t.message}")
         null
     }
+
+    fun importPrivateKeyWif(wif: String, onResult: (Boolean, String) -> Unit) {
+        scope.launch {
+            try {
+                val key = DumpedPrivateKey.fromBase58(params, wif).key
+                val addr = LegacyAddress.fromKey(params, key).toString()
+
+                val w = kit?.wallet()
+                if (w == null) {
+                    persistWif(wif, addr)
+                    _address.value = addr
+                    _addressReady.value = true
+                    onResult(true, "WIF cached. It will be loaded next time the wallet starts.")
+                    return@launch
+                }
+
+                val already = try { w.importedKeys.contains(key) } catch (_: Throwable) { false }
+                if (!already) {
+                    try { w.importKey(key) } catch (_: Throwable) { }
+                }
+                persistWif(wif, addr)
+                _address.value = addr
+                _addressReady.value = true
+                SpvController.log("imported WIF; addr=$addr")
+                onResult(true, "Private key imported")
+            } catch (e: Throwable) {
+                Log.e(TAG, "importPrivateKeyWif failed: ${e.message}", e)
+                onResult(false, e.message ?: "Import failed")
+            }
+        }
+    }
+
+    fun getCachedWif(): String? = prefs.getString(PREF_KEY_CACHED_WIF, null)
+
+    private fun importCachedWifIfPresent() {
+        val wif = prefs.getString(PREF_KEY_CACHED_WIF, null) ?: return
+        try {
+            val w = kit?.wallet() ?: return
+            val key = DumpedPrivateKey.fromBase58(params, wif).key
+            val already = try { w.importedKeys.contains(key) } catch (_: Throwable) { false }
+            if (!already) {
+                try { w.importKey(key) } catch (_: Throwable) { }
+            }
+            val addr = LegacyAddress.fromKey(params, key).toString()
+            _address.value = addr
+            _addressReady.value = true
+            Log.i(TAG, "Imported cached WIF: $addr")
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to import cached WIF: ${t.message}")
+        }
+    }
+
+    private fun persistWif(wif: String, address: String?) {
+        prefs.edit().apply {
+            putString(PREF_KEY_CACHED_WIF, wif)
+            if (!address.isNullOrBlank()) putString(PREF_KEY_RECEIVE_ADDRESS, address)
+        }.apply()
+    }
+
+    fun wipeWalletData(): Boolean {
+        return try {
+            try {
+                val k = kit
+                if (k != null) {
+                    k.stopAsync()
+                    k.awaitTerminated()
+                }
+            } catch (_: Throwable) {}
+            kit = null
+
+            runCatching {
+                val dir = File(appContext.filesDir, "wallet")
+                if (dir.exists()) dir.deleteRecursively()
+            }
+
+            prefs.edit()
+                .remove(PREF_KEY_RECEIVE_ADDRESS)
+                .remove(PREF_KEY_CACHED_WIF)
+                .putBoolean(PREF_KEY_SPV_ENABLED, false)
+                .apply()
+
+            _address.value = null
+            _addressReady.value = false
+            _balance.value = "0 DOGE"
+            _history.value = emptyList()
+            _syncPercent.value = 0
+            _peerCount.value = 0
+            _spvStatus.value = "Not Connected"
+            SpvController.enabled.value = false
+            SpvController.updateRunning(false)
+            SpvController.updatePeers(0)
+            SpvController.updateSync(0)
+            SpvController.updateTor(false, 0)
+            SpvController.log("wallet wiped")
+
+            true
+        } catch (t: Throwable) {
+            Log.e(TAG, "wipeWalletData failed: ${t.message}", t)
+            false
+        }
+    }
+
+    // ------------------------------------------------------------------
 
     private fun pushBalance() {
         val w = kit?.wallet() ?: return
@@ -434,12 +552,10 @@ class WalletManager @Inject constructor(
                     System.setProperty("socksProxyHost", addr.hostString)
                     System.setProperty("socksProxyPort", addr.port.toString())
                     System.setProperty("socksProxyVersion", "5")
-                    // Prefer IPv4 when tunneling via Tor to avoid IPv6 oddities
                     System.setProperty("java.net.preferIPv6Addresses", "false")
                     System.setProperty("java.net.preferIPv4Stack", "true")
                     SpvController.log("using Tor SOCKS ${addr.hostString}:${addr.port}")
                     Log.i(TAG, "Using Tor SOCKS ${addr.hostString}:${addr.port} for P2P")
-                    // Update SPV-specific Tor status (running + bootstrap copied from TorManager snapshot)
                     SpvController.updateTor(true, TorManager.statusFlow.value.bootstrapPercent)
                 } else {
                     Log.w(TAG, "Tor is ON but socks address is null; will proceed without proxy")
@@ -452,7 +568,6 @@ class WalletManager @Inject constructor(
             }
         } catch (t: Throwable) {
             Log.w(TAG, "Tor SOCKS configuration failed: ${t.message}")
-            // Be conservative: mark SPV Tor as off
             SpvController.updateTor(false, 0)
         }
     }
@@ -493,7 +608,7 @@ class WalletManager @Inject constructor(
                         }
                         try {
                             val sock: InetSocketAddress = if (preferUnresolvedHostnames) {
-                                InetSocketAddress(host, port) // unresolved; SOCKS will resolve
+                                InetSocketAddress(host, port)
                             } else {
                                 val ip = runCatching { InetAddress.getByName(host) }.getOrNull()
                                 if (ip != null) InetSocketAddress(ip, port) else InetSocketAddress(host, port)

@@ -3,6 +3,7 @@ package com.dogechat.android.wallet.ui
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +30,7 @@ import com.dogechat.android.wallet.WalletManager
 import com.dogechat.android.wallet.WalletManager.Companion.instanceRef
 import com.dogechat.android.wallet.viewmodel.UIStateManager
 import com.dogechat.android.wallet.viewmodel.WalletViewModel
+import com.dogechat.android.ui.AboutSheet
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -43,18 +45,16 @@ fun WalletScreen(
     initialTokenOriginal: String? = null
 ) {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val prefs = remember(context) { context.getSharedPreferences("dogechat_wallet", android.content.Context.MODE_PRIVATE) }
 
-    // Dogecoin standard yellow used throughout the app
     val dogeYellow = Color(0xFFFFFF00)
 
-    // State flows from viewmodel
     val balance by viewModel.balance.collectAsState(initial = "0 DOGE")
     val addressFlowValue by viewModel.address.collectAsState(initial = null)
     val syncPercent by viewModel.syncPercent.collectAsState(initial = 0)
     val history by viewModel.history.collectAsState(initial = emptyList())
 
-    // Persisted address fallback (kept up-to-date whenever flow emits)
     var persistedAddress by remember { mutableStateOf(prefs.getString("receive_address", null)) }
     LaunchedEffect(addressFlowValue) {
         addressFlowValue?.let {
@@ -64,7 +64,6 @@ fun WalletScreen(
     }
     val displayAddress = addressFlowValue ?: persistedAddress ?: "Not ready"
 
-    // Dialog / animation state handled by UIStateManager (LiveData)
     val showSendDialog by uiStateManager.showSendDialog.observeAsState(false)
     val showReceiveDialog by uiStateManager.showReceiveDialog.observeAsState(false)
     val showSuccess by uiStateManager.showSuccessAnimation.observeAsState(false)
@@ -74,11 +73,14 @@ fun WalletScreen(
     val isLoading by uiStateManager.isLoading.observeAsState(false)
     val errorMessage by uiStateManager.errorMessage.observeAsState()
 
-    // Private key dialog state
     var showPrivKeyDialog by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
     var privateKeyWif by remember { mutableStateOf<String?>(null) }
 
-    // start wallet when screen appears
+    var showAbout by remember { mutableStateOf(false) }
+    var tapCount by remember { mutableStateOf(0) }
+    var lastTapMs by remember { mutableStateOf(0L) }
+
     LaunchedEffect(Unit) {
         viewModel.startWallet()
     }
@@ -86,18 +88,38 @@ fun WalletScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Đogecoin Wallet") },
+                title = {
+                    Text(
+                        "Đogecoin Wallet",
+                        color = dogeYellow,
+                        modifier = Modifier.clickable {
+                            val now = System.currentTimeMillis()
+                            tapCount = if (now - lastTapMs < 600) tapCount + 1 else 1
+                            lastTapMs = now
+                            if (tapCount == 3) {
+                                tapCount = 0
+                                if (instanceRef?.wipeWalletData() == true) {
+                                    Toast.makeText(context, "Wallet data wiped", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to wipe wallet", Toast.LENGTH_SHORT).show()
+                                }
+                            } else if (tapCount == 1) {
+                                showAbout = true
+                            }
+                        }
+                    )
+                },
                 actions = {
-                    // Key icon to export WIF
                     IconButton(onClick = {
-                        privateKeyWif = instanceRef?.exportCurrentReceivePrivateKeyWif()
+                        privateKeyWif = instanceRef?.getOrExportAndCacheWif()
+                            ?: instanceRef?.getCachedWif()
                         showPrivKeyDialog = true
                     }) {
                         Icon(Icons.Default.VpnKey, contentDescription = "Export Private Key", tint = dogeYellow)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = dogeYellow.copy(alpha = 0.08f), // subtle yellow tint
+                    containerColor = Color.Transparent,
                     titleContentColor = dogeYellow,
                     actionIconContentColor = dogeYellow
                 )
@@ -113,7 +135,6 @@ fun WalletScreen(
                 WalletOverview(
                     dogeYellow = dogeYellow,
                     balance = balance,
-                    // Show full address (no shortening)
                     shortAddress = displayAddress,
                     fullAddress = displayAddress,
                     syncPercent = syncPercent,
@@ -131,7 +152,6 @@ fun WalletScreen(
                 )
                 Divider(modifier = Modifier.padding(vertical = 6.dp))
 
-                // Local list to avoid collisions with TransactionHistory.kt
                 WalletTransactionHistory(
                     rows = history,
                     modifier = Modifier
@@ -140,15 +160,14 @@ fun WalletScreen(
                 )
             }
 
-            // Send Dialog
             if (showSendDialog) {
-                SendDialog(
+                WalletSendDialog(
                     defaultAddress = displayAddress.takeIf { it != "Not ready" } ?: "",
                     isLoading = isLoading,
                     onDismiss = { uiStateManager.hideSendDialog(); uiStateManager.clearError() },
-                    onSend = { toAddr, amount ->
+                    onSend = { toAddr, amountWholeDoge ->
                         uiStateManager.setLoading(true)
-                        viewModel.sendCoins(toAddr, amount) { ok, msg ->
+                        viewModel.sendCoins(toAddr, amountWholeDoge) { ok, msg ->
                             uiStateManager.setLoading(false)
                             if (ok) {
                                 uiStateManager.showSuccessAnimation(
@@ -166,48 +185,62 @@ fun WalletScreen(
                 )
             }
 
-            // Receive Dialog
             if (showReceiveDialog) {
-                ReceiveDialog(
-                    address = displayAddress,
+                WalletReceiveDialog(
+                    currentAddress = displayAddress,
+                    onRequestAddress = { /* optional: trigger new address */ },
+                    onCopy = {
+                        clipboard.setText(AnnotatedString(displayAddress))
+                        Toast.makeText(context, "Copied Shibes Address", Toast.LENGTH_SHORT).show()
+                    },
                     onDismiss = { uiStateManager.hideReceiveDialog() }
                 )
             }
 
-            // Success Dialog (renamed to avoid clashes)
             if (showSuccess) {
                 WalletSuccessDialog(
                     data = successData ?: WalletViewModel.SuccessAnimationData("Success"),
-                    onDismiss = {
-                        uiStateManager.hideSuccessAnimation()
-                    }
+                    onDismiss = { uiStateManager.hideSuccessAnimation() }
                 )
             }
 
-            // Failure Dialog (renamed to avoid clashes)
             if (showFailure) {
                 WalletFailureDialog(
                     data = failureData ?: WalletViewModel.FailureAnimationData("Failure"),
-                    onDismiss = {
-                        uiStateManager.hideFailureAnimation()
-                    }
+                    onDismiss = { uiStateManager.hideFailureAnimation() }
                 )
             }
 
-            // Error message toast
-            errorMessage?.let { err ->
-                LaunchedEffect(err) {
-                    Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
-                    uiStateManager.clearError()
-                }
-            }
-
-            // Private key dialog
             if (showPrivKeyDialog) {
                 PrivateKeyDialog(
                     dogeYellow = dogeYellow,
                     privateKeyWif = privateKeyWif,
+                    onImportClick = { showImportDialog = true },
                     onDismiss = { showPrivKeyDialog = false }
+                )
+            }
+
+            if (showImportDialog) {
+                PrivateKeyImportDialog(
+                    dogeYellow = dogeYellow,
+                    onImport = { wif ->
+                        instanceRef?.importPrivateKeyWif(wif) { ok, msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            if (ok) {
+                                privateKeyWif = instanceRef?.getCachedWif() ?: wif
+                                showImportDialog = false
+                                showPrivKeyDialog = true
+                            }
+                        }
+                    },
+                    onDismiss = { showImportDialog = false }
+                )
+            }
+
+            if (showAbout) {
+                AboutSheet(
+                    isPresented = true,
+                    onDismiss = { showAbout = false }
                 )
             }
         }
@@ -216,7 +249,6 @@ fun WalletScreen(
 
 /**
  * Wallet overview card: balance, address snippet, sync, quick actions.
- * Tweaked layout to separate address from buttons (more polished).
  */
 @Composable
 private fun WalletOverview(
@@ -232,12 +264,9 @@ private fun WalletOverview(
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Top row: balance + refresh
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Such Balance", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
@@ -250,9 +279,8 @@ private fun WalletOverview(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Address chip - full address and tinted background
             Surface(
-                color = dogeYellow.copy(alpha = 0.08f), // subtle yellow tint
+                color = dogeYellow.copy(alpha = 0.08f),
                 border = BorderStroke(1.dp, dogeYellow),
                 shape = RoundedCornerShape(8.dp)
             ) {
@@ -265,7 +293,6 @@ private fun WalletOverview(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Actions row: Receive and Send
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 OutlinedButton(
                     onClick = onReceiveClick,
@@ -291,7 +318,6 @@ private fun WalletOverview(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Sync indicator
             LinearProgressIndicator(
                 progress = (syncPercent.coerceIn(0, 100) / 100f),
                 modifier = Modifier.fillMaxWidth(),
@@ -307,10 +333,10 @@ private fun WalletOverview(
 }
 
 /**
- * Send dialog: simple address + amount (whole DOGE)
+ * Send dialog
  */
 @Composable
-private fun SendDialog(
+private fun WalletSendDialog(
     defaultAddress: String,
     isLoading: Boolean,
     onDismiss: () -> Unit,
@@ -351,23 +377,25 @@ private fun SendDialog(
 }
 
 /**
- * Receive dialog: shows address (and offers copy)
+ * Receive dialog
  */
 @Composable
-private fun ReceiveDialog(
-    address: String,
+private fun WalletReceiveDialog(
+    currentAddress: String,
+    onRequestAddress: () -> Unit,
+    onCopy: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val clipboard: ClipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
-
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = {
-                clipboard.setText(AnnotatedString(address))
-                Toast.makeText(context, "Copied Shibes Address", Toast.LENGTH_SHORT).show()
-            }) { Icon(Icons.Default.ContentCopy, contentDescription = "Copy") }
+            Row {
+                TextButton(onClick = onCopy) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Copy")
+                }
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Close") }
@@ -383,7 +411,7 @@ private fun ReceiveDialog(
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(12.dp)
                 ) {
-                    Text(text = address)
+                    Text(text = currentAddress)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Show this QR code to the sender", style = MaterialTheme.typography.bodySmall)
@@ -393,38 +421,42 @@ private fun ReceiveDialog(
 }
 
 /**
- * Private Key dialog (WIF export) with copy
+ * Private Key dialog (view/copy/import)
  */
 @Composable
 private fun PrivateKeyDialog(
     dogeYellow: Color,
     privateKeyWif: String?,
+    onImportClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val clipboard: ClipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val wif = privateKeyWif ?: "Not available"
-
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = {
-                clipboard.setText(AnnotatedString(wif))
-                Toast.makeText(context, "Copied Private Key (WIF)", Toast.LENGTH_SHORT).show()
-            }) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Copy")
+            Row {
+                TextButton(onClick = onImportClick) { Text("Import/Restore") }
+                Spacer(modifier = Modifier.width(8.dp))
+                TextButton(onClick = {
+                    clipboard.setText(AnnotatedString(wif))
+                    Toast.makeText(context, "Copied Private Key (WIF)", Toast.LENGTH_SHORT).show()
+                }) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Copy")
+                }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Close") }
         },
-        title = { Text("Export Private Key (WIF)") },
+        title = { Text("Private Key (WIF)", color = dogeYellow) },
         text = {
             Column {
                 Text(
-                    text = "Warning: Anyone with this key can spend your DOGE. Store it securely.",
+                    text = "Keep this key safe. Anyone with it can spend your DOGE.",
                     color = dogeYellow
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -442,7 +474,46 @@ private fun PrivateKeyDialog(
 }
 
 /**
- * Success dialog (renamed to avoid name clash with any other SuccessAnimation in project)
+ * Private Key import dialog
+ */
+@Composable
+private fun PrivateKeyImportDialog(
+    dogeYellow: Color,
+    onImport: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var wifText by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                val trimmed = wifText.trim()
+                if (trimmed.isNotEmpty()) onImport(trimmed)
+            }) { Text("Import") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+        title = { Text("Import/Restore Wallet", color = dogeYellow) },
+        text = {
+            Column {
+                Text("Paste your private key (WIF) below.")
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = wifText,
+                    onValueChange = { wifText = it },
+                    label = { Text("WIF") },
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("On import, your wallet will be able to spend funds for this key.")
+            }
+        }
+    )
+}
+
+/**
+ * Success dialog
  */
 @Composable
 private fun WalletSuccessDialog(
@@ -463,7 +534,7 @@ private fun WalletSuccessDialog(
 }
 
 /**
- * Failure dialog (renamed to avoid name clash)
+ * Failure dialog
  */
 @Composable
 private fun WalletFailureDialog(
@@ -484,7 +555,7 @@ private fun WalletFailureDialog(
 }
 
 /**
- * Transaction history list (renamed to avoid collisions)
+ * Transaction history list
  */
 @Composable
 private fun WalletTransactionHistory(
@@ -523,10 +594,4 @@ private fun WalletTransactionRow(row: WalletManager.TxRow) {
             Text(text = row.time?.let { fmt.format(it) } ?: "", style = MaterialTheme.typography.bodySmall)
         }
     }
-}
-
-/** Utility to shorten long addresses for display (kept for other use) */
-private fun shortenAddress(addr: String, prefix: Int = 6, suffix: Int = 6): String {
-    if (addr.length <= prefix + suffix + 3) return addr
-    return addr.take(prefix) + "…" + addr.takeLast(suffix)
 }
