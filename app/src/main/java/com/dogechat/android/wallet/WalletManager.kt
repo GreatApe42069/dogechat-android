@@ -35,7 +35,10 @@ data class SpvStatus(
     val running: Boolean,
     val peerCount: Int,
     val syncPercent: Int,
-    val lastLogLine: String
+    val lastLogLine: String,
+    // SPV-specific Tor status (separate from Network Tor UI)
+    val torRunning: Boolean,
+    val torBootstrap: Int
 )
 
 @Singleton
@@ -60,7 +63,9 @@ class WalletManager @Inject constructor(
                     running = false,
                     peerCount = 0,
                     syncPercent = 0,
-                    lastLogLine = ""
+                    lastLogLine = "",
+                    torRunning = false,
+                    torBootstrap = 0
                 )
             )
 
@@ -92,6 +97,10 @@ class WalletManager @Inject constructor(
                 val cur = status.value
                 status.value = cur.copy(syncPercent = p)
             }
+            internal fun updateTor(running: Boolean, bootstrap: Int) {
+                val cur = status.value
+                status.value = cur.copy(torRunning = running, torBootstrap = bootstrap.coerceIn(0, 100))
+            }
             internal fun log(line: String) {
                 val cur = status.value
                 status.value = cur.copy(lastLogLine = line)
@@ -122,6 +131,10 @@ class WalletManager @Inject constructor(
     private val _address = MutableStateFlow<String?>(null)
     val address: StateFlow<String?> = _address
 
+    // Minimal readiness flag (prefs-based only; no file I/O)
+    private val _addressReady = MutableStateFlow(false)
+    val addressReady: StateFlow<Boolean> = _addressReady
+
     private val _syncPercent = MutableStateFlow(0)
     val syncPercent: StateFlow<Int> = _syncPercent
 
@@ -140,6 +153,10 @@ class WalletManager @Inject constructor(
 
     init {
         instanceRef = this
+
+        // Prime readiness from prefs without touching the wallet file or startup flow
+        _addressReady.value = !prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null).isNullOrBlank()
+
         val shouldStart = prefs.getBoolean(PREF_KEY_SPV_ENABLED, false)
         SpvController.enabled.value = shouldStart
         if (shouldStart) startNetwork() else SpvController.updateRunning(false)
@@ -148,11 +165,12 @@ class WalletManager @Inject constructor(
     fun startNetwork() {
         scope.launch {
             try {
-                // Diagnostics: confirm we’re on Dogecoin (port should be 22556)
+                // Diagnostics
                 Log.i(TAG, "Starting SPV… params.id=${params.id} port=${params.port}")
+                // Keep as in V7
                 BtcContext.propagate(BtcContext(params))
 
-                // Configure Tor SOCKS if enabled
+                // Configure Tor SOCKS if enabled (updates SPV-specific tor status)
                 configureTorSocksIfAvailable()
 
                 val dir = File(appContext.filesDir, "wallet")
@@ -167,7 +185,6 @@ class WalletManager @Inject constructor(
                             try { peerGroup().setUseLocalhostPeerWhenPossible(false) } catch (_: Throwable) {}
                             try { peerGroup().setMaxConnections(MAX_PEERS) } catch (_: Throwable) {}
 
-                            // If we have static peers, lock to them before start
                             if (staticPeers.isNotEmpty()) {
                                 try {
                                     setPeerNodes(*staticPeers.toTypedArray())
@@ -219,7 +236,6 @@ class WalletManager @Inject constructor(
 
                 kit = k
 
-                // Peer event listeners differ by version; wrap in try
                 try {
                     k.peerGroup().addConnectedEventListener { _, pc ->
                         _peerCount.value = pc
@@ -233,9 +249,7 @@ class WalletManager @Inject constructor(
                         SpvController.log("peer disconnected ($pc)")
                         updateSpvStatus()
                     }
-                } catch (_: Throwable) {
-                    // If not available on this version, we’ll still show sync status
-                }
+                } catch (_: Throwable) { }
 
                 _spvStatus.value = "Connecting"
                 SpvController.updateRunning(true)
@@ -250,7 +264,6 @@ class WalletManager @Inject constructor(
                 pushHistory()
                 updateSpvStatus()
 
-                // Extra periodic diagnostics if stuck
                 scope.launch {
                     var tries = 0
                     while (tries < 20 && kit != null) {
@@ -291,7 +304,9 @@ class WalletManager @Inject constructor(
                 SpvController.updatePeers(0)
                 SpvController.updateSync(0)
                 SpvController.log("stopped")
+                // Clear SOCKS and mark SPV Tor as stopped
                 clearSocksProxy()
+                SpvController.updateTor(false, 0)
             }
         }
     }
@@ -309,6 +324,7 @@ class WalletManager @Inject constructor(
             if (address != null) {
                 prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, address).apply()
                 _address.value = address
+                _addressReady.value = true
             }
         }
     }
@@ -319,11 +335,16 @@ class WalletManager @Inject constructor(
             if (address != null) {
                 prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, address).apply()
                 _address.value = address
+                _addressReady.value = true
             } else {
-                _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
+                val prefAddr = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
+                _address.value = prefAddr
+                _addressReady.value = !prefAddr.isNullOrBlank()
             }
         } catch (_: Throwable) {
-            _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
+            val prefAddr = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
+            _address.value = prefAddr
+            _addressReady.value = !prefAddr.isNullOrBlank()
         }
     }
 
@@ -410,15 +431,21 @@ class WalletManager @Inject constructor(
                     System.setProperty("java.net.preferIPv4Stack", "true")
                     SpvController.log("using Tor SOCKS ${addr.hostString}:${addr.port}")
                     Log.i(TAG, "Using Tor SOCKS ${addr.hostString}:${addr.port} for P2P")
+                    // Update SPV-specific Tor status (running + bootstrap copied from TorManager snapshot)
+                    SpvController.updateTor(true, TorManager.statusFlow.value.bootstrapPercent)
                 } else {
                     Log.w(TAG, "Tor is ON but socks address is null; will proceed without proxy")
                     clearSocksProxy()
+                    SpvController.updateTor(false, 0)
                 }
             } else {
                 clearSocksProxy()
+                SpvController.updateTor(false, 0)
             }
         } catch (t: Throwable) {
             Log.w(TAG, "Tor SOCKS configuration failed: ${t.message}")
+            // Be conservative: mark SPV Tor as off
+            SpvController.updateTor(false, 0)
         }
     }
 
@@ -457,13 +484,9 @@ class WalletManager @Inject constructor(
                             port = params.port
                         }
                         try {
-                            // If we prefer unresolved hostnames (Tor/SOCKS), avoid local DNS resolution:
-                            // - Use InetSocketAddress(String host, int port) to keep it unresolved.
-                            // If it's clearly an IP literal, either path is fine.
                             val sock: InetSocketAddress = if (preferUnresolvedHostnames) {
                                 InetSocketAddress(host, port) // unresolved; SOCKS will resolve
                             } else {
-                                // Best effort: resolve if not using SOCKS
                                 val ip = runCatching { InetAddress.getByName(host) }.getOrNull()
                                 if (ip != null) InetSocketAddress(ip, port) else InetSocketAddress(host, port)
                             }

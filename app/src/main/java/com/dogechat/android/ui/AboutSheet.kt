@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dogechat.android.nostr.NostrProofOfWork
 import com.dogechat.android.nostr.PoWPreferenceManager
+import com.dogechat.android.wallet.WalletManager // keep if you use other WalletManager APIs
+import com.dogechat.android.wallet.WalletManager.Companion.SpvController // NEW: companion scope import
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +50,7 @@ fun AboutSheet(
     val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
     val standardBlue = Color(0xFF007AFF)
     val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
+    val dogeGold = if (isDark) Color(0xFFFFD700) else Color(0xFFFFB300)
 
     if (isPresented) {
         ModalBottomSheet(
@@ -98,7 +101,7 @@ fun AboutSheet(
                     }
                 }
 
-                // Features
+                // Features (added dogecoin wallet card)
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         FeatureCard(
@@ -120,6 +123,13 @@ fun AboutSheet(
                             iconColor = if (isDark) Color(0xFFFFD60A) else Color(0xFFF5A623),
                             title = "end-to-end encryption",
                             description = "private messages are encrypted. channel messages are public.",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        FeatureCard(
+                            icon = Icons.Filled.Security,
+                            iconColor = dogeGold,
+                            title = "dogecoin wallet",
+                            description = "light wallet (spv) with tor support for privacy-preserving node connectivity. manage addresses and send/receive doge.",
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -258,7 +268,7 @@ fun AboutSheet(
                     }
                 }
 
-                // Network (Tor)
+                // Network (Tor) — for chats/geohash
                 item {
                     val ctx = LocalContext.current
                     val torMode = remember { mutableStateOf(com.dogechat.android.net.TorPreferenceManager.get(ctx)) }
@@ -312,7 +322,7 @@ fun AboutSheet(
                         ) {
                             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = "tor status: " + (if (torStatus.running) "running" else "stopped") + ", bootstrap=" + torStatus.bootstrapPercent + "%",
+                                    text = "tor status: " + (if (torStatus.running) "running" else "stopped") + ", bootstrap=" + torStatus.bootstrapPercent + "%", // Network Tor
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     color = colorScheme.onSurface.copy(alpha = 0.75f)
@@ -335,6 +345,8 @@ fun AboutSheet(
                 item {
                     val prefs = remember(context) { context.getSharedPreferences("dogechat_wallet", Context.MODE_PRIVATE) }
                     var spvEnabled by remember { mutableStateOf(prefs.getBoolean("spv_enabled", false)) }
+                    // Observe SPV-specific Tor status from WalletManager companion
+                    val spvStatus = SpvController.status.collectAsState().value
 
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
@@ -392,6 +404,30 @@ fun AboutSheet(
                                     fontFamily = FontFamily.Monospace,
                                     color = colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
+                            }
+                        }
+                        // SPV Tor status (separate from Network Tor)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "tor status: " + (if (spvStatus.torRunning) "running" else "stopped") + ", bootstrap=" + spvStatus.torBootstrap + "%",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = colorScheme.onSurface.copy(alpha = 0.75f)
+                                )
+                                val last = spvStatus.lastLogLine
+                                if (last.isNotEmpty()) {
+                                    Text(
+                                        text = "last: " + last.take(160),
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
                             }
                         }
                     }
