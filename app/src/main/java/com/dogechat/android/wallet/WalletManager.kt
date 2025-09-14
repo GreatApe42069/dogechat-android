@@ -151,6 +151,7 @@ class WalletManager @Inject constructor(
 
     init {
         instanceRef = this
+        // Prime from prefs
         _addressReady.value = !prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null).isNullOrBlank()
         _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
 
@@ -182,7 +183,9 @@ class WalletManager @Inject constructor(
                                     Log.w(TAG, "Failed to set static peers: ${t.message}")
                                 }
                             }
+                            // Import any cached WIF first so address/UI reflect imported key
                             importCachedWifIfPresent()
+                            // Now push state
                             pushBalance()
                             pushAddress()
                             pushHistory()
@@ -243,6 +246,7 @@ class WalletManager @Inject constructor(
                 k.awaitRunning()
 
                 Log.i(TAG, "SPV running. Address: ${currentReceiveAddress()}")
+                // push after running to reflect final state
                 pushAddress()
                 pushBalance()
                 pushHistory()
@@ -282,9 +286,15 @@ class WalletManager @Inject constructor(
         }
     }
 
+    // Prefer imported WIF address if cached; fallback to HD receive address; then pref
     fun currentReceiveAddress(): String? = try {
-        kit?.wallet()?.currentReceiveAddress()?.toString()
-            ?: prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
+        val cached = prefs.getString(PREF_KEY_CACHED_WIF, null)
+        if (!cached.isNullOrBlank()) {
+            deriveAddressFromWif(cached) ?: prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
+        } else {
+            kit?.wallet()?.currentReceiveAddress()?.toString()
+                ?: prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
+        }
     } catch (_: Throwable) {
         prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
     }
@@ -293,6 +303,7 @@ class WalletManager @Inject constructor(
         scope.launch {
             val address = kit?.wallet()?.freshReceiveAddress()?.toString()
             if (address != null) {
+                // Intentional switch to HD address: clear cached WIF
                 prefs.edit()
                     .remove(PREF_KEY_CACHED_WIF)
                     .putString(PREF_KEY_RECEIVE_ADDRESS, address)
@@ -303,14 +314,23 @@ class WalletManager @Inject constructor(
         }
     }
 
+    // Respect cached WIF as the active/display address
     private fun pushAddress() {
         try {
+            val cachedWif = prefs.getString(PREF_KEY_CACHED_WIF, null)
+            if (!cachedWif.isNullOrBlank()) {
+                val wifAddr = deriveAddressFromWif(cachedWif)
+                if (!wifAddr.isNullOrBlank()) {
+                    prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, wifAddr).apply()
+                    _address.value = wifAddr
+                    _addressReady.value = true
+                    return
+                }
+            }
+            // No cached WIF: use wallet's HD receive address or previous pref
             val prev = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
             val addr = kit?.wallet()?.currentReceiveAddress()?.toString()
             if (addr != null) {
-                if (prev != null && prev != addr) {
-                    prefs.edit().remove(PREF_KEY_CACHED_WIF).apply()
-                }
                 prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, addr).apply()
                 _address.value = addr
                 _addressReady.value = true
@@ -365,13 +385,7 @@ class WalletManager @Inject constructor(
             } else {
                 val wif = exportCurrentReceivePrivateKeyWif()
                 if (!wif.isNullOrBlank()) {
-                    val addr = try {
-                        val key = DumpedPrivateKey.fromBase58(params, wif).key
-                        LegacyAddress.fromKey(params, key).toString()
-                    } catch (_: Throwable) {
-                        prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
-                    }
-                    persistWif(wif, addr)
+                    persistWif(wif, deriveAddressFromWif(wif))
                 }
                 wif
             }
@@ -398,6 +412,7 @@ class WalletManager @Inject constructor(
 
                 val w = kit?.wallet()
                 if (w == null) {
+                    // Cache for later and reflect immediately
                     persistWif(wif, addr)
                     _address.value = addr
                     _addressReady.value = true
@@ -407,7 +422,7 @@ class WalletManager @Inject constructor(
 
                 val already = try { w.importedKeys.contains(key) } catch (_: Throwable) { false }
                 if (!already) {
-                    try { w.importKey(key) } catch (_: Throwable) { }
+                    try { w.importKey(key) } catch (_: Throwable) { /* ignore */ }
                 }
                 persistWif(wif, addr)
                 _address.value = addr
@@ -430,9 +445,11 @@ class WalletManager @Inject constructor(
             val key = DumpedPrivateKey.fromBase58(params, wif).key
             val already = try { w.importedKeys.contains(key) } catch (_: Throwable) { false }
             if (!already) {
-                try { w.importKey(key) } catch (_: Throwable) { }
+                try { w.importKey(key) } catch (_: Throwable) { /* ignore */ }
             }
             val addr = LegacyAddress.fromKey(params, key).toString()
+            // Persist and reflect imported address as active
+            persistWif(wif, addr)
             _address.value = addr
             _addressReady.value = true
             Log.i(TAG, "Imported cached WIF: $addr")
@@ -446,6 +463,14 @@ class WalletManager @Inject constructor(
             putString(PREF_KEY_CACHED_WIF, wif)
             if (!address.isNullOrBlank()) putString(PREF_KEY_RECEIVE_ADDRESS, address)
         }.apply()
+    }
+
+    private fun deriveAddressFromWif(wif: String): String? = try {
+        val key = DumpedPrivateKey.fromBase58(params, wif).key
+        LegacyAddress.fromKey(params, key).toString()
+    } catch (t: Throwable) {
+        Log.w(TAG, "deriveAddressFromWif failed: ${t.message}")
+        null
     }
 
     fun wipeWalletData(): Boolean {
