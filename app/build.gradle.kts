@@ -4,7 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.kotlin.compose)
 
-    // Hilt + KSP
+    // Hilt via KAPT (stable) + keep KSP for other processors if needed
+    id("org.jetbrains.kotlin.kapt") version "2.0.0"
     id("com.google.devtools.ksp") version "2.0.0-1.0.24"
     id("com.google.dagger.hilt.android") version "2.51.1"
 }
@@ -121,7 +122,8 @@ dependencies {
 
     // ---- Hilt + Navigation ----
     implementation("com.google.dagger:hilt-android:2.51.1")
-    ksp("com.google.dagger:hilt-compiler:2.51.1")
+    // Use KAPT for Hilt to avoid KSP NonExistentClass issues
+    kapt("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // ---- Permissions (Accompanist) ----
@@ -189,4 +191,9 @@ dependencies {
 
     // If you enabled desugaring above, add:
     // coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+}
+
+// KAPT configuration for Hilt
+kapt {
+    correctErrorTypes = true
 }

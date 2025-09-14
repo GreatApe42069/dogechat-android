@@ -5,9 +5,3 @@ tasks.whenTaskAdded {
         enabled = false
     }
 }
-
-tasks.whenTaskAdded {
-    if (name.contains("ArtProfile")) {
-        enabled = false
-    }
-}

@@ -9,10 +9,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,22 +46,17 @@ fun WalletScreen(
     initialTokenOriginal: String? = null
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard: ClipboardManager = LocalClipboardManager.current
     val prefs = remember(context) { context.getSharedPreferences("dogechat_wallet", android.content.Context.MODE_PRIVATE) }
 
-    // Brand accent color (same as ChatScreen header and permissions)
     val brandAccent = Color(0xFFFFFF00)
-
-    // Observe SPV toggle state for import guidance
     val spvEnabled by SpvController.enabled.collectAsState(initial = false)
 
-    // ViewModel state
     val balance by viewModel.balance.collectAsState(initial = "0 DOGE")
     val addressFlowValue by viewModel.address.collectAsState(initial = null)
     val syncPercent by viewModel.syncPercent.collectAsState(initial = 0)
     val history by viewModel.history.collectAsState(initial = emptyList())
 
-    // Persisted address fallback (so UI shows immediately)
     var persistedAddress by remember { mutableStateOf(prefs.getString("receive_address", null)) }
     LaunchedEffect(addressFlowValue) {
         addressFlowValue?.let {
@@ -71,7 +66,6 @@ fun WalletScreen(
     }
     val displayAddress = addressFlowValue ?: persistedAddress ?: "Not ready"
 
-    // UI state (dialogs, errors)
     val showSendDialog by uiStateManager.showSendDialog.observeAsState(false)
     val showReceiveDialog by uiStateManager.showReceiveDialog.observeAsState(false)
     val showSuccess by uiStateManager.showSuccessAnimation.observeAsState(false)
@@ -81,18 +75,30 @@ fun WalletScreen(
     val isLoading by uiStateManager.isLoading.observeAsState(false)
     val errorMessage by uiStateManager.errorMessage.observeAsState()
 
-    // Private key dialogs state
     var showPrivKeyDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var privateKeyWif by remember { mutableStateOf<String?>(null) }
 
-    // About sheet and triple-tap wipe
     var showAbout by remember { mutableStateOf(false) }
     var tapCount by remember { mutableStateOf(0) }
     var lastTapMs by remember { mutableStateOf(0L) }
 
-    // Start wallet
     LaunchedEffect(Unit) { viewModel.startWallet() }
+
+    fun handleRefresh() {
+        if (!spvEnabled) {
+            Toast.makeText(context, "Enable SPV in About > Wallet to sync balance and history.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val mgr = instanceRef
+        if (mgr == null) {
+            Toast.makeText(context, "Wallet not ready yet. Starting…", Toast.LENGTH_SHORT).show()
+            viewModel.startWallet()
+            return
+        }
+        mgr.refreshNow()
+        Toast.makeText(context, "Refreshing…", Toast.LENGTH_SHORT).show()
+    }
 
     Scaffold(
         topBar = {
@@ -108,7 +114,6 @@ fun WalletScreen(
                             if (tapCount == 3) {
                                 tapCount = 0
                                 if (instanceRef?.wipeWalletData() == true) {
-                                    // Clear UI-cached values immediately
                                     persistedAddress = null
                                     privateKeyWif = null
                                     Toast.makeText(context, "Wallet data wiped", Toast.LENGTH_SHORT).show()
@@ -127,7 +132,7 @@ fun WalletScreen(
                             ?: instanceRef?.getCachedWif()
                         showPrivKeyDialog = true
                     }) {
-                        Icon(Icons.Default.VpnKey, contentDescription = "Export Private Key", tint = brandAccent)
+                        Icon(Icons.Filled.VpnKey, contentDescription = "Export Private Key", tint = brandAccent)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -152,10 +157,7 @@ fun WalletScreen(
                     syncPercent = syncPercent,
                     onSendClick = { uiStateManager.showSendDialog() },
                     onReceiveClick = { uiStateManager.showReceiveDialog() },
-                    onRefreshClick = {
-                        // Force a balance/history refresh and nudge SPV
-                        instanceRef?.refreshNow()
-                    }
+                    onRefreshClick = { handleRefresh() }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -165,7 +167,7 @@ fun WalletScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = brandAccent
                 )
-                Divider(modifier = Modifier.padding(vertical = 6.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
 
                 WalletTransactionHistory(
                     rows = history,
@@ -191,6 +193,7 @@ fun WalletScreen(
                                 )
                                 uiStateManager.hideSendDialog()
                                 Toast.makeText(context, "Sent: $msg", Toast.LENGTH_SHORT).show()
+                                handleRefresh()
                             } else {
                                 uiStateManager.showFailureAnimation(
                                     WalletViewModel.FailureAnimationData(message = "Send failed", reason = msg)
@@ -204,7 +207,7 @@ fun WalletScreen(
             if (showReceiveDialog) {
                 WalletReceiveDialog(
                     currentAddress = displayAddress,
-                    onRequestAddress = { /* optional: trigger new address later */ },
+                    onRequestAddress = { /* future */ },
                     onCopy = {
                         clipboard.setText(AnnotatedString(displayAddress))
                         Toast.makeText(context, "Copied Shibes Address", Toast.LENGTH_SHORT).show()
@@ -248,6 +251,7 @@ fun WalletScreen(
                                 privateKeyWif = instanceRef?.getCachedWif() ?: wif
                                 showImportDialog = false
                                 showPrivKeyDialog = true
+                                handleRefresh()
                             }
                         }
                     },
@@ -265,9 +269,6 @@ fun WalletScreen(
     )
 }
 
-/**
- * Wallet overview card
- */
 @Composable
 private fun WalletOverview(
     brandAccent: Color,
@@ -291,7 +292,7 @@ private fun WalletOverview(
                     Text(text = balance, style = MaterialTheme.typography.titleLarge)
                 }
                 IconButton(onClick = onRefreshClick) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = brandAccent)
+                    Icon(Icons.Filled.Refresh, contentDescription = "Refresh", tint = brandAccent)
                 }
             }
 
@@ -318,7 +319,7 @@ private fun WalletOverview(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = brandAccent),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Default.QrCode, contentDescription = "Receive", tint = brandAccent)
+                    Icon(Icons.Filled.QrCode, contentDescription = "Receive", tint = brandAccent)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Much Receive")
                 }
@@ -328,7 +329,7 @@ private fun WalletOverview(
                     colors = ButtonDefaults.buttonColors(containerColor = brandAccent, contentColor = Color.Black),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.Black)
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = Color.Black)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Very Send")
                 }
@@ -337,7 +338,7 @@ private fun WalletOverview(
             Spacer(modifier = Modifier.height(12.dp))
 
             LinearProgressIndicator(
-                progress = (syncPercent.coerceIn(0, 100) / 100f),
+                progress = { (syncPercent.coerceIn(0, 100) / 100f) },
                 modifier = Modifier.fillMaxWidth(),
                 color = brandAccent
             )
@@ -350,9 +351,6 @@ private fun WalletOverview(
     }
 }
 
-/**
- * Send dialog
- */
 @Composable
 private fun WalletSendDialog(
     defaultAddress: String,
@@ -394,9 +392,6 @@ private fun WalletSendDialog(
     )
 }
 
-/**
- * Receive dialog
- */
 @Composable
 private fun WalletReceiveDialog(
     currentAddress: String,
@@ -409,7 +404,7 @@ private fun WalletReceiveDialog(
         confirmButton = {
             Row {
                 TextButton(onClick = onCopy) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                    Icon(Icons.Filled.ContentCopy, contentDescription = "Copy")
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Copy")
                 }
@@ -438,9 +433,6 @@ private fun WalletReceiveDialog(
     )
 }
 
-/**
- * Private Key dialog (masked by default + import hint)
- */
 @Composable
 private fun PrivateKeyDialog(
     brandAccent: Color,
@@ -470,7 +462,7 @@ private fun PrivateKeyDialog(
                     clipboard.setText(AnnotatedString(wif))
                     Toast.makeText(context, "Copied Private Key (WIF)", Toast.LENGTH_SHORT).show()
                 }) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                    Icon(Icons.Filled.ContentCopy, contentDescription = "Copy")
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Copy")
                 }
@@ -487,7 +479,6 @@ private fun PrivateKeyDialog(
                     color = brandAccent
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                // Masked key box with reveal toggle
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -502,7 +493,6 @@ private fun PrivateKeyDialog(
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                // SPV import hint
                 Text(
                     text = if (spvEnabled)
                         "SPV is ON. You can import now."
@@ -516,9 +506,6 @@ private fun PrivateKeyDialog(
     )
 }
 
-/**
- * Private Key import dialog (with SPV hint)
- */
 @Composable
 private fun PrivateKeyImportDialog(
     brandAccent: Color,
@@ -563,9 +550,6 @@ private fun PrivateKeyImportDialog(
     )
 }
 
-/**
- * Success dialog
- */
 @Composable
 private fun WalletSuccessDialog(
     data: WalletViewModel.SuccessAnimationData,
@@ -584,9 +568,6 @@ private fun WalletSuccessDialog(
     )
 }
 
-/**
- * Failure dialog
- */
 @Composable
 private fun WalletFailureDialog(
     data: WalletViewModel.FailureAnimationData,
@@ -605,9 +586,6 @@ private fun WalletFailureDialog(
     )
 }
 
-/**
- * Transaction history list
- */
 @Composable
 private fun WalletTransactionHistory(
     rows: List<WalletManager.TxRow>,
@@ -624,7 +602,7 @@ private fun WalletTransactionHistory(
     LazyColumn(modifier = modifier) {
         items(rows) { row ->
             WalletTransactionRow(row)
-            Divider()
+            HorizontalDivider()
         }
     }
 }

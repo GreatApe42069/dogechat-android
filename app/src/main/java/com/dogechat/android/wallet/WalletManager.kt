@@ -21,6 +21,7 @@ import org.bitcoinj.core.NetworkParameters
 import org.bitcoinj.core.PeerAddress
 import org.bitcoinj.core.listeners.DownloadProgressTracker
 import org.bitcoinj.kits.WalletAppKit
+import org.bitcoinj.net.discovery.DnsDiscovery
 import org.bitcoinj.wallet.Wallet
 import org.libdohj.params.DogecoinMainNetParams
 import java.io.BufferedReader
@@ -151,7 +152,6 @@ class WalletManager @Inject constructor(
 
     init {
         instanceRef = this
-        // Prime from prefs
         _addressReady.value = !prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null).isNullOrBlank()
         _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
 
@@ -183,12 +183,19 @@ class WalletManager @Inject constructor(
                                     Log.w(TAG, "Failed to set static peers: ${t.message}")
                                 }
                             }
-                            // Import any cached WIF first so address/UI reflect imported key
+                            // If not using Tor SOCKS, add DNS seed discovery to improve connectivity
+                            if (!usingSocks) {
+                                try {
+                                    peerGroup().addPeerDiscovery(DnsDiscovery(params))
+                                    Log.i(TAG, "DNS discovery enabled")
+                                } catch (t: Throwable) {
+                                    Log.w(TAG, "Failed to enable DNS discovery: ${t.message}")
+                                }
+                            }
+
                             importCachedWifIfPresent()
-                            // Ensure the chain includes transactions for imported keys
                             triggerRescanForImportedIfNeeded()
 
-                            // Push initial state
                             pushBalance()
                             pushAddress()
                             pushHistory()
@@ -250,7 +257,6 @@ class WalletManager @Inject constructor(
                 k.awaitRunning()
 
                 Log.i(TAG, "SPV running. Address: ${currentReceiveAddress()}")
-                // push after running to reflect final state
                 pushAddress()
                 pushBalance()
                 pushHistory()
@@ -290,7 +296,6 @@ class WalletManager @Inject constructor(
         }
     }
 
-    // Prefer imported WIF address if cached; fallback to HD receive address; then pref
     fun currentReceiveAddress(): String? = try {
         val cached = prefs.getString(PREF_KEY_CACHED_WIF, null)
         if (!cached.isNullOrBlank()) {
@@ -307,7 +312,6 @@ class WalletManager @Inject constructor(
         scope.launch {
             val address = kit?.wallet()?.freshReceiveAddress()?.toString()
             if (address != null) {
-                // Intentional switch to HD address: clear cached WIF
                 prefs.edit()
                     .remove(PREF_KEY_CACHED_WIF)
                     .putString(PREF_KEY_RECEIVE_ADDRESS, address)
@@ -318,7 +322,6 @@ class WalletManager @Inject constructor(
         }
     }
 
-    // Respect cached WIF as the active/display address
     private fun pushAddress() {
         try {
             val cachedWif = prefs.getString(PREF_KEY_CACHED_WIF, null)
@@ -331,7 +334,6 @@ class WalletManager @Inject constructor(
                     return
                 }
             }
-            // No cached WIF: use wallet's HD receive address or previous pref
             val prev = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
             val addr = kit?.wallet()?.currentReceiveAddress()?.toString()
             if (addr != null) {
@@ -353,7 +355,6 @@ class WalletManager @Inject constructor(
         generateNewReceiveAddress()
     }
 
-    // NEW: manual refresh nudges SPV and pushes UI immediately
     fun refreshNow() {
         scope.launch {
             pushAddress()
@@ -397,8 +398,6 @@ class WalletManager @Inject constructor(
         }
     }
 
-    // -------------- WIF persistence and import/restore ----------------
-
     fun getOrExportAndCacheWif(): String? {
         return try {
             val cached = prefs.getString(PREF_KEY_CACHED_WIF, null)
@@ -434,7 +433,6 @@ class WalletManager @Inject constructor(
 
                 val w = kit?.wallet()
                 if (w == null) {
-                    // Cache for later and reflect immediately
                     persistWif(wif, addr)
                     _address.value = addr
                     _addressReady.value = true
@@ -451,7 +449,6 @@ class WalletManager @Inject constructor(
                 _addressReady.value = true
                 SpvController.log("imported WIF; addr=$addr")
 
-                // IMPORTANT: trigger a rescan so balance/history show up
                 triggerRescanFromBirth(key.creationTimeSeconds)
 
                 withContext(Dispatchers.Main) { onResult(true, "Private key imported") }
@@ -474,7 +471,6 @@ class WalletManager @Inject constructor(
                 try { w.importKey(key) } catch (_: Throwable) { /* ignore */ }
             }
             val addr = LegacyAddress.fromKey(params, key).toString()
-            // Persist and reflect imported address as active
             persistWif(wif, addr)
             _address.value = addr
             _addressReady.value = true
@@ -499,31 +495,28 @@ class WalletManager @Inject constructor(
         null
     }
 
-    // --- Rescan helpers ------------------------------------------------
-
-    // When there is a cached/imported key, force a rescan so its UTXOs are discovered
     private fun triggerRescanForImportedIfNeeded() {
         val wif = prefs.getString(PREF_KEY_CACHED_WIF, null) ?: return
-        val birth = 0L // safest: scan from genesis; adjust if you track key birthday
+        val birth = 0L
         triggerRescanFromBirth(birth)
     }
 
     private fun triggerRescanFromBirth(birthTimeSecs: Long) {
         val pg = kit?.peerGroup() ?: return
+        try { pg.setFastCatchupTimeSecs(birthTimeSecs) } catch (_: Throwable) {}
         try {
-            // Help fast-catchup pick the right range; 0 forces full SPV scan (headers + relevant blocks)
-            pg.setFastCatchupTimeSecs(birthTimeSecs)
-        } catch (_: Throwable) {}
-        try {
-            // Update bloom filters to include imported keys
-            // Older/newer bitcoinj versions differ; both calls are tried
-            val m = pg.javaClass.methods.firstOrNull { it.name == "recalculateFastCatchupAndFilter" && it.parameterTypes.isEmpty() }
-            if (m != null) m.invoke(pg) else runCatching {
-                // If using the newer enum signature, best-effort reflection (ignore failures)
-                val enumClass = Class.forName("org.bitcoinj.core.PeerGroup\$FilterRecalculateMode")
-                val forceSend = enumClass.enumConstants.firstOrNull()
-                val m2 = pg.javaClass.getMethod("recalculateFastCatchupAndFilter", enumClass)
-                m2.invoke(pg, forceSend)
+            val m = pg.javaClass.methods.firstOrNull {
+                it.name == "recalculateFastCatchupAndFilter" && it.parameterTypes.isEmpty()
+            }
+            if (m != null) {
+                m.invoke(pg)
+            } else {
+                runCatching {
+                    val enumClass = Class.forName("org.bitcoinj.core.PeerGroup\$FilterRecalculateMode")
+                    val forceSend = enumClass.enumConstants?.firstOrNull()
+                    val m2 = pg.javaClass.getMethod("recalculateFastCatchupAndFilter", enumClass)
+                    m2.invoke(pg, forceSend)
+                }
             }
         } catch (_: Throwable) {}
         try {
@@ -582,8 +575,6 @@ class WalletManager @Inject constructor(
             false
         }
     }
-
-    // ------------------------------------------------------------------
 
     private fun pushBalance() {
         val w = kit?.wallet() ?: return
