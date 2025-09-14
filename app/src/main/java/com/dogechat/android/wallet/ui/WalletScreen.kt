@@ -43,15 +43,26 @@ fun WalletScreen(
     initialTokenOriginal: String? = null
 ) {
     val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("dogechat_wallet", android.content.Context.MODE_PRIVATE) }
 
-    // Dogecoin accent color
-    val dogeGold = Color(0xFFFFB300)
+    // Dogecoin standard yellow used throughout the app
+    val dogeYellow = Color(0xFFFFFF00)
 
     // State flows from viewmodel
     val balance by viewModel.balance.collectAsState(initial = "0 DOGE")
-    val address by viewModel.address.collectAsState(initial = null)
+    val addressFlowValue by viewModel.address.collectAsState(initial = null)
     val syncPercent by viewModel.syncPercent.collectAsState(initial = 0)
     val history by viewModel.history.collectAsState(initial = emptyList())
+
+    // Persisted address fallback (kept up-to-date whenever flow emits)
+    var persistedAddress by remember { mutableStateOf(prefs.getString("receive_address", null)) }
+    LaunchedEffect(addressFlowValue) {
+        addressFlowValue?.let {
+            persistedAddress = it
+            prefs.edit().putString("receive_address", it).apply()
+        }
+    }
+    val displayAddress = addressFlowValue ?: persistedAddress ?: "Not ready"
 
     // Dialog / animation state handled by UIStateManager (LiveData)
     val showSendDialog by uiStateManager.showSendDialog.observeAsState(false)
@@ -77,14 +88,19 @@ fun WalletScreen(
             TopAppBar(
                 title = { Text("Đogecoin Wallet") },
                 actions = {
-                    // Replace header refresh with KEY icon
+                    // Key icon to export WIF
                     IconButton(onClick = {
                         privateKeyWif = instanceRef?.exportCurrentReceivePrivateKeyWif()
                         showPrivKeyDialog = true
                     }) {
-                        Icon(Icons.Default.VpnKey, contentDescription = "Export Private Key", tint = dogeGold)
+                        Icon(Icons.Default.VpnKey, contentDescription = "Export Private Key", tint = dogeYellow)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = dogeYellow.copy(alpha = 0.08f), // subtle yellow tint
+                    titleContentColor = dogeYellow,
+                    actionIconContentColor = dogeYellow
+                )
             )
         },
         content = { innerPadding ->
@@ -95,10 +111,11 @@ fun WalletScreen(
                     .padding(12.dp)
             ) {
                 WalletOverview(
-                    dogeGold = dogeGold,
+                    dogeYellow = dogeYellow,
                     balance = balance,
-                    shortAddress = address?.let { shortenAddress(it) } ?: "—",
-                    fullAddress = address ?: "Not ready",
+                    // Show full address (no shortening)
+                    shortAddress = displayAddress,
+                    fullAddress = displayAddress,
                     syncPercent = syncPercent,
                     onSendClick = { uiStateManager.showSendDialog() },
                     onReceiveClick = { uiStateManager.showReceiveDialog() },
@@ -107,10 +124,14 @@ fun WalletScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(text = "Much Transactions", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Much Transactions",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = dogeYellow
+                )
                 Divider(modifier = Modifier.padding(vertical = 6.dp))
 
-                // Renamed to avoid collisions with another TransactionHistory in the project
+                // Local list to avoid collisions with TransactionHistory.kt
                 WalletTransactionHistory(
                     rows = history,
                     modifier = Modifier
@@ -122,7 +143,7 @@ fun WalletScreen(
             // Send Dialog
             if (showSendDialog) {
                 SendDialog(
-                    defaultAddress = address ?: "",
+                    defaultAddress = displayAddress.takeIf { it != "Not ready" } ?: "",
                     isLoading = isLoading,
                     onDismiss = { uiStateManager.hideSendDialog(); uiStateManager.clearError() },
                     onSend = { toAddr, amount ->
@@ -148,7 +169,7 @@ fun WalletScreen(
             // Receive Dialog
             if (showReceiveDialog) {
                 ReceiveDialog(
-                    address = address ?: "Not ready",
+                    address = displayAddress,
                     onDismiss = { uiStateManager.hideReceiveDialog() }
                 )
             }
@@ -184,7 +205,7 @@ fun WalletScreen(
             // Private key dialog
             if (showPrivKeyDialog) {
                 PrivateKeyDialog(
-                    dogeGold = dogeGold,
+                    dogeYellow = dogeYellow,
                     privateKeyWif = privateKeyWif,
                     onDismiss = { showPrivKeyDialog = false }
                 )
@@ -199,7 +220,7 @@ fun WalletScreen(
  */
 @Composable
 private fun WalletOverview(
-    dogeGold: Color,
+    dogeYellow: Color,
     balance: String,
     shortAddress: String,
     fullAddress: String,
@@ -211,7 +232,9 @@ private fun WalletOverview(
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             // Top row: balance + refresh
@@ -221,20 +244,20 @@ private fun WalletOverview(
                     Text(text = balance, style = MaterialTheme.typography.titleLarge)
                 }
                 IconButton(onClick = onRefreshClick) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = dogeGold)
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = dogeYellow)
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Address chip - its own row
+            // Address chip - full address and tinted background
             Surface(
-                color = Color.Transparent,
-                border = BorderStroke(1.dp, dogeGold),
+                color = dogeYellow.copy(alpha = 0.08f), // subtle yellow tint
+                border = BorderStroke(1.dp, dogeYellow),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
-                    text = "Address: $shortAddress",
+                    text = "Address: $fullAddress",
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -246,18 +269,18 @@ private fun WalletOverview(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 OutlinedButton(
                     onClick = onReceiveClick,
-                    border = BorderStroke(1.dp, dogeGold),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = dogeGold),
+                    border = BorderStroke(1.dp, dogeYellow),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = dogeYellow),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Default.QrCode, contentDescription = "Receive", tint = dogeGold)
+                    Icon(Icons.Default.QrCode, contentDescription = "Receive", tint = dogeYellow)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Much Receive")
                 }
 
                 Button(
                     onClick = onSendClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = dogeGold, contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(containerColor = dogeYellow, contentColor = Color.Black),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.Black)
@@ -272,7 +295,7 @@ private fun WalletOverview(
             LinearProgressIndicator(
                 progress = (syncPercent.coerceIn(0, 100) / 100f),
                 modifier = Modifier.fillMaxWidth(),
-                color = dogeGold
+                color = dogeYellow
             )
             Text(
                 text = "Sync: $syncPercent%",
@@ -374,7 +397,7 @@ private fun ReceiveDialog(
  */
 @Composable
 private fun PrivateKeyDialog(
-    dogeGold: Color,
+    dogeYellow: Color,
     privateKeyWif: String?,
     onDismiss: () -> Unit
 ) {
@@ -402,7 +425,7 @@ private fun PrivateKeyDialog(
             Column {
                 Text(
                     text = "Warning: Anyone with this key can spend your DOGE. Store it securely.",
-                    color = dogeGold
+                    color = dogeYellow
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
@@ -502,7 +525,7 @@ private fun WalletTransactionRow(row: WalletManager.TxRow) {
     }
 }
 
-/** Utility to shorten long addresses for display */
+/** Utility to shorten long addresses for display (kept for other use) */
 private fun shortenAddress(addr: String, prefix: Int = 6, suffix: Int = 6): String {
     if (addr.length <= prefix + suffix + 3) return addr
     return addr.take(prefix) + "…" + addr.takeLast(suffix)

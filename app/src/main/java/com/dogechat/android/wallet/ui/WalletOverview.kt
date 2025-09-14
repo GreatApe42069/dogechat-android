@@ -23,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 
 /**
  * WalletOverview composable for Dogechat (DOGE only).
- * Dogecoin gold accents.
+ * Dogecoin standard yellow accents.
  */
 @Composable
 fun WalletOverview(
@@ -39,7 +39,7 @@ fun WalletOverview(
     onRefreshClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dogeGold = Color(0xFFFFB300)
+    val dogeYellow = Color(0xFFFFFF00)
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -77,7 +77,7 @@ fun WalletOverview(
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Refresh",
-                        tint = dogeGold
+                        tint = dogeYellow
                     )
                 }
             }
@@ -97,14 +97,14 @@ fun WalletOverview(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     OutlinedButton(
                         onClick = onReceiveClick,
-                        border = BorderStroke(1.dp, dogeGold),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = dogeGold),
+                        border = BorderStroke(1.dp, dogeYellow),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = dogeYellow),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.QrCode,
                             contentDescription = "Receive",
-                            tint = dogeGold
+                            tint = dogeYellow
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "Receive")
@@ -112,7 +112,7 @@ fun WalletOverview(
 
                     Button(
                         onClick = onSendClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = dogeGold, contentColor = Color.Black),
+                        colors = ButtonDefaults.buttonColors(containerColor = dogeYellow, contentColor = Color.Black),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(
@@ -145,7 +145,7 @@ fun WalletOverview(
                     modifier = Modifier
                         .weight(1f)
                         .height(6.dp),
-                    color = dogeGold
+                    color = dogeYellow
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -153,7 +153,7 @@ fun WalletOverview(
                     style = MaterialTheme.typography.bodySmall,
                     color = when {
                         peerCount == 0 -> Color.Red
-                        syncPercent < 100 -> dogeGold
+                        syncPercent < 100 -> dogeYellow
                         else -> Color(0xFF4CAF50)
                     }
                 )
@@ -175,7 +175,7 @@ fun WalletOverview(
                     },
                     color = when {
                         peerCount == 0 -> Color.Red
-                        syncPercent < 100 -> dogeGold
+                        syncPercent < 100 -> dogeYellow
                         else -> Color(0xFF4CAF50)
                     },
                     fontFamily = FontFamily.Monospace,
@@ -190,7 +190,7 @@ fun WalletOverview(
                             contentDescription = "Tor",
                             tint = when {
                                 torStatus?.lowercase()?.contains("running") == true -> Color(0xFF4CAF50)
-                                torStatus?.lowercase()?.contains("connecting") == true -> dogeGold
+                                torStatus?.lowercase()?.contains("connecting") == true -> dogeYellow
                                 else -> Color.Red
                             },
                             modifier = Modifier.size(16.dp)
@@ -220,7 +220,7 @@ private fun StatusDot(
 ) {
     val color = when {
         peerCount == 0 || spvStatus.equals("Not Connected", true) -> Color.Red
-        spvStatus.equals("Syncing", true) -> Color(0xFFFFB300)
+        spvStatus.equals("Syncing", true) -> Color(0xFFFFFF00)
         else -> Color(0xFF4CAF50)
     }
     Box(
