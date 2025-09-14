@@ -98,7 +98,10 @@ fun WalletScreen(
                             lastTapMs = now
                             if (tapCount == 3) {
                                 tapCount = 0
+                                // Wipe wallet data and clear UI-cached address/WIF immediately
                                 if (instanceRef?.wipeWalletData() == true) {
+                                    persistedAddress = null
+                                    privateKeyWif = null
                                     Toast.makeText(context, "Wallet data wiped", Toast.LENGTH_SHORT).show()
                                 } else {
                                     Toast.makeText(context, "Failed to wipe wallet", Toast.LENGTH_SHORT).show()

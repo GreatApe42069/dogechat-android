@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.bitcoinj.core.Address
 import org.bitcoinj.core.DumpedPrivateKey
 import org.bitcoinj.core.LegacyAddress
@@ -246,18 +247,6 @@ class WalletManager @Inject constructor(
                 pushBalance()
                 pushHistory()
                 updateSpvStatus()
-
-                scope.launch {
-                    var tries = 0
-                    while (tries < 20 && kit != null) {
-                        delay(2000)
-                        tries++
-                        val pc = _peerCount.value
-                        val sp = _syncPercent.value
-                        SpvController.log("diag peers=$pc sync=$sp%")
-                        if (pc > 0 || sp > 0) break
-                    }
-                }
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to start SPV wallet: ${e.message}", e)
                 _spvStatus.value = "Error"
@@ -347,7 +336,7 @@ class WalletManager @Inject constructor(
     ) {
         scope.launch {
             val localKit = kit ?: run {
-                onResult(false, "Wallet not started")
+                withContext(Dispatchers.Main) { onResult(false, "Wallet not started") }
                 return@launch
             }
             try {
@@ -357,11 +346,11 @@ class WalletManager @Inject constructor(
                 pushBalance()
                 pushHistory()
                 SpvController.log("broadcast requested")
-                onResult(true, "Broadcast requested")
+                withContext(Dispatchers.Main) { onResult(true, "Broadcast requested") }
             } catch (e: Throwable) {
                 Log.e(TAG, "sendCoins failed: ${e.message}", e)
                 SpvController.log("send error: ${e.message}")
-                onResult(false, e.message ?: "Unknown error")
+                withContext(Dispatchers.Main) { onResult(false, e.message ?: "Unknown error") }
             }
         }
     }
@@ -412,7 +401,7 @@ class WalletManager @Inject constructor(
                     persistWif(wif, addr)
                     _address.value = addr
                     _addressReady.value = true
-                    onResult(true, "WIF cached. It will be loaded next time the wallet starts.")
+                    withContext(Dispatchers.Main) { onResult(true, "WIF cached. It will be loaded next time the wallet starts.") }
                     return@launch
                 }
 
@@ -424,10 +413,10 @@ class WalletManager @Inject constructor(
                 _address.value = addr
                 _addressReady.value = true
                 SpvController.log("imported WIF; addr=$addr")
-                onResult(true, "Private key imported")
+                withContext(Dispatchers.Main) { onResult(true, "Private key imported") }
             } catch (e: Throwable) {
                 Log.e(TAG, "importPrivateKeyWif failed: ${e.message}", e)
-                onResult(false, e.message ?: "Import failed")
+                withContext(Dispatchers.Main) { onResult(false, e.message ?: "Import failed") }
             }
         }
     }
