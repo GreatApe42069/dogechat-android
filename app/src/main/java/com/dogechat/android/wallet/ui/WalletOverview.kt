@@ -1,35 +1,29 @@
 package com.dogechat.android.wallet.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 
 /**
  * WalletOverview composable for Dogechat (DOGE only).
- * Now includes status indicator for peer/SPV sync state.
- *
- * Parameters:
- *  - balance: user-friendly balance string (e.g. "12.34 DOGE")
- *  - shortAddress: shortened address for display
- *  - syncPercent: sync progress 0..100
- *  - peerCount: number of connected peers
- *  - spvStatus: string ("Not Connected", "Syncing", "Synced")
- *  - torEnabled: whether Tor is enabled for wallet connections
- *  - torStatus: optional string ("Running", "Connecting", "Off", etc.)
- *  - onSendClick/onReceiveClick/onRefreshClick: callbacks from parent
+ * Dogecoin gold accents.
  */
 @Composable
 fun WalletOverview(
@@ -45,10 +39,12 @@ fun WalletOverview(
     onRefreshClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dogeGold = Color(0xFFFFB300)
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A1A))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier
@@ -71,7 +67,6 @@ fun WalletOverview(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = balance,
-                        color = Color.White,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
@@ -82,60 +77,52 @@ fun WalletOverview(
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Refresh",
-                        tint = Color(0xFF00C851)
+                        tint = dogeGold
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Address + actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            // Address + actions (separated for polish)
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Address: $shortAddress",
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f),
                     color = Color.LightGray
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Receive button (QR)
-                Button(
-                    onClick = onReceiveClick,
-                    modifier = Modifier.height(40.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00C851)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.QrCode,
-                        contentDescription = "Receive",
-                        tint = Color(0xFF00C851)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Receive", color = Color(0xFF00C851))
-                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    OutlinedButton(
+                        onClick = onReceiveClick,
+                        border = BorderStroke(1.dp, dogeGold),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = dogeGold),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode,
+                            contentDescription = "Receive",
+                            tint = dogeGold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Receive")
+                    }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Send button
-                Button(
-                    onClick = onSendClick,
-                    modifier = Modifier.height(40.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C851)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = "Send",
-                        tint = Color.Black
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Send", color = Color.Black)
+                    Button(
+                        onClick = onSendClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = dogeGold, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "Send",
+                            tint = Color.Black
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Send")
+                    }
                 }
             }
 
@@ -157,7 +144,8 @@ fun WalletOverview(
                     progress = (syncPercent.coerceIn(0, 100) / 100f),
                     modifier = Modifier
                         .weight(1f)
-                        .height(6.dp)
+                        .height(6.dp),
+                    color = dogeGold
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -165,7 +153,7 @@ fun WalletOverview(
                     style = MaterialTheme.typography.bodySmall,
                     color = when {
                         peerCount == 0 -> Color.Red
-                        syncPercent < 100 -> Color(0xFFFFC107)
+                        syncPercent < 100 -> dogeGold
                         else -> Color(0xFF4CAF50)
                     }
                 )
@@ -187,7 +175,7 @@ fun WalletOverview(
                     },
                     color = when {
                         peerCount == 0 -> Color.Red
-                        syncPercent < 100 -> Color(0xFFFFC107)
+                        syncPercent < 100 -> dogeGold
                         else -> Color(0xFF4CAF50)
                     },
                     fontFamily = FontFamily.Monospace,
@@ -202,7 +190,7 @@ fun WalletOverview(
                             contentDescription = "Tor",
                             tint = when {
                                 torStatus?.lowercase()?.contains("running") == true -> Color(0xFF4CAF50)
-                                torStatus?.lowercase()?.contains("connecting") == true -> Color(0xFFFFC107)
+                                torStatus?.lowercase()?.contains("connecting") == true -> dogeGold
                                 else -> Color.Red
                             },
                             modifier = Modifier.size(16.dp)
@@ -232,7 +220,7 @@ private fun StatusDot(
 ) {
     val color = when {
         peerCount == 0 || spvStatus.equals("Not Connected", true) -> Color.Red
-        spvStatus.equals("Syncing", true) -> Color(0xFFFFC107)
+        spvStatus.equals("Syncing", true) -> Color(0xFFFFB300)
         else -> Color(0xFF4CAF50)
     }
     Box(

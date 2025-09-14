@@ -1,32 +1,34 @@
 package com.dogechat.android.wallet.ui
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.dogechat.android.wallet.WalletManager
+import com.dogechat.android.wallet.WalletManager.Companion.instanceRef
 import com.dogechat.android.wallet.viewmodel.UIStateManager
 import com.dogechat.android.wallet.viewmodel.WalletViewModel
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -40,9 +42,10 @@ fun WalletScreen(
     initialTokenMemo: String? = null,
     initialTokenOriginal: String? = null
 ) {
-    // In viewModel.startWallet() you can check these and prefill send/receive dialogs
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    // Dogecoin accent color
+    val dogeGold = Color(0xFFFFB300)
 
     // State flows from viewmodel
     val balance by viewModel.balance.collectAsState(initial = "0 DOGE")
@@ -60,6 +63,10 @@ fun WalletScreen(
     val isLoading by uiStateManager.isLoading.observeAsState(false)
     val errorMessage by uiStateManager.errorMessage.observeAsState()
 
+    // Private key dialog state
+    var showPrivKeyDialog by remember { mutableStateOf(false) }
+    var privateKeyWif by remember { mutableStateOf<String?>(null) }
+
     // start wallet when screen appears
     LaunchedEffect(Unit) {
         viewModel.startWallet()
@@ -70,10 +77,12 @@ fun WalletScreen(
             TopAppBar(
                 title = { Text("Đogecoin Wallet") },
                 actions = {
+                    // Replace header refresh with KEY icon
                     IconButton(onClick = {
-                        viewModel.startWallet()
+                        privateKeyWif = instanceRef?.exportCurrentReceivePrivateKeyWif()
+                        showPrivKeyDialog = true
                     }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.VpnKey, contentDescription = "Export Private Key", tint = dogeGold)
                     }
                 }
             )
@@ -86,8 +95,10 @@ fun WalletScreen(
                     .padding(12.dp)
             ) {
                 WalletOverview(
+                    dogeGold = dogeGold,
                     balance = balance,
                     shortAddress = address?.let { shortenAddress(it) } ?: "—",
+                    fullAddress = address ?: "Not ready",
                     syncPercent = syncPercent,
                     onSendClick = { uiStateManager.showSendDialog() },
                     onReceiveClick = { uiStateManager.showReceiveDialog() },
@@ -99,7 +110,8 @@ fun WalletScreen(
                 Text(text = "Much Transactions", style = MaterialTheme.typography.titleMedium)
                 Divider(modifier = Modifier.padding(vertical = 6.dp))
 
-                TransactionHistory(
+                // Renamed to avoid collisions with another TransactionHistory in the project
+                WalletTransactionHistory(
                     rows = history,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -141,9 +153,9 @@ fun WalletScreen(
                 )
             }
 
-            // Success Animation/Dialog
+            // Success Dialog (renamed to avoid clashes)
             if (showSuccess) {
-                SuccessAnimation(
+                WalletSuccessDialog(
                     data = successData ?: WalletViewModel.SuccessAnimationData("Success"),
                     onDismiss = {
                         uiStateManager.hideSuccessAnimation()
@@ -151,9 +163,9 @@ fun WalletScreen(
                 )
             }
 
-            // Failure Animation/Dialog
+            // Failure Dialog (renamed to avoid clashes)
             if (showFailure) {
-                FailureDialog(
+                WalletFailureDialog(
                     data = failureData ?: WalletViewModel.FailureAnimationData("Failure"),
                     onDismiss = {
                         uiStateManager.hideFailureAnimation()
@@ -168,56 +180,105 @@ fun WalletScreen(
                     uiStateManager.clearError()
                 }
             }
+
+            // Private key dialog
+            if (showPrivKeyDialog) {
+                PrivateKeyDialog(
+                    dogeGold = dogeGold,
+                    privateKeyWif = privateKeyWif,
+                    onDismiss = { showPrivKeyDialog = false }
+                )
+            }
         }
     )
 }
 
 /**
  * Wallet overview card: balance, address snippet, sync, quick actions.
+ * Tweaked layout to separate address from buttons (more polished).
  */
 @Composable
 private fun WalletOverview(
+    dogeGold: Color,
     balance: String,
     shortAddress: String,
+    fullAddress: String,
     syncPercent: Int,
     onSendClick: () -> Unit,
     onReceiveClick: () -> Unit,
     onRefreshClick: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
-        Column(modifier = Modifier.padding(12.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Top row: balance + refresh
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Such Balance", style = MaterialTheme.typography.bodySmall)
+                    Text(text = "Such Balance", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     Text(text = balance, style = MaterialTheme.typography.titleLarge)
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    IconButton(onClick = onRefreshClick) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
+                IconButton(onClick = onRefreshClick) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = dogeGold)
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "Address: $shortAddress", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                Button(onClick = onReceiveClick) {
-                    Icon(Icons.Default.QrCode, contentDescription = "Receive")
-                    Spacer(modifier = Modifier.width(6.dp))
+            // Address chip - its own row
+            Surface(
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, dogeGold),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = "Address: $shortAddress",
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Actions row: Receive and Send
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                OutlinedButton(
+                    onClick = onReceiveClick,
+                    border = BorderStroke(1.dp, dogeGold),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = dogeGold),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.QrCode, contentDescription = "Receive", tint = dogeGold)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text("Much Receive")
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(onClick = onSendClick) {
+
+                Button(
+                    onClick = onSendClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = dogeGold, contentColor = Color.Black),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.Black)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text("Very Send")
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // sync indicator
-            LinearProgressIndicator(progress = (syncPercent.coerceIn(0, 100) / 100f), modifier = Modifier.fillMaxWidth())
-            Text(text = "Sync: $syncPercent%", style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.End))
+            // Sync indicator
+            LinearProgressIndicator(
+                progress = (syncPercent.coerceIn(0, 100) / 100f),
+                modifier = Modifier.fillMaxWidth(),
+                color = dogeGold
+            )
+            Text(
+                text = "Sync: $syncPercent%",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.align(Alignment.End)
+            )
         }
     }
 }
@@ -293,10 +354,11 @@ private fun ReceiveDialog(
             Column {
                 Text(text = "Address:", style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(6.dp))
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(12.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(12.dp)
                 ) {
                     Text(text = address)
                 }
@@ -308,47 +370,62 @@ private fun ReceiveDialog(
 }
 
 /**
- * Transaction history list
+ * Private Key dialog (WIF export) with copy
  */
 @Composable
-private fun TransactionHistory(rows: List<com.dogechat.android.wallet.WalletManager.TxRow>, modifier: Modifier = Modifier) {
-    if (rows.isEmpty()) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No transactions yet")
-        }
-        return
-    }
+private fun PrivateKeyDialog(
+    dogeGold: Color,
+    privateKeyWif: String?,
+    onDismiss: () -> Unit
+) {
+    val clipboard: ClipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    val wif = privateKeyWif ?: "Not available"
 
-    LazyColumn(modifier = modifier) {
-        items(rows) { row ->
-            TransactionRow(row)
-            Divider()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                clipboard.setText(AnnotatedString(wif))
+                Toast.makeText(context, "Copied Private Key (WIF)", Toast.LENGTH_SHORT).show()
+            }) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Copy")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+        title = { Text("Export Private Key (WIF)") },
+        text = {
+            Column {
+                Text(
+                    text = "Warning: Anyone with this key can spend your DOGE. Store it securely.",
+                    color = dogeGold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(12.dp)
+                ) {
+                    Text(text = wif)
+                }
+            }
         }
-    }
-}
-
-@Composable
-private fun TransactionRow(row: com.dogechat.android.wallet.WalletManager.TxRow) {
-    val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-    Row(modifier = Modifier
-        .fillMaxWidth()
-        .padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = row.value, style = MaterialTheme.typography.bodyLarge)
-            Text(text = if (row.isIncoming) "Received" else "Sent", style = MaterialTheme.typography.bodySmall)
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(text = row.confirmations.toString() + " conf", style = MaterialTheme.typography.bodySmall)
-            Text(text = row.time?.let { fmt.format(it) } ?: "", style = MaterialTheme.typography.bodySmall)
-        }
-    }
+    )
 }
 
 /**
- * Simple success animation/dialog placeholder
+ * Success dialog (renamed to avoid name clash with any other SuccessAnimation in project)
  */
 @Composable
-private fun SuccessAnimation(data: WalletViewModel.SuccessAnimationData, onDismiss: () -> Unit) {
+private fun WalletSuccessDialog(
+    data: WalletViewModel.SuccessAnimationData,
+    onDismiss: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
@@ -363,10 +440,13 @@ private fun SuccessAnimation(data: WalletViewModel.SuccessAnimationData, onDismi
 }
 
 /**
- * Simple failure dialog
+ * Failure dialog (renamed to avoid name clash)
  */
 @Composable
-private fun FailureDialog(data: WalletViewModel.FailureAnimationData, onDismiss: () -> Unit) {
+private fun WalletFailureDialog(
+    data: WalletViewModel.FailureAnimationData,
+    onDismiss: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
@@ -378,6 +458,48 @@ private fun FailureDialog(data: WalletViewModel.FailureAnimationData, onDismiss:
             }
         }
     )
+}
+
+/**
+ * Transaction history list (renamed to avoid collisions)
+ */
+@Composable
+private fun WalletTransactionHistory(
+    rows: List<WalletManager.TxRow>,
+    modifier: Modifier = Modifier
+) {
+    if (rows.isEmpty()) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No transactions yet")
+        }
+        return
+    }
+
+    LazyColumn(modifier = modifier) {
+        items(rows) { row ->
+            WalletTransactionRow(row)
+            Divider()
+        }
+    }
+}
+
+@Composable
+private fun WalletTransactionRow(row: WalletManager.TxRow) {
+    val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp), verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = row.value, style = MaterialTheme.typography.bodyLarge)
+            Text(text = if (row.isIncoming) "Received" else "Sent", style = MaterialTheme.typography.bodySmall)
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(text = row.confirmations.toString() + " conf", style = MaterialTheme.typography.bodySmall)
+            Text(text = row.time?.let { fmt.format(it) } ?: "", style = MaterialTheme.typography.bodySmall)
+        }
+    }
 }
 
 /** Utility to shorten long addresses for display */

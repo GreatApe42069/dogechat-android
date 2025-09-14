@@ -165,9 +165,7 @@ class WalletManager @Inject constructor(
     fun startNetwork() {
         scope.launch {
             try {
-                // Diagnostics
                 Log.i(TAG, "Starting SPV… params.id=${params.id} port=${params.port}")
-                // Keep as in V7
                 BtcContext.propagate(BtcContext(params))
 
                 // Configure Tor SOCKS if enabled (updates SPV-specific tor status)
@@ -376,6 +374,16 @@ class WalletManager @Inject constructor(
                 onResult(false, e.message ?: "Unknown error")
             }
         }
+    }
+
+    // NEW: Export current receive key as WIF (for backup/import). Returns null if not available.
+    fun exportCurrentReceivePrivateKeyWif(): String? = try {
+        val w = kit?.wallet() ?: return null
+        val key = w.currentReceiveKey() ?: return null
+        key.getPrivateKeyAsWiF(params)
+    } catch (t: Throwable) {
+        Log.w(TAG, "export WIF failed: ${t.message}")
+        null
     }
 
     private fun pushBalance() {
