@@ -152,7 +152,10 @@ fun WalletScreen(
                     syncPercent = syncPercent,
                     onSendClick = { uiStateManager.showSendDialog() },
                     onReceiveClick = { uiStateManager.showReceiveDialog() },
-                    onRefreshClick = { viewModel.startWallet() }
+                    onRefreshClick = {
+                        // Force a balance/history refresh and nudge SPV
+                        instanceRef?.refreshNow()
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))

@@ -185,10 +185,14 @@ class WalletManager @Inject constructor(
                             }
                             // Import any cached WIF first so address/UI reflect imported key
                             importCachedWifIfPresent()
-                            // Now push state
+                            // Ensure the chain includes transactions for imported keys
+                            triggerRescanForImportedIfNeeded()
+
+                            // Push initial state
                             pushBalance()
                             pushAddress()
                             pushHistory()
+
                             wallet().addCoinsReceivedEventListener { _: Wallet, _, _, _ ->
                                 pushBalance(); pushHistory(); SpvController.log("coins received")
                             }
@@ -349,6 +353,24 @@ class WalletManager @Inject constructor(
         generateNewReceiveAddress()
     }
 
+    // NEW: manual refresh nudges SPV and pushes UI immediately
+    fun refreshNow() {
+        scope.launch {
+            pushAddress()
+            pushBalance()
+            pushHistory()
+            try {
+                kit?.peerGroup()?.startBlockChainDownload(object : DownloadProgressTracker() {
+                    override fun doneDownload() {
+                        pushBalance(); pushHistory()
+                    }
+                })
+            } catch (t: Throwable) {
+                Log.w(TAG, "refreshNow download trigger failed: ${t.message}")
+            }
+        }
+    }
+
     fun sendCoins(
         toAddress: String,
         amountDoge: Long,
@@ -428,6 +450,10 @@ class WalletManager @Inject constructor(
                 _address.value = addr
                 _addressReady.value = true
                 SpvController.log("imported WIF; addr=$addr")
+
+                // IMPORTANT: trigger a rescan so balance/history show up
+                triggerRescanFromBirth(key.creationTimeSeconds)
+
                 withContext(Dispatchers.Main) { onResult(true, "Private key imported") }
             } catch (e: Throwable) {
                 Log.e(TAG, "importPrivateKeyWif failed: ${e.message}", e)
@@ -471,6 +497,47 @@ class WalletManager @Inject constructor(
     } catch (t: Throwable) {
         Log.w(TAG, "deriveAddressFromWif failed: ${t.message}")
         null
+    }
+
+    // --- Rescan helpers ------------------------------------------------
+
+    // When there is a cached/imported key, force a rescan so its UTXOs are discovered
+    private fun triggerRescanForImportedIfNeeded() {
+        val wif = prefs.getString(PREF_KEY_CACHED_WIF, null) ?: return
+        val birth = 0L // safest: scan from genesis; adjust if you track key birthday
+        triggerRescanFromBirth(birth)
+    }
+
+    private fun triggerRescanFromBirth(birthTimeSecs: Long) {
+        val pg = kit?.peerGroup() ?: return
+        try {
+            // Help fast-catchup pick the right range; 0 forces full SPV scan (headers + relevant blocks)
+            pg.setFastCatchupTimeSecs(birthTimeSecs)
+        } catch (_: Throwable) {}
+        try {
+            // Update bloom filters to include imported keys
+            // Older/newer bitcoinj versions differ; both calls are tried
+            val m = pg.javaClass.methods.firstOrNull { it.name == "recalculateFastCatchupAndFilter" && it.parameterTypes.isEmpty() }
+            if (m != null) m.invoke(pg) else runCatching {
+                // If using the newer enum signature, best-effort reflection (ignore failures)
+                val enumClass = Class.forName("org.bitcoinj.core.PeerGroup\$FilterRecalculateMode")
+                val forceSend = enumClass.enumConstants.firstOrNull()
+                val m2 = pg.javaClass.getMethod("recalculateFastCatchupAndFilter", enumClass)
+                m2.invoke(pg, forceSend)
+            }
+        } catch (_: Throwable) {}
+        try {
+            pg.startBlockChainDownload(object : DownloadProgressTracker() {
+                override fun doneDownload() {
+                    pushBalance()
+                    pushHistory()
+                    SpvController.log("rescan complete")
+                }
+            })
+            SpvController.log("rescan started")
+        } catch (t: Throwable) {
+            Log.w(TAG, "triggerRescanFromBirth failed: ${t.message}")
+        }
     }
 
     fun wipeWalletData(): Boolean {
