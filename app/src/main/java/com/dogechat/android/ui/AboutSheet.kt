@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dogechat.android.nostr.NostrProofOfWork
 import com.dogechat.android.nostr.PoWPreferenceManager
-import com.dogechat.android.wallet.WalletManager // keep if you use other WalletManager APIs
-import com.dogechat.android.wallet.WalletManager.Companion.SpvController // NEW: companion scope import
+import com.dogechat.android.wallet.WalletManager
+import com.dogechat.android.wallet.WalletManager.Companion.SpvController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +35,10 @@ fun AboutSheet(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    // ensure wallet tor pref initialized
+    LaunchedEffect(Unit) {
+        com.dogechat.android.wallet.net.WalletTorPreferenceManager.init(context)
+    }
 
     val versionName = remember {
         try {
@@ -101,7 +105,7 @@ fun AboutSheet(
                     }
                 }
 
-                // Features (added dogecoin wallet card)
+                // Features
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         FeatureCard(
@@ -135,7 +139,7 @@ fun AboutSheet(
                     }
                 }
 
-                // Appearance
+                // Appearance (unchanged)
                 item {
                     val themePref by com.dogechat.android.ui.theme.ThemePreferenceManager.themeFlow.collectAsState(
                         initial = com.dogechat.android.ui.theme.ThemePreference.System
@@ -171,12 +175,10 @@ fun AboutSheet(
                     }
                 }
 
-                // Proof of Work
+                // Proof of Work (unchanged)
                 item {
                     val ctx = LocalContext.current
-                    LaunchedEffect(Unit) {
-                        PoWPreferenceManager.init(ctx)
-                    }
+                    LaunchedEffect(Unit) { PoWPreferenceManager.init(ctx) }
                     val powEnabled by PoWPreferenceManager.powEnabled.collectAsState(initial = false)
                     val powDifficulty by PoWPreferenceManager.powDifficulty.collectAsState(initial = 8)
                     Column(
@@ -229,46 +231,14 @@ fun AboutSheet(
                                     value = powDifficulty.toFloat(),
                                     onValueChange = { PoWPreferenceManager.setPowDifficulty(it.toInt()) },
                                     valueRange = 0f..32f,
-                                    steps = 33,
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D),
-                                        activeTrackColor = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
-                                    )
+                                    steps = 33
                                 )
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(
-                                            text = "difficulty $powDifficulty requires ~${NostrProofOfWork.estimateWork(powDifficulty)} hash attempts",
-                                            fontSize = 10.sp,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = colorScheme.onSurface.copy(alpha = 0.7f)
-                                        )
-                                        Text(
-                                            text = when {
-                                                powDifficulty == 0 -> "no proof of work required"
-                                                powDifficulty <= 8 -> "very low - minimal spam protection"
-                                                powDifficulty <= 12 -> "low - basic spam protection"
-                                                powDifficulty <= 16 -> "medium - good spam protection"
-                                                powDifficulty <= 20 -> "high - strong spam protection"
-                                                powDifficulty <= 24 -> "very high - may cause delays"
-                                                else -> "extreme - significant computation required"
-                                            },
-                                            fontSize = 10.sp,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = colorScheme.onSurface.copy(alpha = 0.6f)
-                                        )
-                                    }
-                                }
                             }
                         }
                     }
                 }
 
-                // Network (Tor) — for chats/geohash
+                // Network (Tor) — chats/geohash (unchanged)
                 item {
                     val ctx = LocalContext.current
                     val torMode = remember { mutableStateOf(com.dogechat.android.net.TorPreferenceManager.get(ctx)) }
@@ -315,38 +285,15 @@ fun AboutSheet(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.6f)
                         )
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    text = "tor status: " + (if (torStatus.running) "running" else "stopped") + ", bootstrap=" + torStatus.bootstrapPercent + "%", // Network Tor
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = colorScheme.onSurface.copy(alpha = 0.75f)
-                                )
-                                val last = torStatus.lastLogLine
-                                if (last.isNotEmpty()) {
-                                    Text(
-                                        text = "last: " + last.take(160),
-                                        fontSize = 10.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
-                                }
-                            }
-                        }
                     }
                 }
 
-                // Wallet (SPV) — preference only; default OFF
+                // Wallet (SPV) preference & status
                 item {
                     val prefs = remember(context) { context.getSharedPreferences("dogechat_wallet", Context.MODE_PRIVATE) }
                     var spvEnabled by remember { mutableStateOf(prefs.getBoolean("spv_enabled", false)) }
-                    // Observe SPV-specific Tor status from WalletManager companion
                     val spvStatus = SpvController.status.collectAsState().value
+                    val walletTorMode = remember { mutableStateOf(com.dogechat.android.wallet.net.WalletTorPreferenceManager.get(context)) }
 
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
@@ -380,12 +327,6 @@ fun AboutSheet(
                                 }
                             )
                         }
-                        Text(
-                            text = "Enable light wallet (SPV) to sync the Dogecoin blockchain and manage a receive address in-app.",
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
@@ -406,7 +347,48 @@ fun AboutSheet(
                                 )
                             }
                         }
-                        // SPV Tor status (separate from Network Tor)
+
+                        // Wallet Tor toggle (independent from chat Tor)
+                        Text(
+                            text = "Wallet Tor (SPV only)",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            FilterChip(
+                                selected = walletTorMode.value == com.dogechat.android.net.TorMode.OFF,
+                                onClick = {
+                                    walletTorMode.value = com.dogechat.android.net.TorMode.OFF
+                                    com.dogechat.android.wallet.net.WalletTorPreferenceManager.set(context, walletTorMode.value)
+                                    // if SPV running, restart to apply
+                                    WalletManager.instanceRef?.let {
+                                        if (SpvController.enabled.value) {
+                                            it.stopNetwork()
+                                            it.startNetwork()
+                                        }
+                                    }
+                                },
+                                label = { Text("wallet tor off", fontFamily = FontFamily.Monospace) }
+                            )
+                            FilterChip(
+                                selected = walletTorMode.value == com.dogechat.android.net.TorMode.ON,
+                                onClick = {
+                                    walletTorMode.value = com.dogechat.android.net.TorMode.ON
+                                    com.dogechat.android.wallet.net.WalletTorPreferenceManager.set(context, walletTorMode.value)
+                                    WalletManager.instanceRef?.let {
+                                        if (SpvController.enabled.value) {
+                                            it.stopNetwork()
+                                            it.startNetwork()
+                                        }
+                                    }
+                                },
+                                label = { Text("wallet tor on", fontFamily = FontFamily.Monospace) }
+                            )
+                        }
+
+                        // SPV Tor status
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
@@ -433,7 +415,7 @@ fun AboutSheet(
                     }
                 }
 
-                // Emergency warning
+                // Emergency warning (unchanged)
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -470,7 +452,7 @@ fun AboutSheet(
                     }
                 }
 
-                // Footer
+                // Footer (unchanged)
                 item {
                     Column(
                         modifier = Modifier.fillMaxWidth(),

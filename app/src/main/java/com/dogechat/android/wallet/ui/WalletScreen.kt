@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.VpnKey
@@ -77,6 +78,7 @@ fun WalletScreen(
 
     var showPrivKeyDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
+    var showLogs by remember { mutableStateOf(false) }
     var privateKeyWif by remember { mutableStateOf<String?>(null) }
 
     var showAbout by remember { mutableStateOf(false) }
@@ -127,6 +129,9 @@ fun WalletScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = { showLogs = true }) {
+                        Icon(Icons.Filled.List, contentDescription = "SPV Logs", tint = brandAccent)
+                    }
                     IconButton(onClick = {
                         privateKeyWif = instanceRef?.getOrExportAndCacheWif()
                             ?: instanceRef?.getCachedWif()
@@ -265,6 +270,8 @@ fun WalletScreen(
                     onDismiss = { showAbout = false }
                 )
             }
+
+            SpvLogsSheet(isPresented = showLogs) { showLogs = false }
         }
     )
 }
@@ -541,7 +548,7 @@ private fun PrivateKeyImportDialog(
                     text = if (spvEnabled)
                         "SPV is ON. Import will apply immediately."
                     else
-                        "SPV is OFF. Enable SPV in About Sheet (by clicking Đogechat Wallet text in the header-> Scroll down to Wallet (SPV) Section to toggle on for immediate import. Otherwise, the key will be cached and applied when the wallet starts.",
+                        "SPV is OFF. The key will be cached and applied when the wallet starts.",
                     color = if (spvEnabled) Color(0xFF4CAF50) else Color(0xFFFFC107),
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -594,7 +601,7 @@ private fun WalletTransactionHistory(
 ) {
     if (rows.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No transactions yet", color = Color(0xFFFFD700)) // Gold
+            Text("No transactions yet", color = Color(0xFFFFD700))
         }
         return
     }
