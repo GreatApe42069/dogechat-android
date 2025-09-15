@@ -106,7 +106,7 @@ fun WalletScreen(
                 title = {
                     Text(
                         "Đogecoin Wallet",
-                        color = brandAccent,
+                        color = Color(0xFFFFD700),
                         modifier = Modifier.clickable {
                             val now = System.currentTimeMillis()
                             tapCount = if (now - lastTapMs < 600) tapCount + 1 else 1
@@ -116,9 +116,9 @@ fun WalletScreen(
                                 if (instanceRef?.wipeWalletData() == true) {
                                     persistedAddress = null
                                     privateKeyWif = null
-                                    Toast.makeText(context, "Wallet data wiped", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "⚠️ Wallet data wiped", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(context, "Failed to wipe wallet", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "⚠️ Failed to wipe wallet", Toast.LENGTH_SHORT).show()
                                 }
                             } else if (tapCount == 1) {
                                 showAbout = true
@@ -475,7 +475,7 @@ private fun PrivateKeyDialog(
         text = {
             Column {
                 Text(
-                    text = "PLEASE Keep this key VERY safe. Anyone with it can spend your ĐOGE.",
+                    text = "⚠️ PLEASE Keep this key VERY safe. Anyone with it can spend your ĐOGE.",
                     color = brandAccent
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -497,7 +497,7 @@ private fun PrivateKeyDialog(
                     text = if (spvEnabled)
                         "SPV is ON. You can import now."
                     else
-                        "Note: Enable SPV in About Sheet before importing wif (by clicking Đogechat Wallet text in the header -> Scroll down to Wallet (SPV) Section to toggle on for immediate import. If SPV is OFF, the key will be cached and applied when the wallet starts.",
+                        "⚠️ Note: Enable SPV in About Sheet before importing wif (by clicking Đogechat Wallet text in the header -> Scroll down to Wallet (SPV) Section to toggle on for immediate import. If SPV is OFF, the key will be cached and applied when the wallet starts.",
                     color = if (spvEnabled) Color(0xFF4CAF50) else Color(0xFFFFC107),
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -594,7 +594,7 @@ private fun WalletTransactionHistory(
 ) {
     if (rows.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No transactions yet", color = brandAccent)
+            Text("No transactions yet", color = Color(0xFFFFD700)) // Gold
         }
         return
     }

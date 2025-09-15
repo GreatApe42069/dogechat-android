@@ -122,14 +122,18 @@ fun PermissionExplanationScreen(
             )
 
             // Permission categories
-            permissionCategories.forEach { category ->
-                PermissionCategoryCard(
-                    category = category,
-                    colorScheme = colorScheme
-                )
-            }
+            // Remove the top "Internet & Network" category to avoid duplication;
+            // we keep the dedicated section below.
+            permissionCategories
+                .filter { it.type != PermissionType.NETWORK }
+                .forEach { category ->
+                    PermissionCategoryCard(
+                        category = category,
+                        colorScheme = colorScheme
+                    )
+                }
 
-            // --- Network/Internet Permission Explanation Section ---
+            // --- Network/Internet Permission Explanation Section (kept) ---
             Spacer(modifier = Modifier.height(8.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -298,7 +302,7 @@ private fun getPermissionEmoji(permissionType: PermissionType): String {
 private fun getPermissionIconColor(permissionType: PermissionType): Color {
     return when (permissionType) {
         PermissionType.NEARBY_DEVICES -> Color(0xFF2196F3) // Blue
-        PermissionType.PRECISE_LOCATION -> Color(0xFF000000) // Yellow
+        PermissionType.PRECISE_LOCATION -> Color(0xFF000000) // Yellow (note: currently black)
         PermissionType.NOTIFICATIONS -> Color(0xFFFFD700) // Gold
         PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
         PermissionType.NETWORK -> Color(0xFF1976D2) // Deep blue for network

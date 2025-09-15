@@ -128,7 +128,7 @@ fun AboutSheet(
                         FeatureCard(
                             icon = Icons.Filled.Security,
                             iconColor = dogeGold,
-                            title = "dogecoin wallet",
+                            title = "Đogecoin wallet",
                             description = "light wallet (spv) with tor support for privacy-preserving node connectivity. manage addresses and send/receive doge.",
                             modifier = Modifier.fillMaxWidth()
                         )
