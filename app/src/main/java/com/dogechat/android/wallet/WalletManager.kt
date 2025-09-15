@@ -26,10 +26,14 @@ import org.bitcoinj.wallet.Wallet
 import org.libdohj.params.DogecoinMainNetParams
 import java.io.BufferedReader
 import java.io.File
+import java.io.FileWriter
 import java.io.InputStreamReader
 import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 // Alias bitcoinj Context to avoid clashing with android.content.Context
 import org.bitcoinj.core.Context as BtcContext
@@ -54,10 +58,21 @@ class WalletManager @Inject constructor(
         private const val PREF_KEY_RECEIVE_ADDRESS = "receive_address"
         private const val PREF_KEY_SPV_ENABLED = "spv_enabled"
         private const val PREF_KEY_CACHED_WIF = "cached_wif"
-        private const val PEERS_ASSET = "dogecoin_peers.csv"
+
+        private const val PEERS_ASSET = "dogecoin_peers.csv"     // read-only bundled peers (optional)
+        private const val PEERS_FILE = "dogecoin_peers.csv"      // writable peers cache in filesDir
         private const val TOR_WAIT_MS = 20_000L
         private const val TOR_POLL_MS = 300L
-        private const val MAX_PEERS = 4
+        private const val MAX_PEERS = 6
+        private const val DOGE_PORT = 22556
+
+        // Hardcoded Dogecoin DNS seeds (mainnet)
+        private val DOGE_DNS_SEEDS = arrayOf(
+            "seed.dogecoin.com",
+            "seed.multidoge.org",
+            "seed2.multidoge.org",
+            "seed.dogechain.info"
+        )
 
         object SpvController {
             val enabled = MutableStateFlow(false)
@@ -150,8 +165,14 @@ class WalletManager @Inject constructor(
         appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
+    // in-memory peer cache to reduce disk writes
+    private val discoveredPeers = ConcurrentHashMap.newKeySet<String>()
+    private val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.US)
+
     init {
         instanceRef = this
+
+        // Prime address from prefs
         _addressReady.value = !prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null).isNullOrBlank()
         _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
 
@@ -163,52 +184,107 @@ class WalletManager @Inject constructor(
     fun startNetwork() {
         scope.launch {
             try {
-                Log.i(TAG, "Starting SPV… params.id=${params.id} port=${params.port}")
+                Log.i(TAG, "SPV start requested … net=${params.javaClass.simpleName} port=${params.port}")
+                SpvController.log("SPV: starting …")
                 BtcContext.propagate(BtcContext(params))
+
+                // Tor / SOCKS setup (if enabled by user elsewhere)
                 configureTorSocksIfAvailable()
+
+                // Prime peers file: resolve DNS seeds and persist (non-blocking best-effort)
+                resolveDnsSeedsAndPersist()
 
                 val dir = File(appContext.filesDir, "wallet")
                 if (!dir.exists()) dir.mkdirs()
 
                 val usingSocks = System.getProperty("socksProxyHost")?.isNotBlank() == true
-                val staticPeers = loadStaticPeersFromAssets(params, preferUnresolvedHostnames = usingSocks)
+                val initialPeers = loadPeersFromDiskAndAssets(params, preferUnresolvedHostnames = usingSocks)
+                Log.i(TAG, "Bootstrap peers loaded: ${initialPeers.size} (disk+assets). SOCKS=$usingSocks")
 
                 val k = object : WalletAppKit(params, dir, FILE_PREFIX) {
                     override fun onSetupCompleted() {
                         try {
-                            try { peerGroup().setUseLocalhostPeerWhenPossible(false) } catch (_: Throwable) {}
-                            try { peerGroup().setMaxConnections(MAX_PEERS) } catch (_: Throwable) {}
-                            if (staticPeers.isNotEmpty()) {
-                                try { setPeerNodes(*staticPeers.toTypedArray()) } catch (t: Throwable) {
-                                    Log.w(TAG, "Failed to set static peers: ${t.message}")
+                            val pg = peerGroup()
+                            try { pg.setUseLocalhostPeerWhenPossible(false) } catch (_: Throwable) {}
+                            try { pg.setMaxConnections(MAX_PEERS) } catch (_: Throwable) {}
+
+                            // Feed any known peers (do NOT call setPeerNodes which disables discovery)
+                            if (initialPeers.isNotEmpty()) {
+                                initialPeers.forEach { pa ->
+                                    runCatching { pg.addAddress(pa) }
+                                        .onSuccess {
+                                            val host = runCatching { pa.addr?.hostAddress }.getOrNull()
+                                            Log.i(TAG, "Seeded peer: ${host ?: "host?"}:${pa.port}")
+                                        }
+                                        .onFailure {
+                                            val host = runCatching { pa.addr?.hostAddress }.getOrNull()
+                                            Log.w(TAG, "Failed to add seed peer ${host ?: "host?"}:${pa.port}: ${it.message}")
+                                        }
                                 }
                             }
-                            // If not using Tor SOCKS, add DNS seed discovery to improve connectivity
+
+                            // Add DNS discovery (only when not leaking through clearnet if Tor is enabled)
                             if (!usingSocks) {
                                 try {
-                                    peerGroup().addPeerDiscovery(DnsDiscovery(params))
-                                    Log.i(TAG, "DNS discovery enabled")
+                                    // NOTE: in your bitcoinj/libdohj combo this constructor expects (String[] seeds, NetworkParameters)
+                                    pg.addPeerDiscovery(DnsDiscovery(DOGE_DNS_SEEDS, params))
+                                    Log.i(TAG, "DNS discovery enabled seeds=${DOGE_DNS_SEEDS.joinToString()}")
                                 } catch (t: Throwable) {
-                                    Log.w(TAG, "Failed to enable DNS discovery: ${t.message}")
+                                    Log.w(TAG, "Enabling DNS discovery failed: ${t.message}")
                                 }
+                            } else {
+                                Log.i(TAG, "Skipping DNS discovery (SOCKS active)")
                             }
 
+                            // Import any cached WIF so address/UI reflect imported key
                             importCachedWifIfPresent()
+                            // Ensure chain covers imported keys
                             triggerRescanForImportedIfNeeded()
 
-                            pushBalance()
+                            // Push initial UI state
                             pushAddress()
+                            pushBalance()
                             pushHistory()
 
-                            wallet().addCoinsReceivedEventListener { _: Wallet, _, _, _ ->
-                                pushBalance(); pushHistory(); SpvController.log("coins received")
+                            val fmt = { t: String -> "${timeFmt.format(Date())} $t" }
+                            val w = wallet()
+
+                            w.addCoinsReceivedEventListener { _: Wallet, _, _, _ ->
+                                pushBalance(); pushHistory()
+                                SpvController.log(fmt("coins received"))
                             }
-                            wallet().addCoinsSentEventListener { _: Wallet, _, _, _ ->
-                                pushBalance(); pushHistory(); SpvController.log("coins sent")
+                            w.addCoinsSentEventListener { _: Wallet, _, _, _ ->
+                                pushBalance(); pushHistory()
+                                SpvController.log(fmt("coins sent"))
                             }
-                            wallet().addChangeEventListener { _ -> pushBalance(); pushHistory() }
+                            w.addChangeEventListener { _ -> pushBalance(); pushHistory() }
+
+                            // Hook peer connect/disconnect for logs and persistence
+                            try {
+                                pg.addConnectedEventListener { peer, count ->
+                                    _peerCount.value = count
+                                    SpvController.updatePeers(count)
+                                    val isa: InetSocketAddress? = runCatching {
+                                        (peer?.address as? PeerAddress)?.socketAddress
+                                    }.getOrNull()
+                                    val addrStr = isa?.let { "${it.hostString}:${it.port}" } ?: "unknown"
+                                    Log.i(TAG, "Peer connected: $addrStr (count=$count)")
+                                    SpvController.log(fmt("peer +1 ($count)"))
+                                    if (isa != null) persistPeer(isa, params.port)
+                                }
+                                pg.addDisconnectedEventListener { peer, count ->
+                                    _peerCount.value = count
+                                    SpvController.updatePeers(count)
+                                    val isa: InetSocketAddress? = runCatching {
+                                        (peer?.address as? PeerAddress)?.socketAddress
+                                    }.getOrNull()
+                                    val addrStr = isa?.let { "${it.hostString}:${it.port}" } ?: "unknown"
+                                    Log.i(TAG, "Peer disconnected: $addrStr (count=$count)")
+                                    SpvController.log(fmt("peer -1 ($count)"))
+                                }
+                            } catch (_: Throwable) { /* ignore */ }
                         } catch (t: Throwable) {
-                            Log.w(TAG, "onSetupCompleted tuning failed: ${t.message}")
+                            Log.w(TAG, "onSetupCompleted failed: ${t.message}", t)
                         }
                     }
                 }.apply {
@@ -219,7 +295,10 @@ class WalletManager @Inject constructor(
                             _syncPercent.value = p
                             SpvController.updateSync(p)
                             _spvStatus.value = if (p < 100) "Syncing" else "Synced"
-                            if (blocksSoFar % 100 == 0) SpvController.log("sync $p% ($blocksSoFar blocks)")
+                            if (blocksSoFar % 250 == 0) {
+                                Log.i(TAG, "Sync $p% ($blocksSoFar blocks)")
+                                SpvController.log("sync $p% ($blocksSoFar blocks)")
+                            }
                         }
                         override fun doneDownload() {
                             _syncPercent.value = 100
@@ -228,41 +307,30 @@ class WalletManager @Inject constructor(
                             pushHistory()
                             _spvStatus.value = "Synced"
                             SpvController.log("sync complete")
+                            Log.i(TAG, "Sync complete")
                         }
                     })
                 }
 
                 kit = k
 
-                try {
-                    k.peerGroup().addConnectedEventListener { _, pc ->
-                        _peerCount.value = pc
-                        SpvController.updatePeers(pc)
-                        SpvController.log("peer connected ($pc)")
-                        updateSpvStatus()
-                    }
-                    k.peerGroup().addDisconnectedEventListener { _, pc ->
-                        _peerCount.value = pc
-                        SpvController.updatePeers(pc)
-                        SpvController.log("peer disconnected ($pc)")
-                        updateSpvStatus()
-                    }
-                } catch (_: Throwable) { }
-
                 _spvStatus.value = "Connecting"
                 SpvController.updateRunning(true)
-                SpvController.log("starting…")
+                SpvController.log("starting peerGroup …")
 
                 k.startAsync()
                 k.awaitRunning()
 
-                Log.i(TAG, "SPV running. Address: ${currentReceiveAddress()}")
+                Log.i(TAG, "SPV running. Active address=${currentReceiveAddress()}")
+                SpvController.log("running")
+
+                // Final push after running to reflect steady state
                 pushAddress()
                 pushBalance()
                 pushHistory()
                 updateSpvStatus()
             } catch (e: Throwable) {
-                Log.e(TAG, "Failed to start SPV wallet: ${e.message}", e)
+                Log.e(TAG, "SPV start failed: ${e.message}", e)
                 _spvStatus.value = "Error"
                 SpvController.updateRunning(false)
                 SpvController.log("error: ${e.message}")
@@ -274,8 +342,8 @@ class WalletManager @Inject constructor(
         scope.launch {
             try {
                 kit?.apply {
-                    Log.i(TAG, "Stopping SPV…")
-                    SpvController.log("stopping…")
+                    Log.i(TAG, "Stopping SPV …")
+                    SpvController.log("stopping …")
                     stopAsync()
                     awaitTerminated()
                 }
@@ -296,6 +364,7 @@ class WalletManager @Inject constructor(
         }
     }
 
+    // Prefer imported WIF address if cached; fallback to HD receive; then pref
     fun currentReceiveAddress(): String? = try {
         val cached = prefs.getString(PREF_KEY_CACHED_WIF, null)
         if (!cached.isNullOrBlank()) {
@@ -318,6 +387,8 @@ class WalletManager @Inject constructor(
                     .apply()
                 _address.value = address
                 _addressReady.value = true
+                Log.i(TAG, "New HD receive address generated")
+                SpvController.log("new address")
             }
         }
     }
@@ -355,8 +426,10 @@ class WalletManager @Inject constructor(
         generateNewReceiveAddress()
     }
 
+    // Manual refresh: push UI and nudge SPV to download
     fun refreshNow() {
         scope.launch {
+            Log.i(TAG, "Manual refreshNow()")
             pushAddress()
             pushBalance()
             pushHistory()
@@ -364,6 +437,7 @@ class WalletManager @Inject constructor(
                 kit?.peerGroup()?.startBlockChainDownload(object : DownloadProgressTracker() {
                     override fun doneDownload() {
                         pushBalance(); pushHistory()
+                        Log.i(TAG, "Manual refresh download pass done")
                     }
                 })
             } catch (t: Throwable) {
@@ -397,6 +471,8 @@ class WalletManager @Inject constructor(
             }
         }
     }
+
+    // -------------- WIF persistence and import/restore ----------------
 
     fun getOrExportAndCacheWif(): String? {
         return try {
@@ -433,6 +509,7 @@ class WalletManager @Inject constructor(
 
                 val w = kit?.wallet()
                 if (w == null) {
+                    // Cache for later and reflect immediately
                     persistWif(wif, addr)
                     _address.value = addr
                     _addressReady.value = true
@@ -449,6 +526,7 @@ class WalletManager @Inject constructor(
                 _addressReady.value = true
                 SpvController.log("imported WIF; addr=$addr")
 
+                // IMPORTANT: trigger a rescan so balance/history show up
                 triggerRescanFromBirth(key.creationTimeSeconds)
 
                 withContext(Dispatchers.Main) { onResult(true, "Private key imported") }
@@ -471,6 +549,7 @@ class WalletManager @Inject constructor(
                 try { w.importKey(key) } catch (_: Throwable) { /* ignore */ }
             }
             val addr = LegacyAddress.fromKey(params, key).toString()
+            // Persist and reflect imported address as active
             persistWif(wif, addr)
             _address.value = addr
             _addressReady.value = true
@@ -495,9 +574,11 @@ class WalletManager @Inject constructor(
         null
     }
 
+    // --- Rescan helpers ------------------------------------------------
+
     private fun triggerRescanForImportedIfNeeded() {
         val wif = prefs.getString(PREF_KEY_CACHED_WIF, null) ?: return
-        val birth = 0L
+        val birth = 0L // conservative: full rescan; can optimize with user-provided birthday
         triggerRescanFromBirth(birth)
     }
 
@@ -505,6 +586,7 @@ class WalletManager @Inject constructor(
         val pg = kit?.peerGroup() ?: return
         try { pg.setFastCatchupTimeSecs(birthTimeSecs) } catch (_: Throwable) {}
         try {
+            // Update bloom filters to include imported keys. Support multiple bitcoinj versions.
             val m = pg.javaClass.methods.firstOrNull {
                 it.name == "recalculateFastCatchupAndFilter" && it.parameterTypes.isEmpty()
             }
@@ -525,9 +607,11 @@ class WalletManager @Inject constructor(
                     pushBalance()
                     pushHistory()
                     SpvController.log("rescan complete")
+                    Log.i(TAG, "Rescan complete")
                 }
             })
             SpvController.log("rescan started")
+            Log.i(TAG, "Rescan started (birth=$birthTimeSecs)")
         } catch (t: Throwable) {
             Log.w(TAG, "triggerRescanFromBirth failed: ${t.message}")
         }
@@ -576,10 +660,14 @@ class WalletManager @Inject constructor(
         }
     }
 
+    // ------------------------------------------------------------------
+    // Balance & history push
+
     private fun pushBalance() {
         val w = kit?.wallet() ?: return
-        val balance = w.balance.toPlainString()
-        _balance.value = "$balance DOGE"
+        val amount = w.balance.toPlainString()
+        _balance.value = "$amount DOGE"
+        Log.i(TAG, "Balance update: $amount DOGE")
     }
 
     private fun pushHistory() {
@@ -598,6 +686,7 @@ class WalletManager @Inject constructor(
             )
         }
         _history.value = rows
+        Log.i(TAG, "History rows=${rows.size}")
     }
 
     private fun updateSpvStatus() {
@@ -607,6 +696,9 @@ class WalletManager @Inject constructor(
             else -> "Synced"
         }
     }
+
+    // ------------------------------------------------------------------
+    // Tor SOCKS
 
     private suspend fun configureTorSocksIfAvailable() {
         try {
@@ -630,7 +722,7 @@ class WalletManager @Inject constructor(
                     Log.i(TAG, "Using Tor SOCKS ${addr.hostString}:${addr.port} for P2P")
                     SpvController.updateTor(true, TorManager.statusFlow.value.bootstrapPercent)
                 } else {
-                    Log.w(TAG, "Tor is ON but socks address is null; will proceed without proxy")
+                    Log.w(TAG, "Tor ON but socks address is null; clearing SOCKS")
                     clearSocksProxy()
                     SpvController.updateTor(false, 0)
                 }
@@ -652,52 +744,149 @@ class WalletManager @Inject constructor(
         } catch (_: Throwable) {}
     }
 
-    private fun loadStaticPeersFromAssets(
+    // ------------------------------------------------------------------
+    // Peer seeding, persistence, and DNS bootstrap
+
+    private fun peersFile(): File = File(appContext.filesDir, PEERS_FILE)
+
+    // Best-effort DNS seed resolution to populate local peers file before SPV starts
+    private fun resolveDnsSeedsAndPersist() {
+        scope.launch {
+            try {
+                val set = LinkedHashSet<String>()
+                DOGE_DNS_SEEDS.forEach { host ->
+                    runCatching {
+                        val addrs = InetAddress.getAllByName(host)
+                        addrs.forEach { ip ->
+                            val key = "${ip.hostAddress}:$DOGE_PORT"
+                            set.add(key)
+                        }
+                    }.onFailure { Log.w(TAG, "DNS seed resolve failed for $host: ${it.message}") }
+                }
+                if (set.isNotEmpty()) {
+                    Log.i(TAG, "DNS bootstrap resolved ${set.size} peers")
+                    // merge with existing disk peers
+                    val existing = readPeerLines().toMutableSet()
+                    existing.addAll(set)
+                    writePeers(existing)
+                } else {
+                    Log.w(TAG, "DNS bootstrap returned no peers")
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "DNS bootstrap error: ${t.message}")
+            }
+        }
+    }
+
+    private fun loadPeersFromDiskAndAssets(
         params: NetworkParameters,
         preferUnresolvedHostnames: Boolean
     ): List<PeerAddress> {
         val out = mutableListOf<PeerAddress>()
+        // 1) disk peers (writable)
         try {
-            val am = appContext.assets
-            if (am.list("")?.contains(PEERS_ASSET) != true) {
-                Log.i(TAG, "No $PEERS_ASSET in assets; will use default discovery")
-                return emptyList()
-            }
-            am.open(PEERS_ASSET).use { ins ->
-                BufferedReader(InputStreamReader(ins)).useLines { lines ->
-                    lines.forEach { raw ->
-                        val line = raw.trim()
-                        if (line.isEmpty() || line.startsWith("#")) return@forEach
-                        val host: String
-                        val port: Int
-                        if (line.contains(":")) {
-                            val parts = line.split(":")
-                            host = parts[0].trim()
-                            port = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: params.port
-                        } else {
-                            host = line
-                            port = params.port
-                        }
-                        try {
-                            val sock: InetSocketAddress = if (preferUnresolvedHostnames) {
-                                InetSocketAddress(host, port)
-                            } else {
-                                val ip = runCatching { InetAddress.getByName(host) }.getOrNull()
-                                if (ip != null) InetSocketAddress(ip, port) else InetSocketAddress(host, port)
-                            }
-                            out.add(PeerAddress(params, sock))
-                        } catch (e: Throwable) {
-                            Log.w(TAG, "Bad peer entry '$line': ${e.message}")
-                        }
+            val diskPeers = readPeerLines()
+            diskPeers.forEach { line ->
+                val entry = line.trim()
+                if (entry.isEmpty() || entry.startsWith("#")) return@forEach
+                val host: String
+                val port: Int
+                if (entry.contains(":")) {
+                    val parts = entry.split(":")
+                    host = parts[0].trim()
+                    port = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: params.port
+                } else {
+                    host = entry
+                    port = params.port
+                }
+                try {
+                    val sock: InetSocketAddress = if (preferUnresolvedHostnames) {
+                        InetSocketAddress(host, port)
+                    } else {
+                        val ip = runCatching { InetAddress.getByName(host) }.getOrNull()
+                        if (ip != null) InetSocketAddress(ip, port) else InetSocketAddress(host, port)
                     }
+                    out.add(PeerAddress(params, sock))
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Bad disk peer '$entry': ${e.message}")
                 }
             }
-            if (out.isEmpty()) {
-                Log.w(TAG, "No valid static peers parsed from $PEERS_ASSET")
-            }
         } catch (t: Throwable) {
-            Log.w(TAG, "Failed loading $PEERS_ASSET: ${t.message}")
+            Log.w(TAG, "Failed reading disk peers: ${t.message}")
         }
+
+        // 2) assets fallback (read-only)
+        if (out.isEmpty()) {
+            try {
+                val am = appContext.assets
+                if (am.list("")?.contains(PEERS_ASSET) == true) {
+                    am.open(PEERS_ASSET).use { ins ->
+                        BufferedReader(InputStreamReader(ins)).useLines { lines ->
+                            lines.forEach { raw ->
+                                val line = raw.trim()
+                                if (line.isEmpty() || line.startsWith("#")) return@forEach
+                                val host: String
+                                val port: Int
+                                if (line.contains(":")) {
+                                    val parts = line.split(":")
+                                    host = parts[0].trim()
+                                    port = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: params.port
+                                } else {
+                                    host = line
+                                    port = params.port
+                                }
+                                try {
+                                    val sock: InetSocketAddress = if (preferUnresolvedHostnames) {
+                                        InetSocketAddress(host, port)
+                                    } else {
+                                        val ip = runCatching { InetAddress.getByName(host) }.getOrNull()
+                                        if (ip != null) InetSocketAddress(ip, port) else InetSocketAddress(host, port)
+                                    }
+                                    out.add(PeerAddress(params, sock))
+                                } catch (e: Throwable) {
+                                    Log.w(TAG, "Bad asset peer '$line': ${e.message}")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Log.i(TAG, "No $PEERS_ASSET in assets; rely on DNS discovery")
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed loading $PEERS_ASSET: ${t.message}")
+            }
+        }
+
         return out
+    }
+
+    private fun readPeerLines(): List<String> {
+        val file = peersFile()
+        if (!file.exists()) return emptyList()
+        return runCatching { file.readLines() }.getOrElse { emptyList() }
+    }
+
+    private fun writePeers(lines: Set<String>) {
+        val file = peersFile()
+        runCatching {
+            FileWriter(file, false).use { fw ->
+                lines.forEach { fw.write(it.trim() + "\n") }
+            }
+        }.onSuccess { Log.i(TAG, "Peers persisted to ${file.absolutePath} (${lines.size})") }
+            .onFailure { Log.w(TAG, "Failed writing peers: ${it.message}") }
+    }
+
+    private fun persistPeer(isa: InetSocketAddress, defaultPort: Int) {
+        val host = isa.hostString ?: isa.address?.hostAddress ?: return
+        val port = if (isa.port > 0) isa.port else defaultPort
+        val key = "$host:$port"
+        if (discoveredPeers.add(key)) {
+            // batch flush occasionally to avoid IO thrash
+            scope.launch {
+                val existing = readPeerLines().toMutableSet()
+                existing.add(key)
+                writePeers(existing)
+            }
+        }
     }
 }
