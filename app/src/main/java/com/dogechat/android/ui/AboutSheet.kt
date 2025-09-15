@@ -29,6 +29,7 @@ import com.dogechat.android.wallet.logging.SpvLogBuffer
 import com.dogechat.android.wallet.net.TorManagerWallet
 import com.dogechat.android.nostr.NostrProofOfWork
 import com.dogechat.android.nostr.PoWPreferenceManager
+import com.dogechat.android.wallet.logging.AppLog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,7 +75,10 @@ fun AboutSheet(
     if (!isPresented) return
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            AppLog.action("AboutSheet", "dismiss")
+            onDismiss()
+        },
         sheetState = sheetState,
         modifier = modifier
     ) {
@@ -173,18 +177,21 @@ fun AboutSheet(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ThemeChip("system", themePref == com.dogechat.android.ui.theme.ThemePreference.System) {
+                            AppLog.action("AboutSheet", "theme", "system")
                             com.dogechat.android.ui.theme.ThemePreferenceManager.set(
                                 context,
                                 com.dogechat.android.ui.theme.ThemePreference.System
                             )
                         }
                         ThemeChip("light", themePref == com.dogechat.android.ui.theme.ThemePreference.Light) {
+                            AppLog.action("AboutSheet", "theme", "light")
                             com.dogechat.android.ui.theme.ThemePreferenceManager.set(
                                 context,
                                 com.dogechat.android.ui.theme.ThemePreference.Light
                             )
                         }
                         ThemeChip("dark", themePref == com.dogechat.android.ui.theme.ThemePreference.Dark) {
+                            AppLog.action("AboutSheet", "theme", "dark")
                             com.dogechat.android.ui.theme.ThemePreferenceManager.set(
                                 context,
                                 com.dogechat.android.ui.theme.ThemePreference.Dark
@@ -197,7 +204,9 @@ fun AboutSheet(
             // Proof of Work
             item {
                 val ctx = LocalContext.current
-                LaunchedEffect(Unit) { PoWPreferenceManager.init(ctx) }
+                LaunchedEffect(Unit) {
+                    PoWPreferenceManager.init(ctx)
+                }
                 val powEnabled by PoWPreferenceManager.powEnabled.collectAsState(initial = false)
                 val powDifficulty by PoWPreferenceManager.powDifficulty.collectAsState(initial = 8)
                 Column(
@@ -214,7 +223,10 @@ fun AboutSheet(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         FilterChip(
                             selected = !powEnabled,
-                            onClick = { PoWPreferenceManager.setPowEnabled(false) },
+                            onClick = {
+                                AppLog.action("AboutSheet", "pow", "OFF")
+                                PoWPreferenceManager.setPowEnabled(false)
+                            },
                             label = {
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text("pow off", fontFamily = FontFamily.Monospace)
@@ -224,7 +236,10 @@ fun AboutSheet(
                         )
                         FilterChip(
                             selected = powEnabled,
-                            onClick = { PoWPreferenceManager.setPowEnabled(true) },
+                            onClick = {
+                                AppLog.action("AboutSheet", "pow", "ON")
+                                PoWPreferenceManager.setPowEnabled(true)
+                            },
                             label = {
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text("pow on", fontFamily = FontFamily.Monospace)
@@ -249,7 +264,10 @@ fun AboutSheet(
                             )
                             Slider(
                                 value = powDifficulty.toFloat(),
-                                onValueChange = { PoWPreferenceManager.setPowDifficulty(it.toInt()) },
+                                onValueChange = {
+                                    PoWPreferenceManager.setPowDifficulty(it.toInt())
+                                    AppLog.action("AboutSheet", "powDifficulty", it.toInt().toString())
+                                },
                                 valueRange = 0f..32f,
                                 steps = 33
                             )
@@ -258,7 +276,7 @@ fun AboutSheet(
                 }
             }
 
-            // Network (chat Tor)
+            // Network (chat Tor) — independent
             item {
                 val indicatorColor = when {
                     !chatTorStatus.running -> Color.Red
@@ -271,7 +289,10 @@ fun AboutSheet(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = chatTorMode == com.dogechat.android.net.TorMode.OFF,
-                            onClick = { com.dogechat.android.net.TorPreferenceManager.set(context, com.dogechat.android.net.TorMode.OFF) },
+                            onClick = {
+                                AppLog.action("AboutSheet", "chatTor", "OFF")
+                                com.dogechat.android.net.TorPreferenceManager.set(context, com.dogechat.android.net.TorMode.OFF)
+                            },
                             label = {
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text("tor off", fontFamily = FontFamily.Monospace)
@@ -282,7 +303,10 @@ fun AboutSheet(
                         )
                         FilterChip(
                             selected = chatTorMode == com.dogechat.android.net.TorMode.ON,
-                            onClick = { com.dogechat.android.net.TorPreferenceManager.set(context, com.dogechat.android.net.TorMode.ON) },
+                            onClick = {
+                                AppLog.action("AboutSheet", "chatTor", "ON")
+                                com.dogechat.android.net.TorPreferenceManager.set(context, com.dogechat.android.net.TorMode.ON)
+                            },
                             label = {
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text("tor on", fontFamily = FontFamily.Monospace)
@@ -325,7 +349,7 @@ fun AboutSheet(
                 }
             }
 
-            // Wallet (SPV)
+            // Wallet (SPV) — status + SPV logs (dns/peers/etc.)
             item {
                 val spvIndicatorColor = when {
                     !spvStatus.running -> Color.Red
@@ -338,7 +362,10 @@ fun AboutSheet(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = !spvEnabled,
-                            onClick = { SpvController.set(context, false) },
+                            onClick = {
+                                AppLog.action("AboutSheet", "spv", "OFF")
+                                SpvController.set(context, false)
+                            },
                             label = {
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text("spv off", fontFamily = FontFamily.Monospace)
@@ -348,7 +375,10 @@ fun AboutSheet(
                         )
                         FilterChip(
                             selected = spvEnabled,
-                            onClick = { SpvController.set(context, true) },
+                            onClick = {
+                                AppLog.action("AboutSheet", "spv", "ON")
+                                SpvController.set(context, true)
+                            },
                             label = {
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text("spv on", fontFamily = FontFamily.Monospace)
@@ -384,7 +414,7 @@ fun AboutSheet(
                 }
             }
 
-            // Wallet Tor
+            // Wallet Tor (SPV only) — independent and real-time
             item {
                 val app = context.applicationContext as Application
                 val walletTorIndicatorColor = when {
@@ -399,6 +429,7 @@ fun AboutSheet(
                         FilterChip(
                             selected = walletTorMode == com.dogechat.android.net.TorMode.OFF,
                             onClick = {
+                                AppLog.action("AboutSheet", "walletTor", "OFF")
                                 com.dogechat.android.wallet.net.WalletTorPreferenceManager.set(
                                     context,
                                     com.dogechat.android.net.TorMode.OFF
@@ -421,6 +452,7 @@ fun AboutSheet(
                         FilterChip(
                             selected = walletTorMode == com.dogechat.android.net.TorMode.ON,
                             onClick = {
+                                AppLog.action("AboutSheet", "walletTor", "ON")
                                 com.dogechat.android.wallet.net.WalletTorPreferenceManager.set(
                                     context,
                                     com.dogechat.android.net.TorMode.ON

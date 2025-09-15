@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.dogechat.android.wallet.logging.AppLog
+import com.dogechat.android.wallet.logging.AppLog.Channel
 import com.dogechat.android.wallet.logging.SpvLogBuffer
 import com.dogechat.android.wallet.net.PeerDirectory
 import com.dogechat.android.wallet.net.TorManagerWallet
@@ -12,11 +14,14 @@ import com.dogechat.android.wallet.util.TransactionHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.bitcoinj.core.Address
@@ -46,6 +51,9 @@ data class SpvStatus(
     val torBootstrap: Int
 )
 
+/**
+ * WalletManager with enhanced logging, keep-alive, crash handling.
+ */
 @Singleton
 class WalletManager @Inject constructor(
     @ApplicationContext private val appContext: Context
@@ -61,6 +69,7 @@ class WalletManager @Inject constructor(
         private const val MAX_PEERS = 6
         private const val TOR_WAIT_MS = 45_000L
         private const val TOR_POLL_MS = 300L
+        private const val KEEP_ALIVE_INTERVAL_MS = 15_000L
 
         private val DOGE_DNS_SEEDS = arrayOf(
             "seed.dogecoin.com",
@@ -90,6 +99,7 @@ class WalletManager @Inject constructor(
             }
 
             fun set(context: Context, turnOn: Boolean) {
+                AppLog.action("SpvToggle", "set", "turnOn=$turnOn")
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 prefs.edit().putBoolean(PREF_KEY_SPV_ENABLED, turnOn).apply()
                 enabled.value = turnOn
@@ -112,6 +122,7 @@ class WalletManager @Inject constructor(
                 val cur = status.value
                 status.value = cur.copy(lastLogLine = line)
                 SpvLogBuffer.append(line)
+                AppLog.d(Channel.SPV, TAG, line)
             }
         }
 
@@ -126,9 +137,13 @@ class WalletManager @Inject constructor(
         val confirmations: Int
     )
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val coroutineErrorHandler = CoroutineExceptionHandler { _, t ->
+        AppLog.crash(TAG, "Coroutine exception", t)
+    }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + coroutineErrorHandler)
+
     private val params: NetworkParameters = DogecoinMainNetParams.get()
-    private var kit: WalletAppKit? = null
+    @Volatile private var kit: WalletAppKit? = null
 
     private val _balance = MutableStateFlow("0 DOGE")
     val balance: StateFlow<String> = _balance
@@ -151,49 +166,74 @@ class WalletManager @Inject constructor(
 
     init {
         instanceRef = this
+        installGlobalCrashHandler()
         WalletTorPreferenceManager.init(appContext)
-        ensurePreGeneratedAddressIfMissing() // NEW: pre-generate address/WIF on first app start
+        ensurePreGeneratedAddressIfMissing()
         _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
         SpvController.enabled.value = prefs.getBoolean(PREF_KEY_SPV_ENABLED, false)
+        AppLog.state(Channel.SPV, TAG, "init.spvEnabled", SpvController.enabled.value)
         if (SpvController.enabled.value) startNetwork()
+        launchKeepAlive()
+    }
+
+    // Crash handler
+    private fun installGlobalCrashHandler() {
+        val prev = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            AppLog.crash("Global", "Uncaught in thread ${t.name}", e)
+            prev?.uncaughtException(t, e) ?: run {
+                // rethrow to let system crash
+                throw e
+            }
+        }
     }
 
     private fun ensurePreGeneratedAddressIfMissing() {
         val hasWif = !prefs.getString(PREF_KEY_CACHED_WIF, null).isNullOrBlank()
         val hasAddr = !prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null).isNullOrBlank()
-        if (hasWif || hasAddr) return
-        try {
-            val key = ECKey() // offline key generation
+        if (hasWif || hasAddr) {
+            AppLog.d(Channel.SPV, TAG, "Pre-gen skipped (existing address or WIF)")
+            return
+        }
+        runCatching {
+            val key = ECKey()
             val wif = key.getPrivateKeyAsWiF(params)
             val addr = LegacyAddress.fromKey(params, key).toString()
-            prefs.edit().putString(PREF_KEY_CACHED_WIF, wif)
+            prefs.edit()
+                .putString(PREF_KEY_CACHED_WIF, wif)
                 .putString(PREF_KEY_RECEIVE_ADDRESS, addr)
                 .apply()
             _address.value = addr
             SpvController.log("pre-generated address $addr")
-        } catch (t: Throwable) {
-            Log.w(TAG, "Failed to pre-generate address: ${t.message}")
+            AppLog.i(Channel.SPV, TAG, "Pre-generated address=$addr wifLen=${wif.length}")
+        }.onFailure {
+            AppLog.w(Channel.SPV, TAG, "Pre-generate failed: ${it.message}", it)
         }
     }
 
     fun startNetwork() {
         scope.launch {
+            if (kit != null) {
+                AppLog.d(Channel.SPV, TAG, "startNetwork: kit already exists; ignoring")
+                return@launch
+            }
             try {
-                Log.i(TAG, "SPV start… net=${params.javaClass.simpleName} port=${params.port}")
+                AppLog.i(Channel.SPV, TAG, "SPV start net=${params.javaClass.simpleName} port=${params.port}")
                 SpvController.log("SPV: starting …")
                 BtcContext.propagate(BtcContext(params))
 
                 val app = appContext.applicationContext as Application
 
-                // Wallet-only Tor preference
                 val torWanted = WalletTorPreferenceManager.get(appContext) == com.dogechat.android.net.TorMode.ON
+                AppLog.state(Channel.SPV, TAG, "walletTorWanted", torWanted)
                 if (torWanted) {
                     TorManagerWallet.start(app)
                     waitForWalletTorReady()
                 } else {
-                    try { TorManagerWallet.stop() } catch (_: Throwable) {}
+                    TorManagerWallet.stop()
                     clearJvmSocks()
                     SpvController.updateTor(false, 0)
+                    SpvController.log("wallet tor disabled")
                 }
 
                 val dir = File(appContext.filesDir, "wallet").apply { if (!exists()) mkdirs() }
@@ -207,13 +247,16 @@ class WalletManager @Inject constructor(
                 )
 
                 if (!usingSocks) {
-                    SpvController.log("dns discovery: seeds=${DOGE_DNS_SEEDS.joinToString()}")
+                    SpvController.log("dns discovery seeds=${DOGE_DNS_SEEDS.joinToString()}")
                     PeerDirectory.resolveDnsSeedsAndPersist(appContext, DOGE_DNS_SEEDS, params.port)
+                } else {
+                    SpvController.log("dns discovery skipped (tor active)")
                 }
 
                 val k = object : WalletAppKit(params, dir, FILE_PREFIX) {
                     override fun onSetupCompleted() {
                         val fmt = { t: String -> "${timeFmt.format(Date())} $t" }
+                        AppLog.i(Channel.SPV, TAG, "onSetupCompleted")
                         try {
                             val pg = peerGroup()
                             runCatching { pg.setUseLocalhostPeerWhenPossible(false) }
@@ -222,48 +265,48 @@ class WalletManager @Inject constructor(
 
                             initialPeers.forEach { pa ->
                                 runCatching { pg.addAddress(pa) }
-                                    .onSuccess { SpvController.log("seed peer ${pa.socketAddress?.hostString}:${pa.port}") }
-                                    .onFailure { Log.w(TAG, "Seed add failed: ${it.message}") }
+                                    .onSuccess { SpvController.log("seed ${pa.socketAddress?.hostString}:${pa.port}") }
+                                    .onFailure { AppLog.w(Channel.SPV, TAG, "Seed add failed: ${it.message}") }
                             }
 
                             if (!usingSocks) {
                                 runCatching {
                                     pg.addPeerDiscovery(DnsDiscovery(DOGE_DNS_SEEDS, params))
                                     SpvController.log("dns discovery enabled")
-                                }.onFailure { SpvController.log("dns discovery failed: ${it.message}") }
-                            } else {
-                                SpvController.log("dns discovery disabled (wallet tor active)")
+                                }.onFailure {
+                                    SpvController.log("dns discovery failed: ${it.message}")
+                                }
                             }
 
-                            // Ensure brand-new wallets immediately have an address persisted
                             ensureInitialAddress()
 
-                            // Wallet listeners
-                            wallet().addCoinsReceivedEventListener { _: Wallet, _, _, _ ->
+                            wallet().addCoinsReceivedEventListener { _: Wallet, tx, _, _ ->
+                                SpvController.log(fmt("coins received ${tx.txId}"))
                                 pushBalance(); pushHistory()
-                                SpvController.log(fmt("coins received"))
                             }
-                            wallet().addCoinsSentEventListener { _: Wallet, _, _, _ ->
+                            wallet().addCoinsSentEventListener { _: Wallet, tx, _, _ ->
+                                SpvController.log(fmt("coins sent ${tx.txId}"))
                                 pushBalance(); pushHistory()
-                                SpvController.log(fmt("coins sent"))
                             }
-                            wallet().addChangeEventListener { _ -> pushBalance(); pushHistory() }
+                            wallet().addChangeEventListener {
+                                AppLog.d(Channel.SPV, TAG, "wallet change -> update balance/history")
+                                pushBalance(); pushHistory()
+                            }
 
+                            attachConfidenceListenerIfAvailable()
+
+                            // Use the same 'pg' defined above; do not redeclare
                             try {
                                 pg.addConnectedEventListener { peer, count ->
                                     _peerCount.value = count
                                     SpvController.updatePeers(count)
-                                    val isa: InetSocketAddress? = runCatching {
-                                        (peer?.address as? PeerAddress)?.socketAddress
-                                    }.getOrNull()
+                                    val isa = (peer?.address as? PeerAddress)?.socketAddress
                                     SpvController.log(fmt("peer +1 ($count) ${isa?.hostString}:${isa?.port}"))
                                 }
                                 pg.addDisconnectedEventListener { peer, count ->
                                     _peerCount.value = count
                                     SpvController.updatePeers(count)
-                                    val isa: InetSocketAddress? = runCatching {
-                                        (peer?.address as? PeerAddress)?.socketAddress
-                                    }.getOrNull()
+                                    val isa = (peer?.address as? PeerAddress)?.socketAddress
                                     SpvController.log(fmt("peer -1 ($count) ${isa?.hostString}:${isa?.port}"))
                                 }
                             } catch (_: Throwable) {}
@@ -276,16 +319,14 @@ class WalletManager @Inject constructor(
                                 }
                             }
 
-                            // Import cached WIF early and rescan if needed
                             importCachedWifIfPresent()
                             triggerRescanForImportedIfNeeded()
 
-                            // Initial UI push
                             pushAddress()
                             pushBalance()
                             pushHistory()
                         } catch (t: Throwable) {
-                            Log.w(TAG, "onSetupCompleted error: ${t.message}", t)
+                            AppLog.w(Channel.SPV, TAG, "onSetupCompleted error: ${t.message}", t)
                         }
                     }
                 }.apply {
@@ -320,15 +361,16 @@ class WalletManager @Inject constructor(
 
                 k.startAsync()
                 k.awaitRunning()
+                SpvController.log("kit running")
 
-                // Force a download pass to kick progress listeners reliably
                 runCatching { k.peerGroup().startBlockChainDownload(object : DownloadProgressTracker() {}) }
+                    .onFailure { AppLog.w(Channel.SPV, TAG, "force download start failed: ${it.message}") }
 
-                Log.i(TAG, "SPV running. Address=${currentReceiveAddress()}")
+                AppLog.i(Channel.SPV, TAG, "SPV running. Address=${currentReceiveAddress()}")
                 pushAddress(); pushBalance(); pushHistory()
                 updateSpvStatus()
             } catch (e: Throwable) {
-                Log.e(TAG, "SPV start failed: ${e.message}", e)
+                AppLog.e(Channel.SPV, TAG, "SPV start failed: ${e.message}", e)
                 _spvStatus.value = "Error"
                 SpvController.updateRunning(false)
                 SpvController.log("error: ${e.message}")
@@ -340,6 +382,7 @@ class WalletManager @Inject constructor(
 
     fun stopNetwork() {
         scope.launch {
+            AppLog.i(Channel.SPV, TAG, "Stop requested")
             try {
                 kit?.apply {
                     SpvController.log("stopping …")
@@ -347,7 +390,7 @@ class WalletManager @Inject constructor(
                     awaitTerminated()
                 }
             } catch (e: Throwable) {
-                Log.e(TAG, "Failed to stop wallet kit: ${e.message}", e)
+                AppLog.e(Channel.SPV, TAG, "Failed to stop wallet kit: ${e.message}", e)
             } finally {
                 kit = null
                 _syncPercent.value = 0
@@ -357,37 +400,66 @@ class WalletManager @Inject constructor(
                 SpvController.updatePeers(0)
                 SpvController.updateSync(0)
                 clearJvmSocks()
-                // Do not force-stop Tor here; WalletTorPreference drives lifecycle
                 SpvController.log("stopped")
             }
         }
     }
 
-    // Public ops
+    private fun launchKeepAlive() {
+        scope.launch {
+            AppLog.i(Channel.SPV, TAG, "KeepAlive loop started")
+            while (isActive) {
+                delay(KEEP_ALIVE_INTERVAL_MS)
+                val enabled = SpvController.enabled.value
+                val localKit = kit
+                val running = localKit != null && localKit.isRunning
+                if (enabled && !running) {
+                    AppLog.w(Channel.SPV, TAG, "KeepAlive: SPV enabled but not running -> restart")
+                    startNetwork()
+                }
+                // Wallet Tor keep-alive
+                val wantTor = WalletTorPreferenceManager.get(appContext) == com.dogechat.android.net.TorMode.ON
+                if (wantTor && !TorManagerWallet.isRunning()) {
+                    AppLog.w(Channel.SPV, TAG, "KeepAlive: Wallet Tor wanted but not running -> start")
+                    runCatching { TorManagerWallet.start(appContext.applicationContext as Application) }
+                }
+            }
+        }
+    }
 
-    fun currentReceiveAddress(): String? = try {
+    // Public operations
+
+    fun currentReceiveAddress(): String? = runCatching {
         val cached = prefs.getString(PREF_KEY_CACHED_WIF, null)
         if (!cached.isNullOrBlank()) deriveAddressFromWif(cached)
         else kit?.wallet()?.currentReceiveAddress()?.toString()
             ?: prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
-    } catch (_: Throwable) { prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null) }
+    }.getOrNull()
 
     fun refreshAddress() {
+        AppLog.action("WalletScreen", "refreshAddress")
         scope.launch {
             val addr = kit?.wallet()?.freshReceiveAddress()?.toString()
+            AppLog.i(Channel.SPV, TAG, "refreshAddress new=$addr")
             if (addr != null) {
                 prefs.edit().remove(PREF_KEY_CACHED_WIF).putString(PREF_KEY_RECEIVE_ADDRESS, addr).apply()
                 _address.value = addr
+                SpvController.log("new address $addr")
             }
         }
     }
 
     fun refreshNow() {
+        AppLog.action("WalletScreen", "refreshNow")
         scope.launch {
             pushAddress(); pushBalance(); pushHistory()
             val local = kit
             if (local == null) {
                 SpvController.log("refresh skipped (wallet not started)")
+                return@launch
+            }
+            if (!local.isRunning) {
+                SpvController.log("refresh aborted (kit not running)")
                 return@launch
             }
             runCatching {
@@ -397,11 +469,16 @@ class WalletManager @Inject constructor(
                         SpvController.log("manual refresh done")
                     }
                 })
-            }.onFailure { SpvController.log("refresh trigger failed: ${it.message}") }
+                SpvController.log("manual refresh triggered")
+            }.onFailure {
+                SpvController.log("refresh trigger failed: ${it.message}")
+                AppLog.w(Channel.SPV, TAG, "refreshNow failed: ${it.message}", it)
+            }
         }
     }
 
     fun sendCoins(toAddress: String, amountDoge: Long, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        AppLog.action("WalletScreen", "sendCoins", "to=$toAddress amount=$amountDoge")
         scope.launch {
             val localKit = kit ?: run {
                 withContext(Dispatchers.Main) { onResult(false, "Wallet not started") }
@@ -410,12 +487,15 @@ class WalletManager @Inject constructor(
             try {
                 val address: Address = LegacyAddress.fromBase58(params, toAddress)
                 val amount = org.bitcoinj.core.Coin.valueOf(amountDoge * 100_000_000L)
-                localKit.wallet().sendCoins(localKit.peerGroup(), address, amount)
+                AppLog.i(Channel.SPV, TAG, "Attempting send tx amount=$amount to=$toAddress")
+                localKit.wallet().sendCoins(localKit.peerGroup(), address, amount).let { req ->
+                    SpvController.log("broadcast requested tx=${req.tx.txId}")
+                    AppLog.i(Channel.SPV, TAG, "Broadcast requested tx=${req.tx.txId}")
+                }
                 pushBalance(); pushHistory()
-                SpvController.log("broadcast requested")
                 withContext(Dispatchers.Main) { onResult(true, "Broadcast requested") }
             } catch (e: Throwable) {
-                Log.e(TAG, "sendCoins failed: ${e.message}", e)
+                AppLog.e(Channel.SPV, TAG, "sendCoins failed: ${e.message}", e)
                 SpvController.log("send error: ${e.message}")
                 withContext(Dispatchers.Main) { onResult(false, e.message ?: "Unknown error") }
             }
@@ -424,21 +504,33 @@ class WalletManager @Inject constructor(
 
     // WIF/cache/rescan
 
-    fun getOrExportAndCacheWif(): String? = try {
+    fun getOrExportAndCacheWif(): String? = runCatching {
         val cached = prefs.getString(PREF_KEY_CACHED_WIF, null)
-        if (!cached.isNullOrBlank()) cached
-        else exportCurrentReceivePrivateKeyWif()?.also { persistWif(it, deriveAddressFromWif(it)) }
-    } catch (t: Throwable) { Log.w(TAG, "getOrExportAndCacheWif failed: ${t.message}"); null }
+        if (!cached.isNullOrBlank()) {
+            AppLog.d(Channel.SPV, TAG, "getOrExportAndCacheWif using cached")
+            cached
+        } else exportCurrentReceivePrivateKeyWif()?.also {
+            persistWif(it, deriveAddressFromWif(it))
+            AppLog.i(Channel.SPV, TAG, "exported WIF length=${it.length}")
+        }
+    }.getOrElse {
+        AppLog.w(Channel.SPV, TAG, "getOrExportAndCacheWif failed: ${it.message}", it)
+        null
+    }
 
-    fun exportCurrentReceivePrivateKeyWif(): String? = try {
+    fun exportCurrentReceivePrivateKeyWif(): String? = runCatching {
         val w = kit?.wallet() ?: return null
         val key = w.currentReceiveKey() ?: return null
         key.getPrivateKeyAsWiF(params)
-    } catch (t: Throwable) { Log.w(TAG, "export WIF failed: ${t.message}"); null }
+    }.getOrElse {
+        AppLog.w(Channel.SPV, TAG, "export WIF failed: ${it.message}", it)
+        null
+    }
 
     fun getCachedWif(): String? = prefs.getString(PREF_KEY_CACHED_WIF, null)
 
     fun importPrivateKeyWif(wif: String, onResult: (Boolean, String) -> Unit) {
+        AppLog.action("PrivateKeyImport", "importWIF", "len=${wif.length}")
         scope.launch {
             try {
                 val key = DumpedPrivateKey.fromBase58(params, wif).key
@@ -447,17 +539,20 @@ class WalletManager @Inject constructor(
                 if (w == null) {
                     persistWif(wif, addr)
                     _address.value = addr
-                    withContext(Dispatchers.Main) { onResult(true, "WIF cached. It will load when wallet starts.") }
+                    SpvController.log("WIF cached (wallet idle)")
+                    withContext(Dispatchers.Main) { onResult(true, "WIF cached. Loads when wallet starts.") }
                     return@launch
                 }
                 val exists = runCatching { w.importedKeys.contains(key) }.getOrDefault(false)
-                if (!exists) runCatching { w.importKey(key) }
+                if (!exists) runCatching { w.importKey(key) }.onSuccess {
+                    SpvController.log("key imported")
+                }
                 persistWif(wif, addr)
                 _address.value = addr
                 triggerRescanFromBirth(key.creationTimeSeconds)
                 withContext(Dispatchers.Main) { onResult(true, "Private key imported") }
             } catch (e: Throwable) {
-                Log.e(TAG, "importPrivateKeyWif failed: ${e.message}", e)
+                AppLog.e(Channel.SPV, TAG, "importPrivateKeyWif failed: ${e.message}", e)
                 withContext(Dispatchers.Main) { onResult(false, e.message ?: "Import failed") }
             }
         }
@@ -473,7 +568,8 @@ class WalletManager @Inject constructor(
             val addr = LegacyAddress.fromKey(params, key).toString()
             persistWif(wif, addr)
             _address.value = addr
-        }.onFailure { Log.w(TAG, "Import cached WIF failed: ${it.message}") }
+            SpvController.log("cached WIF loaded")
+        }.onFailure { AppLog.w(Channel.SPV, TAG, "Import cached WIF failed: ${it.message}", it) }
     }
 
     private fun persistWif(wif: String, address: String?) {
@@ -481,6 +577,7 @@ class WalletManager @Inject constructor(
             putString(PREF_KEY_CACHED_WIF, wif)
             if (!address.isNullOrBlank()) putString(PREF_KEY_RECEIVE_ADDRESS, address)
         }.apply()
+        AppLog.d(Channel.SPV, TAG, "persistWif done address=$address")
     }
 
     private fun deriveAddressFromWif(wif: String): String? = runCatching {
@@ -495,6 +592,7 @@ class WalletManager @Inject constructor(
 
     private fun triggerRescanFromBirth(birthTimeSecs: Long) {
         val pg = kit?.peerGroup() ?: return
+        AppLog.i(Channel.SPV, TAG, "triggerRescan birth=$birthTimeSecs")
         runCatching { pg.setFastCatchupTimeSecs(birthTimeSecs) }
         runCatching {
             val m = pg.javaClass.methods.firstOrNull { it.name == "recalculateFastCatchupAndFilter" && it.parameterTypes.isEmpty() }
@@ -513,16 +611,24 @@ class WalletManager @Inject constructor(
                 }
             })
             SpvController.log("rescan started")
-        }.onFailure { SpvController.log("rescan failed: ${it.message}") }
+        }.onFailure {
+            SpvController.log("rescan failed: ${it.message}")
+            AppLog.w(Channel.SPV, TAG, "rescan failed: ${it.message}", it)
+        }
     }
 
-    fun wipeWalletData(): Boolean = try {
+    fun wipeWalletData(): Boolean = runCatching {
+        AppLog.action("WalletScreen", "wipeWalletData")
         runCatching { kit?.stopAsync(); kit?.awaitTerminated() }
         kit = null
         runCatching {
             val dir = File(appContext.filesDir, "wallet"); if (dir.exists()) dir.deleteRecursively()
         }
-        prefs.edit().remove(PREF_KEY_RECEIVE_ADDRESS).remove(PREF_KEY_CACHED_WIF).putBoolean(PREF_KEY_SPV_ENABLED, false).apply()
+        prefs.edit()
+            .remove(PREF_KEY_RECEIVE_ADDRESS)
+            .remove(PREF_KEY_CACHED_WIF)
+            .putBoolean(PREF_KEY_SPV_ENABLED, false)
+            .apply()
         _address.value = null
         _balance.value = "0 DOGE"
         _history.value = emptyList()
@@ -538,12 +644,11 @@ class WalletManager @Inject constructor(
         clearJvmSocks()
         TorManagerWallet.stop()
         true
-    } catch (t: Throwable) {
-        Log.e(TAG, "wipeWalletData failed: ${t.message}", t)
-        false
-    }
+    }.onFailure {
+        AppLog.e(Channel.SPV, TAG, "wipeWalletData failed: ${it.message}", it)
+    }.getOrDefault(false)
 
-    // Internals
+    // Internal
 
     private fun ensureInitialAddress() {
         val hasPrefAddr = !prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null).isNullOrBlank()
@@ -559,24 +664,20 @@ class WalletManager @Inject constructor(
     }
 
     private fun pushAddress() {
-        try {
-            val cachedWif = prefs.getString(PREF_KEY_CACHED_WIF, null)
-            if (!cachedWif.isNullOrBlank()) {
-                val wifAddr = deriveAddressFromWif(cachedWif)
-                if (!wifAddr.isNullOrBlank()) {
-                    prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, wifAddr).apply()
-                    _address.value = wifAddr
-                    return
-                }
+        val cachedWif = prefs.getString(PREF_KEY_CACHED_WIF, null)
+        if (!cachedWif.isNullOrBlank()) {
+            val wifAddr = deriveAddressFromWif(cachedWif)
+            if (!wifAddr.isNullOrBlank()) {
+                prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, wifAddr).apply()
+                _address.value = wifAddr
+                return
             }
-            val hd = kit?.wallet()?.currentReceiveAddress()?.toString()
-            if (!hd.isNullOrBlank()) {
-                prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, hd).apply()
-                _address.value = hd
-            } else {
-                _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
-            }
-        } catch (_: Throwable) {
+        }
+        val hd = kit?.wallet()?.currentReceiveAddress()?.toString()
+        if (!hd.isNullOrBlank()) {
+            prefs.edit().putString(PREF_KEY_RECEIVE_ADDRESS, hd).apply()
+            _address.value = hd
+        } else {
             _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
         }
     }
@@ -600,6 +701,40 @@ class WalletManager @Inject constructor(
         }
     }
 
+    private fun attachConfidenceListenerIfAvailable() {
+        val w = kit?.wallet() ?: return
+        // bitcoinj versions differ; attempt reflection
+        val method = w.javaClass.methods.firstOrNull { it.name == "addTransactionConfidenceEventListener" }
+        if (method != null) {
+            runCatching {
+                val listenerProxy = java.lang.reflect.Proxy.newProxyInstance(
+                    w.javaClass.classLoader,
+                    arrayOf(method.parameterTypes[0])
+                ) { _, m, args ->
+                    if (m.name == "onTransactionConfidenceChanged" && args?.size ?: 0 >= 2) {
+                        val tx = args[1]
+                        val txId = runCatching {
+                            val f = tx.javaClass.methods.firstOrNull { it.name == "getTxId" }?.invoke(tx)
+                            f.toString()
+                        }.getOrElse { "unknown" }
+                        val depth = runCatching {
+                            val conf = tx.javaClass.methods.firstOrNull { it.name == "getConfidence" }?.invoke(tx)
+                            conf?.javaClass?.methods?.firstOrNull { it.name == "getDepthInBlocks" }?.invoke(conf)
+                        }.getOrElse { "?" }
+                        SpvController.log("confidence tx=$txId depth=$depth")
+                    }
+                    null
+                }
+                method.invoke(w, listenerProxy)
+                AppLog.i(Channel.SPV, TAG, "Confidence listener attached")
+            }.onFailure {
+                AppLog.w(Channel.SPV, TAG, "Confidence listener attach failed: ${it.message}")
+            }
+        } else {
+            AppLog.d(Channel.SPV, TAG, "No confidence listener API in this bitcoinj version")
+        }
+    }
+
     // Tor helpers
 
     private suspend fun waitForWalletTorReady() {
@@ -607,7 +742,10 @@ class WalletManager @Inject constructor(
         while (waited < TOR_WAIT_MS) {
             val s = TorManagerWallet.status.value
             SpvController.updateTor(s.running, s.bootstrapPercent)
-            if (s.running && s.bootstrapPercent >= 100 && s.socks != null) return
+            if (s.running && s.bootstrapPercent >= 100 && s.socks != null) {
+                SpvController.log("wallet tor ready")
+                return
+            }
             delay(TOR_POLL_MS)
             waited += TOR_POLL_MS
         }
@@ -622,12 +760,14 @@ class WalletManager @Inject constructor(
             System.setProperty("socksProxyVersion", "5")
             System.setProperty("java.net.preferIPv6Addresses", "false")
             System.setProperty("java.net.preferIPv4Stack", "true")
-        }
+            SpvController.log("SOCKS applied ${socks.hostString}:${socks.port}")
+        }.onFailure { AppLog.w(Channel.SPV, TAG, "applyJvmSocks failed: ${it.message}", it) }
     }
 
     private fun clearJvmSocks() {
         runCatching { System.clearProperty("socksProxyHost") }
         runCatching { System.clearProperty("socksProxyPort") }
         runCatching { System.clearProperty("socksProxyVersion") }
+        SpvController.log("SOCKS cleared")
     }
 }

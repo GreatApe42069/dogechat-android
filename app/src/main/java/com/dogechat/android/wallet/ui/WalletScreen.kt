@@ -64,6 +64,7 @@ fun WalletScreen(
         addressFlowValue?.let {
             persistedAddress = it
             prefs.edit().putString("receive_address", it).apply()
+            AppLog.action("WalletScreen", "addressUpdated", it)
         }
     }
     val displayAddress = addressFlowValue ?: persistedAddress ?: "Not ready"
@@ -86,9 +87,13 @@ fun WalletScreen(
     var tapCount by remember { mutableStateOf(0) }
     var lastTapMs by remember { mutableStateOf(0L) }
 
-    LaunchedEffect(Unit) { viewModel.startWallet() }
+    LaunchedEffect(Unit) {
+        AppLog.action("WalletScreen", "startWalletCall")
+        viewModel.startWallet()
+    }
 
     fun handleRefresh() {
+        AppLog.action("WalletScreen", "refreshButton")
         if (!spvEnabled) {
             Toast.makeText(context, "Enable SPV in About > Wallet to sync balance and history.", Toast.LENGTH_SHORT).show()
             return
@@ -96,6 +101,7 @@ fun WalletScreen(
         val mgr = instanceRef
         if (mgr == null) {
             Toast.makeText(context, "Wallet not ready yet. Starting…", Toast.LENGTH_SHORT).show()
+            AppLog.action("WalletScreen", "refreshStartNetwork")
             viewModel.startWallet()
             return
         }
@@ -111,11 +117,13 @@ fun WalletScreen(
                         "Đogecoin Wallet",
                         color = Color(0xFFFFD700),
                         modifier = Modifier.clickable {
+                            AppLog.action("WalletScreen", "titleTapped")
                             val now = System.currentTimeMillis()
                             tapCount = if (now - lastTapMs < 600) tapCount + 1 else 1
                             lastTapMs = now
                             if (tapCount == 3) {
                                 tapCount = 0
+                                AppLog.action("WalletScreen", "tripleTapWipe")
                                 if (instanceRef?.wipeWalletData() == true) {
                                     persistedAddress = null
                                     privateKeyWif = null
@@ -125,15 +133,20 @@ fun WalletScreen(
                                 }
                             } else if (tapCount == 1) {
                                 showAbout = true
+                                AppLog.action("WalletScreen", "openAbout")
                             }
                         }
                     )
                 },
                 actions = {
-                    IconButton(onClick = { showLogs = true }) {
+                    IconButton(onClick = {
+                        AppLog.action("WalletScreen", "openLogs")
+                        showLogs = true
+                    }) {
                         Icon(Icons.Filled.List, contentDescription = "SPV Logs", tint = brandAccent)
                     }
                     IconButton(onClick = {
+                        AppLog.action("WalletScreen", "exportWIF")
                         privateKeyWif = instanceRef?.getOrExportAndCacheWif()
                             ?: instanceRef?.getCachedWif()
                         showPrivKeyDialog = true
@@ -161,8 +174,14 @@ fun WalletScreen(
                     shortAddress = displayAddress,
                     fullAddress = displayAddress,
                     syncPercent = syncPercent,
-                    onSendClick = { uiStateManager.showSendDialog() },
-                    onReceiveClick = { uiStateManager.showReceiveDialog() },
+                    onSendClick = {
+                        AppLog.action("WalletScreen", "openSendDialog")
+                        uiStateManager.showSendDialog()
+                    },
+                    onReceiveClick = {
+                        AppLog.action("WalletScreen", "openReceiveDialog")
+                        uiStateManager.showReceiveDialog()
+                    },
                     onRefreshClick = { handleRefresh() }
                 )
 
@@ -188,12 +207,17 @@ fun WalletScreen(
                 WalletSendDialog(
                     defaultAddress = displayAddress.takeIf { it != "Not ready" } ?: "",
                     isLoading = isLoading,
-                    onDismiss = { uiStateManager.hideSendDialog(); uiStateManager.clearError() },
+                    onDismiss = {
+                        AppLog.action("WalletScreen", "dismissSendDialog")
+                        uiStateManager.hideSendDialog(); uiStateManager.clearError()
+                    },
                     onSend = { toAddr, amountWholeDoge ->
+                        AppLog.action("WalletScreen", "sendConfirm", "to=$toAddr amt=$amountWholeDoge")
                         uiStateManager.setLoading(true)
                         viewModel.sendCoins(toAddr, amountWholeDoge) { ok, msg ->
                             uiStateManager.setLoading(false)
                             if (ok) {
+                                AppLog.action("WalletScreen", "sendSuccess", msg)
                                 uiStateManager.showSuccessAnimation(
                                     WalletViewModel.SuccessAnimationData(message = "Sent: $msg", txHash = msg)
                                 )
@@ -201,6 +225,7 @@ fun WalletScreen(
                                 Toast.makeText(context, "Sent: $msg", Toast.LENGTH_SHORT).show()
                                 handleRefresh()
                             } else {
+                                AppLog.action("WalletScreen", "sendFailure", msg)
                                 uiStateManager.showFailureAnimation(
                                     WalletViewModel.FailureAnimationData(message = "Send failed", reason = msg)
                                 )
@@ -215,24 +240,34 @@ fun WalletScreen(
                     currentAddress = displayAddress,
                     onRequestAddress = { /* future */ },
                     onCopy = {
+                        AppLog.action("WalletScreen", "copyReceiveAddress")
                         clipboard.setText(AnnotatedString(displayAddress))
                         Toast.makeText(context, "Copied Shibes Address", Toast.LENGTH_SHORT).show()
                     },
-                    onDismiss = { uiStateManager.hideReceiveDialog() }
+                    onDismiss = {
+                        AppLog.action("WalletScreen", "dismissReceiveDialog")
+                        uiStateManager.hideReceiveDialog()
+                    }
                 )
             }
 
             if (showSuccess) {
                 WalletSuccessDialog(
                     data = successData ?: WalletViewModel.SuccessAnimationData("Success"),
-                    onDismiss = { uiStateManager.hideSuccessAnimation() }
+                    onDismiss = {
+                        AppLog.action("WalletScreen", "dismissSuccessDialog")
+                        uiStateManager.hideSuccessAnimation()
+                    }
                 )
             }
 
             if (showFailure) {
                 WalletFailureDialog(
                     data = failureData ?: WalletViewModel.FailureAnimationData("Failure"),
-                    onDismiss = { uiStateManager.hideFailureAnimation() }
+                    onDismiss = {
+                        AppLog.action("WalletScreen", "dismissFailureDialog")
+                        uiStateManager.hideFailureAnimation()
+                    }
                 )
             }
 
@@ -241,8 +276,14 @@ fun WalletScreen(
                     brandAccent = brandAccent,
                     privateKeyWif = privateKeyWif,
                     spvEnabled = spvEnabled,
-                    onImportClick = { showImportDialog = true },
-                    onDismiss = { showPrivKeyDialog = false }
+                    onImportClick = {
+                        AppLog.action("WalletScreen", "openImportDialog")
+                        showImportDialog = true
+                    },
+                    onDismiss = {
+                        AppLog.action("WalletScreen", "dismissPrivateKeyDialog")
+                        showPrivKeyDialog = false
+                    }
                 )
             }
 
@@ -251,6 +292,7 @@ fun WalletScreen(
                     brandAccent = brandAccent,
                     spvEnabled = spvEnabled,
                     onImport = { wif ->
+                        AppLog.action("WalletScreen", "importWIFSubmit", "len=${wif.length}")
                         instanceRef?.importPrivateKeyWif(wif) { ok, msg ->
                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             if (ok) {
@@ -258,21 +300,32 @@ fun WalletScreen(
                                 showImportDialog = false
                                 showPrivKeyDialog = true
                                 handleRefresh()
+                            } else {
+                                AppLog.action("WalletScreen", "importWIFResult", "ok=false reason=$msg")
                             }
                         }
                     },
-                    onDismiss = { showImportDialog = false }
+                    onDismiss = {
+                        AppLog.action("WalletScreen", "dismissImportDialog")
+                        showImportDialog = false
+                    }
                 )
             }
 
             if (showAbout) {
                 AboutSheet(
                     isPresented = true,
-                    onDismiss = { showAbout = false }
+                    onDismiss = {
+                        AppLog.action("WalletScreen", "closeAboutSheet")
+                        showAbout = false
+                    }
                 )
             }
 
-            SpvLogsSheet(isPresented = showLogs) { showLogs = false }
+            SpvLogsSheet(isPresented = showLogs) {
+                AppLog.action("WalletScreen", "closeLogsSheet")
+                showLogs = false
+            }
         }
     )
 }
@@ -371,11 +424,15 @@ private fun WalletSendDialog(
     val context = LocalContext.current
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            AppLog.action("WalletScreen", "onDismissRequestSendDialog")
+            onDismiss()
+        },
         confirmButton = {
             TextButton(onClick = {
                 val amt = amountText.toLongOrNull()
                 if (amt == null || amt <= 0L) {
+                    AppLog.action("WalletScreen", "sendInvalidAmount", amountText)
                     Toast.makeText(context, "Enter amount (whole ĐOGE)", Toast.LENGTH_SHORT).show()
                     return@TextButton
                 }
@@ -385,14 +442,23 @@ private fun WalletSendDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Very Cancel") }
+            TextButton(onClick = {
+                AppLog.action("WalletScreen", "cancelSendDialog")
+                onDismiss()
+            }) { Text("Very Cancel") }
         },
         title = { Text("Send ĐOGE") },
         text = {
             Column {
-                OutlinedTextField(value = toAddress, onValueChange = { toAddress = it }, label = { Text("Recipient Shibes Address") }, singleLine = true)
+                OutlinedTextField(value = toAddress, onValueChange = {
+                    toAddress = it
+                    AppLog.action("WalletScreen", "editRecipient", it)
+                }, label = { Text("Recipient Shibes Address") }, singleLine = true)
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = amountText, onValueChange = { amountText = it }, label = { Text("Amount (whole ĐOGE)") }, singleLine = true)
+                OutlinedTextField(value = amountText, onValueChange = {
+                    amountText = it
+                    AppLog.action("WalletScreen", "editAmount", it)
+                }, label = { Text("Amount (whole ĐOGE)") }, singleLine = true)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(text = "Note: Such network fees So apply", style = MaterialTheme.typography.bodySmall)
             }
@@ -408,10 +474,16 @@ private fun WalletReceiveDialog(
     onDismiss: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            AppLog.action("WalletScreen", "onDismissRequestReceiveDialog")
+            onDismiss()
+        },
         confirmButton = {
             Row {
-                TextButton(onClick = onCopy) {
+                TextButton(onClick = {
+                    AppLog.action("WalletScreen", "copyReceiveAddressConfirm")
+                    onCopy()
+                }) {
                     Icon(Icons.Filled.ContentCopy, contentDescription = "Copy")
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Copy")
@@ -419,7 +491,10 @@ private fun WalletReceiveDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = {
+                AppLog.action("WalletScreen", "closeReceiveDialog")
+                onDismiss()
+            }) { Text("Close") }
         },
         title = { Text("Much Receive ĐOGE") },
         text = {
@@ -461,12 +536,19 @@ private fun PrivateKeyDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            AppLog.action("WalletScreen", "onDismissRequestPrivateKeyDialog")
+            onDismiss()
+        },
         confirmButton = {
             Row {
-                TextButton(onClick = onImportClick) { Text("Import/Restore") }
+                TextButton(onClick = {
+                    AppLog.action("WalletScreen", "clickImportRestore")
+                    onImportClick()
+                }) { Text("Import/Restore") }
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = {
+                    AppLog.action("WalletScreen", "copyWIF")
                     clipboard.setText(AnnotatedString(wif))
                     Toast.makeText(context, "Copied Private Key (WIF)", Toast.LENGTH_SHORT).show()
                 }) {
@@ -477,7 +559,10 @@ private fun PrivateKeyDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = {
+                AppLog.action("WalletScreen", "closePrivateKeyDialog")
+                onDismiss()
+            }) { Text("Close") }
         },
         title = { Text("Private Key (WIF)", color = brandAccent) },
         text = {
@@ -496,7 +581,10 @@ private fun PrivateKeyDialog(
                 ) {
                     Text(text = displayText, modifier = Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(onClick = { reveal = !reveal }) {
+                    TextButton(onClick = {
+                        reveal = !reveal
+                        AppLog.action("WalletScreen", "toggleRevealWIF", "reveal=$reveal")
+                    }) {
                         Text(if (reveal) "Hide" else "Reveal")
                     }
                 }
@@ -523,15 +611,22 @@ private fun PrivateKeyImportDialog(
 ) {
     var wifText by remember { mutableStateOf("") }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            AppLog.action("WalletScreen", "onDismissRequestImportDialog")
+            onDismiss()
+        },
         confirmButton = {
             TextButton(onClick = {
                 val trimmed = wifText.trim()
+                AppLog.action("WalletScreen", "importSubmitClick", "len=${trimmed.length}")
                 if (trimmed.isNotEmpty()) onImport(trimmed)
             }) { Text("Import") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = {
+                AppLog.action("WalletScreen", "cancelImportDialog")
+                onDismiss()
+            }) { Text("Cancel") }
         },
         title = { Text("Import/Restore Wallet", color = brandAccent) },
         text = {
@@ -540,7 +635,10 @@ private fun PrivateKeyImportDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = wifText,
-                    onValueChange = { wifText = it },
+                    onValueChange = {
+                        wifText = it
+                        AppLog.action("WalletScreen", "editImportWIF", "len=${it.length}")
+                    },
                     label = { Text("WIF") },
                     singleLine = true
                 )
@@ -564,8 +662,14 @@ private fun WalletSuccessDialog(
     onDismiss: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+        onDismissRequest = {
+            AppLog.action("WalletScreen", "onDismissRequestSuccessDialog")
+            onDismiss()
+        },
+        confirmButton = { TextButton(onClick = {
+            AppLog.action("WalletScreen", "okSuccessDialog")
+            onDismiss()
+        }) { Text("OK") } },
         title = { Text("Much Success") },
         text = {
             Column {
@@ -582,8 +686,14 @@ private fun WalletFailureDialog(
     onDismiss: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+        onDismissRequest = {
+            AppLog.action("WalletScreen", "onDismissRequestFailureDialog")
+            onDismiss()
+        },
+        confirmButton = { TextButton(onClick = {
+            AppLog.action("WalletScreen", "okFailureDialog")
+            onDismiss()
+        }) { Text("OK") } },
         title = { Text("Failure") },
         text = {
             Column {
