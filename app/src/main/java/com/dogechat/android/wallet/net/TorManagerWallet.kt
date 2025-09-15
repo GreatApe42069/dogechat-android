@@ -13,15 +13,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
+import com.dogechat.android.wallet.logging.WalletTorLogBuffer
+import com.dogechat.android.wallet.logging.AppLog
 
 /**
- * A wallet-exclusive Tor manager so we can run chat Tor and wallet Tor independently.
- * - Uses its own Arti instance and SOCKS port range (starts at 9070).
- * - Only runs during SPV start/stop lifecycle.
- * - Exposes a minimal status and current SOCKS address for bitcoinj P2P.
- *
- * NOTE: JVM SOCKS properties are global. We only set/clear them in WalletManager
- * immediately around bitcoinj start/stop to avoid impacting the rest of the app.
+ * Wallet-exclusive Tor manager (Arti) used by SPV only.
  */
 object TorManagerWallet {
     private const val TAG = "TorManagerWallet"
@@ -55,28 +51,28 @@ object TorManagerWallet {
                 try {
                     val logListener = ArtiLogListener { line ->
                         val s = line?.toString() ?: return@ArtiLogListener
+                        WalletTorLogBuffer.append(s)
                         _status.value = _status.value.copy(lastLogLine = s)
-                        if (s.contains("Sufficiently bootstrapped", true)
-                            || s.contains("Running", true)) {
-                            // Treat as ready when running; we don't get granular % from Arti here.
+                        if (s.contains("Sufficiently bootstrapped", true) || s.contains("Running", true)) {
                             val socks = InetSocketAddress("127.0.0.1", currentPort)
                             _status.value = _status.value.copy(running = true, bootstrapPercent = 100, socks = socks, error = null)
                             Log.i(TAG, "Tor bootstrapped (wallet) at $socks")
+                            AppLog.i(AppLog.Channel.WALLET_TOR, TAG, "bootstrapped socks=$socks")
                         }
                     }
                     val proxy = ArtiProxy.Builder(application)
                         .setSocksPort(currentPort)
-                        .setDnsPort(currentPort + 1) // not used by JVM resolver; kept for completeness
+                        .setDnsPort(currentPort + 1)
                         .setLogListener(logListener)
                         .build()
                     artiRef.set(proxy)
                     proxy.start()
                     _status.value = _status.value.copy(running = true, bootstrapPercent = 0, error = null)
-                    Log.i(TAG, "Tor (wallet) starting on port $currentPort")
+                    AppLog.i(AppLog.Channel.WALLET_TOR, TAG, "starting on port $currentPort")
                     return@launch
                 } catch (t: Throwable) {
                     lastError = t.message
-                    Log.w(TAG, "Start failed on $currentPort: ${t.message}")
+                    AppLog.w(AppLog.Channel.WALLET_TOR, TAG, "start failed on $currentPort: ${t.message}", t)
                     stopInternal()
                     attempts++
                     currentPort++ // try next port
@@ -84,6 +80,7 @@ object TorManagerWallet {
                 }
             }
             _status.value = _status.value.copy(running = false, error = lastError)
+            AppLog.e(AppLog.Channel.WALLET_TOR, TAG, "failed to start after retries: $lastError")
         }
     }
 
@@ -94,12 +91,13 @@ object TorManagerWallet {
     private fun stopInternal() {
         try {
             artiRef.getAndSet(null)?.let {
-                Log.i(TAG, "Stopping Tor (wallet)…")
+                AppLog.i(AppLog.Channel.WALLET_TOR, TAG, "stopping …")
                 try { it.stop() } catch (_: Throwable) {}
             }
         } catch (_: Throwable) {}
         _status.value = Status(running = false, bootstrapPercent = 0, socks = null, error = null)
         currentPort = DEFAULT_SOCKS_PORT
+        AppLog.state(AppLog.Channel.WALLET_TOR, TAG, "running", false)
     }
 
     fun currentSocks(): InetSocketAddress? = _status.value.socks

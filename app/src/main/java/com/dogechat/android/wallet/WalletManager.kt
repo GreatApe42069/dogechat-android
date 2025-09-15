@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.bitcoinj.core.Address
 import org.bitcoinj.core.DumpedPrivateKey
+import org.bitcoinj.core.ECKey
 import org.bitcoinj.core.LegacyAddress
 import org.bitcoinj.core.NetworkParameters
 import org.bitcoinj.core.PeerAddress
@@ -110,7 +111,6 @@ class WalletManager @Inject constructor(
             internal fun log(line: String) {
                 val cur = status.value
                 status.value = cur.copy(lastLogLine = line)
-                // Mirror to buffer
                 SpvLogBuffer.append(line)
             }
         }
@@ -152,9 +152,28 @@ class WalletManager @Inject constructor(
     init {
         instanceRef = this
         WalletTorPreferenceManager.init(appContext)
+        ensurePreGeneratedAddressIfMissing() // NEW: pre-generate address/WIF on first app start
         _address.value = prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null)
         SpvController.enabled.value = prefs.getBoolean(PREF_KEY_SPV_ENABLED, false)
         if (SpvController.enabled.value) startNetwork()
+    }
+
+    private fun ensurePreGeneratedAddressIfMissing() {
+        val hasWif = !prefs.getString(PREF_KEY_CACHED_WIF, null).isNullOrBlank()
+        val hasAddr = !prefs.getString(PREF_KEY_RECEIVE_ADDRESS, null).isNullOrBlank()
+        if (hasWif || hasAddr) return
+        try {
+            val key = ECKey() // offline key generation
+            val wif = key.getPrivateKeyAsWiF(params)
+            val addr = LegacyAddress.fromKey(params, key).toString()
+            prefs.edit().putString(PREF_KEY_CACHED_WIF, wif)
+                .putString(PREF_KEY_RECEIVE_ADDRESS, addr)
+                .apply()
+            _address.value = addr
+            SpvController.log("pre-generated address $addr")
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to pre-generate address: ${t.message}")
+        }
     }
 
     fun startNetwork() {
@@ -188,6 +207,7 @@ class WalletManager @Inject constructor(
                 )
 
                 if (!usingSocks) {
+                    SpvController.log("dns discovery: seeds=${DOGE_DNS_SEEDS.joinToString()}")
                     PeerDirectory.resolveDnsSeedsAndPersist(appContext, DOGE_DNS_SEEDS, params.port)
                 }
 
@@ -202,17 +222,17 @@ class WalletManager @Inject constructor(
 
                             initialPeers.forEach { pa ->
                                 runCatching { pg.addAddress(pa) }
-                                    .onSuccess { Log.i(TAG, "Seeded peer: ${pa.socketAddress?.hostString}:${pa.port}") }
+                                    .onSuccess { SpvController.log("seed peer ${pa.socketAddress?.hostString}:${pa.port}") }
                                     .onFailure { Log.w(TAG, "Seed add failed: ${it.message}") }
                             }
 
                             if (!usingSocks) {
                                 runCatching {
                                     pg.addPeerDiscovery(DnsDiscovery(DOGE_DNS_SEEDS, params))
-                                    Log.i(TAG, "DNS discovery enabled: ${DOGE_DNS_SEEDS.joinToString()}")
-                                }.onFailure { Log.w(TAG, "DNS discovery failed: ${it.message}") }
+                                    SpvController.log("dns discovery enabled")
+                                }.onFailure { SpvController.log("dns discovery failed: ${it.message}") }
                             } else {
-                                Log.i(TAG, "DNS discovery disabled (Tor active)")
+                                SpvController.log("dns discovery disabled (wallet tor active)")
                             }
 
                             // Ensure brand-new wallets immediately have an address persisted
@@ -236,14 +256,7 @@ class WalletManager @Inject constructor(
                                     val isa: InetSocketAddress? = runCatching {
                                         (peer?.address as? PeerAddress)?.socketAddress
                                     }.getOrNull()
-                                    Log.i(TAG, "Peer +1: ${isa?.hostString}:${isa?.port} (count=$count)")
-                                    SpvController.log(fmt("peer +1 ($count)"))
-                                    isa?.let {
-                                        val key = "${it.hostString}:${it.port}"
-                                        val existing = PeerDirectory.readDiskPeers(appContext).toMutableSet()
-                                        existing.add(key)
-                                        PeerDirectory.writeDiskPeers(appContext, existing)
-                                    }
+                                    SpvController.log(fmt("peer +1 ($count) ${isa?.hostString}:${isa?.port}"))
                                 }
                                 pg.addDisconnectedEventListener { peer, count ->
                                     _peerCount.value = count
@@ -251,12 +264,10 @@ class WalletManager @Inject constructor(
                                     val isa: InetSocketAddress? = runCatching {
                                         (peer?.address as? PeerAddress)?.socketAddress
                                     }.getOrNull()
-                                    Log.i(TAG, "Peer -1: ${isa?.hostString}:${isa?.port} (count=$count)")
-                                    SpvController.log(fmt("peer -1 ($count)"))
+                                    SpvController.log(fmt("peer -1 ($count) ${isa?.hostString}:${isa?.port}"))
                                 }
                             } catch (_: Throwable) {}
 
-                            // Best-block log (portable across versions)
                             runCatching {
                                 chain().addNewBestBlockListener { stored ->
                                     val h = runCatching { stored.header.hash.toString() }.getOrElse { "unknown" }
@@ -346,8 +357,7 @@ class WalletManager @Inject constructor(
                 SpvController.updatePeers(0)
                 SpvController.updateSync(0)
                 clearJvmSocks()
-                TorManagerWallet.stop()
-                SpvController.updateTor(false, 0)
+                // Do not force-stop Tor here; WalletTorPreference drives lifecycle
                 SpvController.log("stopped")
             }
         }
@@ -374,14 +384,12 @@ class WalletManager @Inject constructor(
 
     fun refreshNow() {
         scope.launch {
-            // Push UI regardless
             pushAddress(); pushBalance(); pushHistory()
             val local = kit
             if (local == null) {
                 SpvController.log("refresh skipped (wallet not started)")
                 return@launch
             }
-            // Only trigger download when running
             runCatching {
                 local.peerGroup().startBlockChainDownload(object : DownloadProgressTracker() {
                     override fun doneDownload() {
@@ -446,7 +454,6 @@ class WalletManager @Inject constructor(
                 if (!exists) runCatching { w.importKey(key) }
                 persistWif(wif, addr)
                 _address.value = addr
-                // Rescan only if we imported a brand-new key
                 triggerRescanFromBirth(key.creationTimeSeconds)
                 withContext(Dispatchers.Main) { onResult(true, "Private key imported") }
             } catch (e: Throwable) {

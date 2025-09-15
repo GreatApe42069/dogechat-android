@@ -7,17 +7,17 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Rolling log buffer for SPV (wallet core) events.
+ * Rolling log buffer for Wallet Tor (Arti) events/log lines.
  */
-object SpvLogBuffer {
-    private const val MAX_LINES = 500
+object WalletTorLogBuffer {
+    private const val MAX_LINES = 400
     private val fmt = SimpleDateFormat("HH:mm:ss", Locale.US)
 
     private val _lines = MutableStateFlow<List<String>>(emptyList())
     val lines: StateFlow<List<String>> = _lines
 
-    fun append(msg: String) {
-        val line = "${fmt.format(Date())} $msg"
+    fun append(raw: String) {
+        val line = "${fmt.format(Date())} $raw"
         val cur = _lines.value
         val next =
             if (cur.size >= MAX_LINES) (cur.drop(cur.size - MAX_LINES + 1) + line)
@@ -25,7 +25,5 @@ object SpvLogBuffer {
         _lines.value = next
     }
 
-    fun clear() {
-        _lines.value = emptyList()
-    }
+    fun clear() { _lines.value = emptyList() }
 }

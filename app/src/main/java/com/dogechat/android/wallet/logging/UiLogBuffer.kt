@@ -7,10 +7,10 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Rolling log buffer for SPV (wallet core) events.
+ * Rolling UI action log buffer (button clicks, toggles, results).
  */
-object SpvLogBuffer {
-    private const val MAX_LINES = 500
+object UiLogBuffer {
+    private const val MAX_LINES = 300
     private val fmt = SimpleDateFormat("HH:mm:ss", Locale.US)
 
     private val _lines = MutableStateFlow<List<String>>(emptyList())

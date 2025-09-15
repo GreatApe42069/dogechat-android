@@ -33,6 +33,7 @@ import com.dogechat.android.wallet.WalletManager.Companion.instanceRef
 import com.dogechat.android.wallet.viewmodel.UIStateManager
 import com.dogechat.android.wallet.viewmodel.WalletViewModel
 import com.dogechat.android.ui.AboutSheet
+import com.dogechat.android.wallet.logging.AppLog
 import java.text.SimpleDateFormat
 import java.util.Locale
 
