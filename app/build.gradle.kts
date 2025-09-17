@@ -40,9 +40,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("dogechat-release-key.jks")
-            storePassword = "Your_Keystore_pass_goes_Here"
+            storePassword = "Your_Keystore_pass_goes_Here_"
             keyAlias = "dogechat-key"
-            keyPassword = "Your_Key_Pass_goes_Here"
+            keyPassword = "Your_Key_Pass_goes_Here_"
         }
     }
 
