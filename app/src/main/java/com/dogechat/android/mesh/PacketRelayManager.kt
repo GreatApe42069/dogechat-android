@@ -14,11 +14,15 @@ import kotlin.random.Random
  * All packets that aren't specifically addressed to us get processed here.
  */
 class PacketRelayManager(private val myPeerID: String) {
-    
+    private val debugManager by lazy { try { com.dogechat.android.ui.debug.DebugSettingsManager.getInstance() } catch (e: Exception) { null } }    
     companion object {
         private const val TAG = "PacketRelayManager"
     }
-    
+    private fun isRelayEnabled(): Boolean = try {
+        com.dogechat.android.ui.debug.DebugSettingsManager.getInstance().packetRelayEnabled.value
+    } catch (_: Exception) { true }
+
+    // Logging moved to BluetoothPacketBroadcaster per actual transmission target   
     // Delegate for callbacks
     var delegate: PacketRelayManagerDelegate? = null
     
@@ -33,7 +37,7 @@ class PacketRelayManager(private val myPeerID: String) {
         val packet = routed.packet
         val peerID = routed.peerID ?: "unknown"
         
-        Log.d(TAG, "Evaluating relay for packet type ${packet.type} from $peerID (TTL: ${packet.ttl})")
+        Log.d(TAG, "Evaluating relay for packet type ${packet.type} from ${peerID} (TTL: ${packet.ttl})")
         
         // Double-check this packet isn't addressed to us
         if (isPacketAddressedToMe(packet)) {
@@ -57,8 +61,8 @@ class PacketRelayManager(private val myPeerID: String) {
         val relayPacket = packet.copy(ttl = (packet.ttl - 1u).toUByte())
         Log.d(TAG, "Decremented TTL from ${packet.ttl} to ${relayPacket.ttl}")
         
-        // Apply relay logic based on packet type
-        val shouldRelay = shouldRelayPacket(relayPacket, peerID)
+        // Apply relay logic based on packet type and debug switch
+        val shouldRelay = isRelayEnabled() && shouldRelayPacket(relayPacket, peerID)
         
         if (shouldRelay) {
             relayPacket(RoutedPacket(relayPacket, peerID, routed.relayAddress))
@@ -104,7 +108,7 @@ class PacketRelayManager(private val myPeerID: String) {
         
         // Small networks always relay to ensure connectivity
         if (networkSize <= 3) {
-            Log.d(TAG, "Small network ($networkSize peers), relaying")
+             Log.d(TAG, "Small network (${networkSize} peers), relaying")
             return true
         }
         
@@ -118,47 +122,11 @@ class PacketRelayManager(private val myPeerID: String) {
         }
         
         val shouldRelay = Random.nextDouble() < relayProb
-        Log.d(TAG, "Network size: $networkSize, Relay probability: $relayProb, Decision: $shouldRelay")
+        Log.d(TAG, "Network size: ${networkSize}, Relay probability: ${relayProb}, Decision: ${shouldRelay}")
         
         return shouldRelay
     }
-    
-    /**
-     * Relay message with adaptive probability and timing (same as iOS)
-     * Moved from MessageHandler.kt
-     */
-    suspend fun relayMessage(routed: RoutedPacket) {
-        val packet = routed.packet
-        
-        if (packet.ttl == 0u.toUByte()) {
-            Log.d(TAG, "TTL expired, not relaying message")
-            return
-        }
-        
-        val relayPacket = packet.copy(ttl = (packet.ttl - 1u).toUByte())
-        
-        // Check network size and apply adaptive relay probability
-        val networkSize = delegate?.getNetworkSize() ?: 1
-        val relayProb = when {
-            networkSize <= 10 -> 1.0
-            networkSize <= 30 -> 0.85
-            networkSize <= 50 -> 0.7
-            networkSize <= 100 -> 0.55
-            else -> 0.4
-        }
-        
-        val shouldRelay = relayPacket.ttl >= 4u || networkSize <= 3 || Random.nextDouble() < relayProb
-        
-        if (shouldRelay) {
-            val delay = Random.nextLong(50, 500) // Random delay like iOS
-            Log.d(TAG, "Relaying message after ${delay}ms delay")
-            delay(delay)
-            relayPacket(routed.copy(packet = relayPacket))
-        } else {
-            Log.d(TAG, "Relay decision: NOT relaying message (network size: $networkSize, prob: $relayProb)")
-        }
-    }
-    
+
     /**
      * Actually broadcast the packet for relay
      */
@@ -174,7 +142,7 @@ class PacketRelayManager(private val myPeerID: String) {
         return buildString {
             appendLine("=== Packet Relay Manager Debug Info ===")
             appendLine("Relay Scope Active: ${relayScope.isActive}")
-            appendLine("My Peer ID: $myPeerID")
+            appendLine("My Peer ID: ${myPeerID}")
             appendLine("Network Size: ${delegate?.getNetworkSize() ?: "unknown"}")
         }
     }

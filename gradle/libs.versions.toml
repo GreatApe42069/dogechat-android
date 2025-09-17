@@ -1,5 +1,5 @@
 [versions]
-# Tooling / Android
+# Android and Kotlin
 agp = "8.10.1"
 kotlin = "2.0.0"
 compileSdk = "35"
@@ -29,13 +29,14 @@ scrypt = "1.4.0"
 gson = "2.13.1"
 
 # Coroutines
-kotlinx-coroutines = "1.7.3"
+kotlinx-coroutines = "1.10.2"
 
 # Bluetooth
 nordic-ble = "2.7.2"
 
 # Networking / Misc
-okhttp = "3.14.9"
+okhttp = "4.12.0"
+tor-android-binary = "0.4.4.6"
 arti-mobile-ex = "1.2.3"
 protobuf-javalite = "3.18.0"
 lz4 = "1.8.0"
@@ -58,6 +59,7 @@ espresso = "3.6.1"
 mockito-kotlin = "4.1.0"
 mockito-inline = "4.1.0"
 roboelectric = "4.15"
+kotlinx-coroutines-test = "1.10.2"
 
 [libraries]
 # AndroidX Core / Lifecycle
@@ -65,23 +67,25 @@ androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle-runtime" }
 androidx-lifecycle-livedata-ktx = { module = "androidx.lifecycle:lifecycle-livedata-ktx", version.ref = "lifecycle-runtime" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle-runtime" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle-runtime" }
 
 # Activity / AppCompat
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 
-# Navigation
-androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation-compose" }
-
 # Compose (via BOM)
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-foundation = { module = "androidx.compose.foundation:foundation" }
 androidx-compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 androidx-compose-runtime-livedata = { module = "androidx.compose.runtime:runtime-livedata" }
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+
+# Navigation
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation-compose" }
 
 # Accompanist
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist-permissions" }
@@ -103,6 +107,7 @@ nordic-ble = { module = "no.nordicsemi.android:ble", version.ref = "nordic-ble" 
 
 # Networking / Misc
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+tor-android-binary = { module = "org.torproject:tor-android-binary", version.ref = "tor-android-binary" }
 arti-mobile-ex = { module = "info.guardianproject:arti-mobile-ex", version.ref = "arti-mobile-ex" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf-javalite" }
 lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
@@ -128,9 +133,11 @@ androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-mani
 mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockito-kotlin" }
 mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito-inline" }
 roboelectric = { module = "org.robolectric:robolectric", version.ref = "roboelectric" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
@@ -138,6 +145,7 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 [bundles]
 compose = [
   "androidx-compose-ui",
+  "androidx-compose-foundation",
   "androidx-compose-ui-graphics",
   "androidx-compose-ui-tooling-preview",
   "androidx-compose-material3",
@@ -147,6 +155,7 @@ compose = [
 
 lifecycle = [
   "androidx-lifecycle-runtime-ktx",
+  "androidx-lifecycle-runtime-compose",
   "androidx-lifecycle-viewmodel-compose",
   "androidx-lifecycle-livedata-ktx"
 ]

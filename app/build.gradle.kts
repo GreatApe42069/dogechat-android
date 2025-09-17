@@ -21,19 +21,28 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
 
-        versionCode = 11
-        versionName = "0.9.5"
+        versionCode = 12
+        versionName = "0.9.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables.useSupportLibrary = true
+        vectorDrawables {
+            useSupportLibrary = true
+        }
+    }
+
+    dependenciesInfo {
+        // Disables dependency metadata when building APKs.
+        includeInApk = false
+        // Disables dependency metadata when building Android App Bundles.
+        includeInBundle = false
     }
 
     signingConfigs {
         create("release") {
             storeFile = file("dogechat-release-key.jks")
-            storePassword = "Your_Keystore_pass_goes_Here"
+            storePassword = "MichaelHailey0608!"  // Replace with your actual keystore password
             keyAlias = "dogechat-key"
-            keyPassword = "Your_Key_Pass_goes_Here"
+            keyPassword = "MichaelHailey0608!"  // Replace with your actual key password
         }
     }
 
@@ -54,28 +63,30 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-        // If you target devices < 26 and use java.time from dependencies, consider enabling desugaring:
-        // isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+    }
 
     packaging {
         resources {
-            // Existing rules
-            pickFirsts += listOf(
-                "paymentrequest.proto",
-                // Resolve duplicate merge for multi-release jars (bcprov/jspecify)
-                "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
-            )
+            // Keep native Tor/Arti libs: DO NOT exclude lib/** or root/**
             excludes += listOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
                 "META-INF/AL2.0",
                 "META-INF/LGPL2.1",
-                // Keep native Tor/Arti libs: DO NOT exclude lib/** or root/**
                 "**/*.dylib"
+            )
+            // Resolve duplicate merge for multi-release jars (bcprov/jspecify)
+            pickFirsts += listOf(
+                "paymentrequest.proto",
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
             )
         }
         jniLibs {
@@ -101,24 +112,22 @@ dependencies {
     // ---- Compose BOM ----
     implementation(platform(libs.androidx.compose.bom))
 
-    // ---- Compose UI ----
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.compose.runtime:runtime-livedata")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    debugImplementation("androidx.compose.ui:ui-tooling")
+    // ---- Compose UI (via catalog + BOM) ----
+    implementation(libs.bundles.compose)
+    implementation(libs.androidx.compose.foundation)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 
     // ---- AndroidX Core / Lifecycle / Navigation ----
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.appcompat)
+
+    // Lifecycle
+    implementation(libs.bundles.lifecycle)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // Navigation
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation("androidx.lifecycle:lifecycle-runtime-compose")
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.lifecycle.livedata.ktx)
 
     // ---- Hilt + Navigation ----
     implementation("com.google.dagger:hilt-android:2.51.1")
@@ -139,16 +148,15 @@ dependencies {
     // ---- Coroutines ----
     implementation(libs.kotlinx.coroutines.android)
 
-    // ---- Security / Crypto ----
+    // ---- Security / Cryptography ----
     implementation(libs.androidx.security.crypto)
-    implementation(libs.bouncycastle.bcprov)
-    implementation(libs.google.tink.android)
+    implementation(libs.bundles.cryptography)
 
     // ---- JSON ----
     implementation(libs.gson)
 
     // ---- ZXing ----
-    implementation("com.google.zxing:core:3.5.1")
+    implementation(libs.zxing.core)
 
     // ---- Logging ----
     implementation(libs.slf4j.api)
@@ -164,28 +172,27 @@ dependencies {
     }
 
     // libdohj runtime deps
-    implementation("com.lambdaworks:scrypt:1.4.0")
-    implementation("com.google.protobuf:protobuf-javalite:3.18.0")
+    implementation(libs.scrypt)
+    implementation(libs.protobuf.javalite)
 
     // ---- Networking ----
-    implementation("com.squareup.okhttp3:okhttp:3.14.9")
+    implementation(libs.okhttp)
 
     // ---- Tor stacks ----
-    // Classic Tor (native)
-    implementation("org.torproject:tor-android-binary:0.4.4.6")
     // Arti (Rust-based Tor)
-    implementation("info.guardianproject:arti-mobile-ex:1.2.3")
+    implementation(libs.arti.mobile.ex)
 
     // ---- Location ----
-    implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation(libs.gms.location)
 
     // ---- Compression ----
-    implementation("org.lz4:lz4-java:1.8.0")
+    implementation(libs.lz4)
 
     // ---- Testing ----
-    testImplementation(libs.junit)
+    testImplementation(libs.bundles.testing)
+
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation(libs.bundles.compose.testing)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
 

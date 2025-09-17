@@ -5,7 +5,7 @@ import androidx.lifecycle.MutableLiveData
 
 /**
  * Manages all UI state for the Dogechat wallet.
- * Adapted from bitchat-android's Cashu implementation, but simplified for libdohj.
+ * Adapted from bitchat-android's Cashu implementation, but simplified for libdohj Because Dogecoin Rocks... Much LFG.
  */
 class UIStateManager {
 

@@ -10,6 +10,8 @@ import com.dogechat.android.model.IdentityAnnouncement
 import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.protocol.SpecialRecipients
+import com.dogechat.android.model.RequestSyncPacket
+import com.dogechat.android.sync.GossipSyncManager
 import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.*
 import java.util.*
@@ -30,17 +32,18 @@ import kotlin.random.Random
  * - PacketProcessor: Incoming packet routing
  */
 class BluetoothMeshService(private val context: Context) {
+    private val debugManager by lazy { try { com.dogechat.android.ui.debug.DebugSettingsManager.getInstance() } catch (e: Exception) { null } }
     
     companion object {
         private const val TAG = "BluetoothMeshService"
         private const val MAX_TTL: UByte = 7u
     }
     
-    // My peer identification - same format as iOS
-    val myPeerID: String = generateCompatiblePeerID()
-    
     // Core components - each handling specific responsibilities
     private val encryptionService = EncryptionService(context)
+
+    // My peer identification - derived from persisted Noise identity fingerprint (first 16 hex chars)
+    val myPeerID: String = encryptionService.getIdentityFingerprint().take(16)
     private val peerManager = PeerManager()
     private val fragmentManager = FragmentManager()
     private val securityManager = SecurityManager(encryptionService, myPeerID)
@@ -48,6 +51,7 @@ class BluetoothMeshService(private val context: Context) {
     private val messageHandler = MessageHandler(myPeerID)
     internal val connectionManager = BluetoothConnectionManager(context, myPeerID, fragmentManager) // Made internal for access
     private val packetProcessor = PacketProcessor(myPeerID)
+    private lateinit var gossipSyncManager: GossipSyncManager
     
     // Service state management
     private var isActive = false
@@ -62,6 +66,38 @@ class BluetoothMeshService(private val context: Context) {
         setupDelegates()
         messageHandler.packetProcessor = packetProcessor
         //startPeriodicDebugLogging()
+
+        // Initialize sync manager (needs serviceScope)
+        gossipSyncManager = GossipSyncManager(
+            myPeerID = myPeerID,
+            scope = serviceScope,
+            configProvider = object : GossipSyncManager.ConfigProvider {
+                override fun seenCapacity(): Int = try {
+                    com.dogechat.android.ui.debug.DebugPreferenceManager.getSeenPacketCapacity(500)
+                } catch (_: Exception) { 500 }
+
+                override fun gcsMaxBytes(): Int = try {
+                    com.dogechat.android.ui.debug.DebugPreferenceManager.getGcsMaxFilterBytes(400)
+                } catch (_: Exception) { 400 }
+
+                override fun gcsTargetFpr(): Double = try {
+                    com.dogechat.android.ui.debug.DebugPreferenceManager.getGcsFprPercent(1.0) / 100.0
+                } catch (_: Exception) { 0.01 }
+            }
+        )
+
+        // Wire sync manager delegate
+        gossipSyncManager.delegate = object : GossipSyncManager.Delegate {
+            override fun sendPacket(packet: DogechatPacket) {
+                connectionManager.broadcastPacket(RoutedPacket(packet))
+            }
+            override fun sendPacketToPeer(peerID: String, packet: DogechatPacket) {
+                connectionManager.sendPacketToPeer(peerID, packet)
+            }
+            override fun signPacketForBroadcast(packet: DogechatPacket): DogechatPacket {
+                return signPacketBeforeBroadcast(packet)
+            }
+        }
     }
     
     /**
@@ -103,10 +139,24 @@ class BluetoothMeshService(private val context: Context) {
      * Setup delegate connections between components
      */
     private fun setupDelegates() {
+        // Provide nickname resolver to BLE broadcaster for detailed logs
+        try {
+            connectionManager.setNicknameResolver { pid -> peerManager.getPeerNickname(pid) }
+        } catch (_: Exception) { }
         // PeerManager delegates to main mesh service delegate
         peerManager.delegate = object : PeerManagerDelegate {
             override fun onPeerListUpdated(peerIDs: List<String>) {
                 delegate?.didUpdatePeerList(peerIDs)
+            }
+            override fun onPeerRemoved(peerID: String) {
+                try { gossipSyncManager.removeAnnouncementForPeer(peerID) } catch (_: Exception) { }
+                // Also drop any Noise session state for this peer when they go offline
+                try {
+                    encryptionService.removePeer(peerID)
+                    Log.d(TAG, "Removed Noise session for offline peer $peerID")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to remove Noise session for $peerID: ${e.message}")
+                }
             }
         }
         
@@ -144,7 +194,7 @@ class BluetoothMeshService(private val context: Context) {
                 return peerManager.getPeerInfo(peerID)
             }
         }
-       
+        
         // StoreForwardManager delegates
         storeForwardManager.delegate = object : StoreForwardManagerDelegate {
             override fun isFavorite(peerID: String): Boolean {
@@ -279,6 +329,13 @@ class BluetoothMeshService(private val context: Context) {
                 
                 // Store fingerprint for the peer via centralized fingerprint manager
                 val fingerprint = peerManager.storeFingerprintForPeer(newPeerID, publicKey)
+
+                // Index existing Nostr mapping by the new peerID if we have it
+                try {
+                    com.dogechat.android.favorites.FavoritesPersistenceService.shared.findNostrPubkey(publicKey)?.let { npub ->
+                        com.dogechat.android.favorites.FavoritesPersistenceService.shared.updateNostrPublicKeyForPeerID(newPeerID, npub)
+                    }
+                } catch (_: Exception) { }
                 
                 // If there was a previous peer ID, remove it to avoid duplicates
                 previousPeerID?.let { oldPeerID ->
@@ -343,11 +400,51 @@ class BluetoothMeshService(private val context: Context) {
             }
             
             override fun handleAnnounce(routed: RoutedPacket) {
-                serviceScope.launch { messageHandler.handleAnnounce(routed) }
+                serviceScope.launch {
+                    // Process the announce
+                    val isFirst = messageHandler.handleAnnounce(routed)
+
+                    // Map device address -> peerID on first announce seen over this device connection
+                    val deviceAddress = routed.relayAddress
+                    val pid = routed.peerID
+                    if (deviceAddress != null && pid != null) {
+                        // Only set mapping if not already mapped
+                        if (!connectionManager.addressPeerMap.containsKey(deviceAddress)) {
+                            connectionManager.addressPeerMap[deviceAddress] = pid
+                            Log.d(TAG, "Mapped device $deviceAddress to peer $pid on ANNOUNCE")
+
+                            // Mark this peer as directly connected for UI
+                            try {
+                                peerManager.getPeerInfo(pid)?.let {
+                                    // Set direct connection flag
+                                    // (This will also trigger a peer list update)
+                                    peerManager.setDirectConnection(pid, true)
+                                    // Also push reactive directness state to UI (best-effort)
+                                    try {
+                                        // Note: UI observes via didUpdatePeerList, but we can also update ChatState on a timer
+                                    } catch (_: Exception) { }
+                                }
+                            } catch (_: Exception) { }
+
+                            // Schedule initial sync for this new directly connected peer only
+                            try { gossipSyncManager.scheduleInitialSyncToPeer(pid, 1_000) } catch (_: Exception) { }
+                        }
+                    }
+                    // Track for sync
+                    try { gossipSyncManager.onPublicPacketSeen(routed.packet) } catch (_: Exception) { }
+                }
             }
             
             override fun handleMessage(routed: RoutedPacket) {
                 serviceScope.launch { messageHandler.handleMessage(routed) }
+                // Track broadcast messages for sync
+                try {
+                    val pkt = routed.packet
+                    val isBroadcast = (pkt.recipientID == null || pkt.recipientID.contentEquals(SpecialRecipients.BROADCAST))
+                    if (isBroadcast && pkt.type == MessageType.MESSAGE.value) {
+                        gossipSyncManager.onPublicPacketSeen(pkt)
+                    }
+                } catch (_: Exception) { }
             }
             
             override fun handleLeave(routed: RoutedPacket) {
@@ -369,6 +466,13 @@ class BluetoothMeshService(private val context: Context) {
             override fun relayPacket(routed: RoutedPacket) {
                 connectionManager.broadcastPacket(routed)
             }
+
+            override fun handleRequestSync(routed: RoutedPacket) {
+                // Decode request and respond with missing packets
+                val fromPeer = routed.peerID ?: return
+                val req = RequestSyncPacket.decode(routed.packet.payload) ?: return
+                gossipSyncManager.handleRequestSync(fromPeer, req)
+            }
         }
         
         // BluetoothConnectionManager delegates
@@ -382,6 +486,35 @@ class BluetoothMeshService(private val context: Context) {
                 serviceScope.launch {
                     delay(200)
                     sendBroadcastAnnounce()
+                }
+                // Verbose debug: device connected
+                try {
+                    val addr = device.address
+                    val peer = connectionManager.addressPeerMap[addr]
+                    val nick = peer?.let { peerManager.getPeerNickname(it) } ?: "unknown"
+                    com.dogechat.android.ui.debug.DebugSettingsManager.getInstance()
+                        .logPeerConnection(peer ?: "unknown", nick, addr, isInbound = !connectionManager.isClientConnection(addr)!!)
+                } catch (_: Exception) { }
+            }
+
+            override fun onDeviceDisconnected(device: android.bluetooth.BluetoothDevice) {
+                val addr = device.address
+                // Remove mapping and, if that was the last direct path for the peer, clear direct flag
+                val peer = connectionManager.addressPeerMap[addr]
+                // ConnectionTracker has already removed the address mapping; be defensive either way
+                connectionManager.addressPeerMap.remove(addr)
+                if (peer != null) {
+                    val stillMapped = connectionManager.addressPeerMap.values.any { it == peer }
+                    if (!stillMapped) {
+                        // Peer might still be reachable indirectly; mark as not-direct
+                        try { peerManager.setDirectConnection(peer, false) } catch (_: Exception) { }
+                    }
+                    // Verbose debug: device disconnected
+                    try {
+                        val nick = peerManager.getPeerNickname(peer) ?: "unknown"
+                        com.dogechat.android.ui.debug.DebugSettingsManager.getInstance()
+                            .logPeerDisconnection(peer, nick, addr)
+                    } catch (_: Exception) { }
                 }
             }
             
@@ -412,6 +545,8 @@ class BluetoothMeshService(private val context: Context) {
             // Start periodic announcements for peer discovery and connectivity
             sendPeriodicBroadcastAnnounce()
             Log.d(TAG, "Started periodic broadcast announcements (every 30 seconds)")
+            // Start periodic syncs
+            gossipSyncManager.start()
         } else {
             Log.e(TAG, "Failed to start Bluetooth services")
         }
@@ -436,6 +571,7 @@ class BluetoothMeshService(private val context: Context) {
             delay(200) // Give leave message time to send
             
             // Stop all components
+            gossipSyncManager.stop()
             connectionManager.stopServices()
             peerManager.shutdown()
             fragmentManager.shutdown()
@@ -469,6 +605,8 @@ class BluetoothMeshService(private val context: Context) {
             // Sign the packet before broadcasting
             val signedPacket = signPacketBeforeBroadcast(packet)
             connectionManager.broadcastPacket(RoutedPacket(signedPacket))
+            // Track our own broadcast message for sync
+            try { gossipSyncManager.onPublicPacketSeen(signedPacket) } catch (_: Exception) { }
         }
     }
     
@@ -478,24 +616,12 @@ class BluetoothMeshService(private val context: Context) {
      */
     fun sendPrivateMessage(content: String, recipientPeerID: String, recipientNickname: String, messageID: String? = null) {
         if (content.isEmpty() || recipientPeerID.isEmpty()) return
-        if (!recipientPeerID.startsWith("nostr_") && recipientNickname.isEmpty()) return
+        if (recipientNickname.isEmpty()) return
         
         serviceScope.launch {
             val finalMessageID = messageID ?: java.util.UUID.randomUUID().toString()
             
             Log.d(TAG, "📨 Sending PM to $recipientPeerID: ${content.take(30)}...")
-            
-            // Check if this is a Nostr contact (geohash DM)
-            if (recipientPeerID.startsWith("nostr_")) {
-                // Get NostrGeohashService instance and send via Nostr
-                try {
-                    val nostrGeohashService = com.dogechat.android.nostr.NostrGeohashService.getInstance(context.applicationContext as android.app.Application)
-                    nostrGeohashService.sendNostrGeohashDM(content, recipientPeerID, finalMessageID, myPeerID)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to send Nostr geohash DM: ${e.message}")
-                }
-                return@launch
-            }
             
             // Check if we have an established Noise session
             if (encryptionService.hasEstablishedSession(recipientPeerID)) {
@@ -564,15 +690,14 @@ class BluetoothMeshService(private val context: Context) {
         serviceScope.launch {
             Log.d(TAG, "📖 Sending read receipt for message $messageID to $recipientPeerID")
             
-            // Check if this is a Nostr contact (geohash DM)
-            if (recipientPeerID.startsWith("nostr_")) {
-                // Get NostrGeohashService instance and send read receipt via Nostr
-                try {
-                    val nostrGeohashService = com.dogechat.android.nostr.NostrGeohashService.getInstance(context.applicationContext as android.app.Application)
-                    nostrGeohashService.sendNostrGeohashReadReceipt(messageID, recipientPeerID, myPeerID)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to send Nostr geohash read receipt: ${e.message}")
-                }
+            // Route geohash read receipts via MessageRouter instead of here
+            val geo = runCatching { com.dogechat.android.services.MessageRouter.tryGetInstance() }.getOrNull()
+            val isGeoAlias = try {
+                val map = com.dogechat.android.nostr.GeohashAliasRegistry.snapshot()
+                map.containsKey(recipientPeerID)
+            } catch (_: Exception) { false }
+            if (isGeoAlias && geo != null) {
+                geo.sendReadReceipt(com.dogechat.android.model.ReadReceipt(messageID), recipientPeerID)
                 return@launch
             }
             
@@ -653,6 +778,8 @@ class BluetoothMeshService(private val context: Context) {
             
             connectionManager.broadcastPacket(RoutedPacket(signedPacket))
             Log.d(TAG, "Sent iOS-compatible signed TLV announce (${tlvPayload.size} bytes)")
+            // Track announce for sync
+            try { gossipSyncManager.onPublicPacketSeen(signedPacket) } catch (_: Exception) { }
         }
     }
     
@@ -701,6 +828,9 @@ class BluetoothMeshService(private val context: Context) {
         connectionManager.broadcastPacket(RoutedPacket(signedPacket))
         peerManager.markPeerAsAnnouncedTo(peerID)
         Log.d(TAG, "Sent iOS-compatible signed TLV peer announce to $peerID (${tlvPayload.size} bytes)")
+
+        // Track announce for sync
+        try { gossipSyncManager.onPublicPacketSeen(signedPacket) } catch (_: Exception) { }
     }
 
     /**
@@ -850,15 +980,6 @@ class BluetoothMeshService(private val context: Context) {
     }
     
     /**
-     * Generate peer ID compatible with iOS - exactly 8 bytes (16 hex characters)
-     */
-    private fun generateCompatiblePeerID(): String {
-        val randomBytes = ByteArray(8)  // 8 bytes = 16 hex characters (like iOS)
-        Random.nextBytes(randomBytes)
-        return randomBytes.joinToString("") { "%02x".format(it) }
-    }
-    
-    /**
      * Convert hex string peer ID to binary data (8 bytes) - exactly same as iOS
      */
     private fun hexStringToByteArray(hexString: String): ByteArray {
@@ -878,7 +999,7 @@ class BluetoothMeshService(private val context: Context) {
         
         return result
     }
-
+    
     /**
      * Sign packet before broadcasting using our signing private key
      */
@@ -905,7 +1026,7 @@ class BluetoothMeshService(private val context: Context) {
             packet
         }
     }
-  
+    
     // MARK: - Panic Mode Support
     
     /**

@@ -1,218 +1,521 @@
-package com.dogechat.android.ui
+package com.dogechat.android.nostr
 
+import android.content.Context
 import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MediatorLiveData
-import androidx.lifecycle.MutableLiveData
-import com.dogechat.android.model.DogechatMessage
-import com.dogechat.android.geohash.ChannelID
+import com.dogechat.android.model.ReadReceipt
+import com.dogechat.android.model.NoisePayloadType
+import kotlinx.coroutines.*
+import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
- * Centralized state definitions and data classes for the chat system
+ * Minimal Nostr transport for offline sending
+ * Direct port from iOS NostrTransport for 100% compatibility
  */
-
-// Command suggestion data class
-data class CommandSuggestion(
-    val command: String,
-    val aliases: List<String> = emptyList(),
-    val syntax: String? = null,
-    val description: String
-)
-
-/**
- * Contains all the observable state for the chat system
- */
-class ChatState {
-
-    // Core messages and peer state
-    private val _messages = MutableLiveData<List<DogechatMessage>>(emptyList())
-    val messages: LiveData<List<DogechatMessage>> = _messages
-
-    private val _connectedPeers = MutableLiveData<List<String>>(emptyList())
-    val connectedPeers: LiveData<List<String>> = _connectedPeers
-
-    private val _nickname = MutableLiveData<String>()
-    val nickname: LiveData<String> = _nickname
-
-    private val _isConnected = MutableLiveData(false)
-    val isConnected: LiveData<Boolean> = _isConnected
-
-    // Private chats
-    private val _privateChats = MutableLiveData<Map<String, List<DogechatMessage>>>(emptyMap())
-    val privateChats: LiveData<Map<String, List<DogechatMessage>>> = _privateChats
-
-    private val _selectedPrivateChatPeer = MutableLiveData<String?>(null)
-    val selectedPrivateChatPeer: LiveData<String?> = _selectedPrivateChatPeer
-
-    private val _unreadPrivateMessages = MutableLiveData<Set<String>>(emptySet())
-    val unreadPrivateMessages: LiveData<Set<String>> = _unreadPrivateMessages
-
-    // Channels
-    private val _joinedChannels = MutableLiveData<Set<String>>(emptySet())
-    val joinedChannels: LiveData<Set<String>> = _joinedChannels
-
-    private val _currentChannel = MutableLiveData<String?>(null)
-    val currentChannel: LiveData<String?> = _currentChannel
-
-    private val _channelMessages = MutableLiveData<Map<String, List<DogechatMessage>>>(emptyMap())
-    val channelMessages: LiveData<Map<String, List<DogechatMessage>>> = _channelMessages
-
-    private val _unreadChannelMessages = MutableLiveData<Map<String, Int>>(emptyMap())
-    val unreadChannelMessages: LiveData<Map<String, Int>> = _unreadChannelMessages
-
-    private val _passwordProtectedChannels = MutableLiveData<Set<String>>(emptySet())
-    val passwordProtectedChannels: LiveData<Set<String>> = _passwordProtectedChannels
-
-    private val _showPasswordPrompt = MutableLiveData(false)
-    val showPasswordPrompt: LiveData<Boolean> = _showPasswordPrompt
-
-    private val _passwordPromptChannel = MutableLiveData<String?>(null)
-    val passwordPromptChannel: LiveData<String?> = _passwordPromptChannel
-
-    // Sidebar state
-    private val _showSidebar = MutableLiveData(false)
-    val showSidebar: LiveData<Boolean> = _showSidebar
-
-    // Command autocomplete
-    private val _showCommandSuggestions = MutableLiveData(false)
-    val showCommandSuggestions: LiveData<Boolean> = _showCommandSuggestions
-
-    private val _commandSuggestions = MutableLiveData<List<CommandSuggestion>>(emptyList())
-    val commandSuggestions: LiveData<List<CommandSuggestion>> = _commandSuggestions
-
-    // Mention autocomplete
-    private val _showMentionSuggestions = MutableLiveData(false)
-    val showMentionSuggestions: LiveData<Boolean> = _showMentionSuggestions
-
-    private val _mentionSuggestions = MutableLiveData<List<String>>(emptyList())
-    val mentionSuggestions: LiveData<List<String>> = _mentionSuggestions
-
-    // Favorites
-    private val _favoritePeers = MutableLiveData<Set<String>>(emptySet())
-    val favoritePeers: LiveData<Set<String>> = _favoritePeers
-
-    // Noise session states for peers (for reactive UI updates)
-    private val _peerSessionStates = MutableLiveData<Map<String, String>>(emptyMap())
-    val peerSessionStates: LiveData<Map<String, String>> = _peerSessionStates
-
-    // Peer fingerprint state for reactive favorites (for reactive UI updates)
-    private val _peerFingerprints = MutableLiveData<Map<String, String>>(emptyMap())
-    val peerFingerprints: LiveData<Map<String, String>> = _peerFingerprints
-
-    private val _peerNicknames = MutableLiveData<Map<String, String>>(emptyMap())
-    val peerNicknames: LiveData<Map<String, String>> = _peerNicknames
-
-    private val _peerRSSI = MutableLiveData<Map<String, Int>>(emptyMap())
-    val peerRSSI: LiveData<Map<String, Int>> = _peerRSSI
-
-    // Navigation state
-    private val _showAppInfo = MutableLiveData(false)
-    val showAppInfo: LiveData<Boolean> = _showAppInfo
-
-    // Location channels state (for Nostr geohash features)
-    private val _selectedLocationChannel = MutableLiveData<ChannelID?>(ChannelID.Mesh)
-    val selectedLocationChannel: LiveData<ChannelID?> = _selectedLocationChannel
-
-    private val _isTeleported = MutableLiveData(false)
-    val isTeleported: LiveData<Boolean> = _isTeleported
-
-    // Geohash people state
-    private val _geohashPeople = MutableLiveData<List<GeoPerson>>(emptyList())
-    val geohashPeople: LiveData<List<GeoPerson>> = _geohashPeople
-
-    private val _teleportedGeo = MutableLiveData<Set<String>>(emptySet())
-    val teleportedGeo: LiveData<Set<String>> = _teleportedGeo
-
-    // Geohash participant counts reactive state
-    private val _geohashParticipantCounts = MutableLiveData<Map<String, Int>>(emptyMap())
-    val geohashParticipantCounts: LiveData<Map<String, Int>> = _geohashParticipantCounts
-
-    // Unread state computed properties
-    val hasUnreadChannels: MediatorLiveData<Boolean> = MediatorLiveData<Boolean>()
-    val hasUnreadPrivateMessages: MediatorLiveData<Boolean> = MediatorLiveData<Boolean>()
-
-    init {
-        // Initialize unread state mediators
-        hasUnreadChannels.addSource(_unreadChannelMessages) { unreadMap ->
-            hasUnreadChannels.value = unreadMap.values.any { it > 0 }
-        }
-
-        hasUnreadPrivateMessages.addSource(_unreadPrivateMessages) { unreadSet ->
-            hasUnreadPrivateMessages.value = unreadSet.isNotEmpty()
+class NostrTransport(
+    private val context: Context,
+    var senderPeerID: String = ""
+) {
+    
+    companion object {
+        private const val TAG = "NostrTransport"
+        private const val READ_ACK_INTERVAL = 350L // ~3 per second (0.35s interval like iOS)
+        
+        @Volatile
+        private var INSTANCE: NostrTransport? = null
+        
+        fun getInstance(context: Context): NostrTransport {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: NostrTransport(context.applicationContext).also { INSTANCE = it }
+            }
         }
     }
-
-    // Getters for internal state access
-    fun getMessagesValue() = _messages.value ?: emptyList()
-    fun getConnectedPeersValue() = _connectedPeers.value ?: emptyList()
-    fun getNicknameValue() = _nickname.value
-    fun getPrivateChatsValue() = _privateChats.value ?: emptyMap()
-    fun getSelectedPrivateChatPeerValue() = _selectedPrivateChatPeer.value
-    fun getUnreadPrivateMessagesValue() = _unreadPrivateMessages.value ?: emptySet()
-    fun getJoinedChannelsValue() = _joinedChannels.value ?: emptySet()
-    fun getCurrentChannelValue() = _currentChannel.value
-    fun getChannelMessagesValue() = _channelMessages.value ?: emptyMap()
-    fun getUnreadChannelMessagesValue() = _unreadChannelMessages.value ?: emptyMap()
-    fun getPasswordProtectedChannelsValue() = _passwordProtectedChannels.value ?: emptySet()
-    fun getShowPasswordPromptValue() = _showPasswordPrompt.value ?: false
-    fun getPasswordPromptChannelValue() = _passwordPromptChannel.value
-    fun getShowSidebarValue() = _showSidebar.value ?: false
-    fun getShowCommandSuggestionsValue() = _showCommandSuggestions.value ?: false
-    fun getCommandSuggestionsValue() = _commandSuggestions.value ?: emptyList()
-    fun getShowMentionSuggestionsValue() = _showMentionSuggestions.value ?: false
-    fun getMentionSuggestionsValue() = _mentionSuggestions.value ?: emptyList()
-    fun getFavoritePeersValue() = _favoritePeers.value ?: emptySet()
-    fun getPeerSessionStatesValue() = _peerSessionStates.value ?: emptyMap()
-    fun getPeerFingerprintsValue() = _peerFingerprints.value ?: emptyMap()
-    fun getShowAppInfoValue() = _showAppInfo.value ?: false
-    fun getGeohashPeopleValue() = _geohashPeople.value ?: emptyList()
-    fun getTeleportedGeoValue() = _teleportedGeo.value ?: emptySet()
-    fun getGeohashParticipantCountsValue() = _geohashParticipantCounts.value ?: emptyMap()
-
-    // Setters for state updates
-    fun setMessages(messages: List<DogechatMessage>) { _messages.value = messages }
-    fun setConnectedPeers(peers: List<String>) { _connectedPeers.value = peers }
-    fun setNickname(nickname: String) { _nickname.value = nickname }
-    fun setIsConnected(connected: Boolean) { _isConnected.value = connected }
-    fun setPrivateChats(chats: Map<String, List<DogechatMessage>>) { _privateChats.value = chats }
-    fun setSelectedPrivateChatPeer(peerID: String?) { _selectedPrivateChatPeer.value = peerID }
-    fun setUnreadPrivateMessages(unread: Set<String>) { _unreadPrivateMessages.value = unread }
-    fun setJoinedChannels(channels: Set<String>) { _joinedChannels.value = channels }
-    fun setCurrentChannel(channel: String?) { _currentChannel.value = channel }
-    fun setChannelMessages(messages: Map<String, List<DogechatMessage>>) { _channelMessages.value = messages }
-    fun setUnreadChannelMessages(unread: Map<String, Int>) { _unreadChannelMessages.value = unread }
-    fun setPasswordProtectedChannels(channels: Set<String>) { _passwordProtectedChannels.value = channels }
-    fun setShowPasswordPrompt(show: Boolean) { _showPasswordPrompt.value = show }
-    fun setPasswordPromptChannel(channel: String?) { _passwordPromptChannel.value = channel }
-    fun setShowSidebar(show: Boolean) { _showSidebar.value = show }
-    fun setShowCommandSuggestions(show: Boolean) { _showCommandSuggestions.value = show }
-    fun setCommandSuggestions(suggestions: List<CommandSuggestion>) { _commandSuggestions.value = suggestions }
-    fun setShowMentionSuggestions(show: Boolean) { _showMentionSuggestions.value = show }
-    fun setMentionSuggestions(suggestions: List<String>) { _mentionSuggestions.value = suggestions }
-
-    fun setFavoritePeers(favorites: Set<String>) {
-        val currentValue = _favoritePeers.value ?: emptySet()
-        Log.d("ChatState", "setFavoritePeers called with ${favorites.size} favorites: $favorites")
-        Log.d("ChatState", "Current value: $currentValue")
-        Log.d("ChatState", "Values equal: ${currentValue == favorites}")
-        Log.d("ChatState", "Setting on thread: ${Thread.currentThread().name}")
-        _favoritePeers.value = favorites
-        Log.d("ChatState", "LiveData value after set: ${_favoritePeers.value}")
-        Log.d("ChatState", "LiveData has active observers: ${_favoritePeers.hasActiveObservers()}")
+    
+    // Throttle READ receipts to avoid relay rate limits (like iOS)
+    private data class QueuedRead(
+        val receipt: ReadReceipt,
+        val peerID: String
+    )
+    
+    private val readQueue = ConcurrentLinkedQueue<QueuedRead>()
+    private var isSendingReadAcks = false
+    private val transportScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
+    // MARK: - Transport Interface Methods
+    
+    val myPeerID: String get() = senderPeerID
+    
+    fun sendPrivateMessage(
+        content: String,
+        to: String,
+        recipientNickname: String,
+        messageID: String
+    ) {
+        transportScope.launch {
+            try {
+                // Resolve favorite by full noise key or by short peerID fallback
+                var recipientNostrPubkey: String? = null
+                
+                // Resolve by peerID first (new peerID→npub index), then fall back to noise key mapping
+                recipientNostrPubkey = resolveNostrPublicKey(to)
+                
+                if (recipientNostrPubkey == null) {
+                    Log.w(TAG, "No Nostr public key found for peerID: $to")
+                    return@launch
+                }
+                
+                val senderIdentity = NostrIdentityBridge.getCurrentNostrIdentity(context)
+                if (senderIdentity == null) {
+                    Log.e(TAG, "No Nostr identity available")
+                    return@launch
+                }
+                
+                Log.d(TAG, "NostrTransport: preparing PM to ${recipientNostrPubkey.take(16)}... for peerID ${to.take(8)}... id=${messageID.take(8)}...")
+                
+                // Convert recipient npub -> hex (x-only)
+                val recipientHex = try {
+                    val (hrp, data) = Bech32.decode(recipientNostrPubkey)
+                    if (hrp != "npub") {
+                        Log.e(TAG, "NostrTransport: recipient key not npub (hrp=$hrp)")
+                        return@launch
+                    }
+                    data.joinToString("") { "%02x".format(it) }
+                } catch (e: Exception) {
+                    Log.e(TAG, "NostrTransport: failed to decode npub -> hex: $e")
+                    return@launch
+                }
+                
+                // Strict: lookup the recipient's current DogeChat peer ID using favorites mapping
+                val recipientPeerIDForEmbed = try {
+                    com.dogechat.android.favorites.FavoritesPersistenceService.shared
+                        .findPeerIDForNostrPubkey(recipientNostrPubkey)
+                } catch (_: Exception) { null }
+                if (recipientPeerIDForEmbed.isNullOrBlank()) {
+                    Log.e(TAG, "NostrTransport: no peerID stored for recipient npub; cannot embed PM. npub=${recipientNostrPubkey.take(16)}...")
+                    return@launch
+                }
+                val embedded = NostrEmbeddedDogeChat.encodePMForNostr(
+                    content = content,
+                    messageID = messageID,
+                    recipientPeerID = recipientPeerIDForEmbed,
+                    senderPeerID = senderPeerID
+                )
+                
+                
+                if (embedded == null) {
+                    Log.e(TAG, "NostrTransport: failed to embed PM packet")
+                    return@launch
+                }
+                
+                val giftWraps = NostrProtocol.createPrivateMessage(
+                    content = embedded,
+                    recipientPubkey = recipientHex,
+                    senderIdentity = senderIdentity
+                )
+                
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending PM giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send private message via Nostr: ${e.message}")
+            }
+        }
     }
-
-    fun setPeerSessionStates(states: Map<String, String>) { _peerSessionStates.value = states }
-    fun setPeerFingerprints(fingerprints: Map<String, String>) { _peerFingerprints.value = fingerprints }
-    fun setPeerNicknames(nicknames: Map<String, String>) { _peerNicknames.value = nicknames }
-    fun setPeerRSSI(rssi: Map<String, Int>) { _peerRSSI.value = rssi }
-    fun setShowAppInfo(show: Boolean) { _showAppInfo.value = show }
-
-    fun setSelectedLocationChannel(channel: ChannelID?) {
-        _selectedLocationChannel.value = channel
+    
+    fun sendReadReceipt(receipt: ReadReceipt, to: String) {
+        // Enqueue and process with throttling to avoid relay rate limits
+        readQueue.offer(QueuedRead(receipt, to))
+        processReadQueueIfNeeded()
     }
+    
+    private fun processReadQueueIfNeeded() {
+        if (isSendingReadAcks) return
+        if (readQueue.isEmpty()) return
+        
+        isSendingReadAcks = true
+        sendNextReadAck()
+    }
+    
+    private fun sendNextReadAck() {
+        val item = readQueue.poll()
+        if (item == null) {
+            isSendingReadAcks = false
+            return
+        }
+        
+        transportScope.launch {
+            try {
+                var recipientNostrPubkey: String? = null
+                
+                // Try to resolve from favorites persistence service
+                recipientNostrPubkey = resolveNostrPublicKey(item.peerID)
+                
+                if (recipientNostrPubkey == null) {
+                    Log.w(TAG, "No Nostr public key found for read receipt to: ${item.peerID}")
+                    scheduleNextReadAck()
+                    return@launch
+                }
+                
+                val senderIdentity = NostrIdentityBridge.getCurrentNostrIdentity(context)
+                if (senderIdentity == null) {
+                    Log.e(TAG, "No Nostr identity available for read receipt")
+                    scheduleNextReadAck()
+                    return@launch
+                }
+                
+                Log.d(TAG, "NostrTransport: preparing READ ack for id=${item.receipt.originalMessageID.take(8)}... to ${recipientNostrPubkey.take(16)}...")
+                
+                // Convert recipient npub -> hex
+                val recipientHex = try {
+                    val (hrp, data) = Bech32.decode(recipientNostrPubkey)
+                    if (hrp != "npub") {
+                        scheduleNextReadAck()
+                        return@launch
+                    }
+                    data.joinToString("") { "%02x".format(it) }
+                } catch (e: Exception) {
+                    scheduleNextReadAck()
+                    return@launch
+                }
+                
+                val ack = NostrEmbeddedDogeChat.encodeAckForNostr(
+                    type = NoisePayloadType.READ_RECEIPT,
+                    messageID = item.receipt.originalMessageID,
+                    recipientPeerID = item.peerID,
+                    senderPeerID = senderPeerID
+                )
+                
+                if (ack == null) {
+                    Log.e(TAG, "NostrTransport: failed to embed READ ack")
+                    scheduleNextReadAck()
+                    return@launch
+                }
+                
+                val giftWraps = NostrProtocol.createPrivateMessage(
+                    content = ack,
+                    recipientPubkey = recipientHex,
+                    senderIdentity = senderIdentity
+                )
+                
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending READ ack giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
+                
+                scheduleNextReadAck()
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send read receipt via Nostr: ${e.message}")
+                scheduleNextReadAck()
+            }
+        }
+    }
+    
+    private fun scheduleNextReadAck() {
+        transportScope.launch {
+            delay(READ_ACK_INTERVAL)
+            isSendingReadAcks = false
+            processReadQueueIfNeeded()
+        }
+    }
+    
+    fun sendFavoriteNotification(to: String, isFavorite: Boolean) {
+        transportScope.launch {
+            try {
+                var recipientNostrPubkey: String? = null
+                
+                // Try to resolve from favorites persistence service
+                recipientNostrPubkey = resolveNostrPublicKey(to)
+                
+                if (recipientNostrPubkey == null) {
+                    Log.w(TAG, "No Nostr public key found for favorite notification to: $to")
+                    return@launch
+                }
+                
+                val senderIdentity = NostrIdentityBridge.getCurrentNostrIdentity(context)
+                if (senderIdentity == null) {
+                    Log.e(TAG, "No Nostr identity available for favorite notification")
+                    return@launch
+                }
+                
+                val content = if (isFavorite) {
+                    "[FAVORITED]:${senderIdentity.npub}"
+                } else {
+                    "[UNFAVORITED]:${senderIdentity.npub}"
+                }
+                
+                Log.d(TAG, "NostrTransport: preparing FAVORITE($isFavorite) to ${recipientNostrPubkey.take(16)}...")
+                
+                // Convert recipient npub -> hex
+                val recipientHex = try {
+                    val (hrp, data) = Bech32.decode(recipientNostrPubkey)
+                    if (hrp != "npub") return@launch
+                    data.joinToString("") { "%02x".format(it) }
+                } catch (e: Exception) {
+                    return@launch
+                }
+                
+                val embedded = NostrEmbeddedDogeChat.encodePMForNostr(
+                    content = content,
+                    messageID = UUID.randomUUID().toString(),
+                    recipientPeerID = to,
+                    senderPeerID = senderPeerID
+                )
+                
+                if (embedded == null) {
+                    Log.e(TAG, "NostrTransport: failed to embed favorite notification")
+                    return@launch
+                }
+                
+                val giftWraps = NostrProtocol.createPrivateMessage(
+                    content = embedded,
+                    recipientPubkey = recipientHex,
+                    senderIdentity = senderIdentity
+                )
+                
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending favorite giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send favorite notification via Nostr: ${e.message}")
+            }
+        }
+    }
+    
+    fun sendDeliveryAck(messageID: String, to: String) {
+        transportScope.launch {
+            try {
+                var recipientNostrPubkey: String? = null
+                
+                // Try to resolve from favorites persistence service
+                recipientNostrPubkey = resolveNostrPublicKey(to)
+                
+                if (recipientNostrPubkey == null) {
+                    Log.w(TAG, "No Nostr public key found for delivery ack to: $to")
+                    return@launch
+                }
+                
+                val senderIdentity = NostrIdentityBridge.getCurrentNostrIdentity(context)
+                if (senderIdentity == null) {
+                    Log.e(TAG, "No Nostr identity available for delivery ack")
+                    return@launch
+                }
+                
+                Log.d(TAG, "NostrTransport: preparing DELIVERED ack for id=${messageID.take(8)}... to ${recipientNostrPubkey.take(16)}...")
+                
+                val recipientHex = try {
+                    val (hrp, data) = Bech32.decode(recipientNostrPubkey)
+                    if (hrp != "npub") return@launch
+                    data.joinToString("") { "%02x".format(it) }
+                } catch (e: Exception) {
+                    return@launch
+                }
+                
+                val ack = NostrEmbeddedDogeChat.encodeAckForNostr(
+                    type = NoisePayloadType.DELIVERED,
+                    messageID = messageID,
+                    recipientPeerID = to,
+                    senderPeerID = senderPeerID
+                )
+                
+                if (ack == null) {
+                    Log.e(TAG, "NostrTransport: failed to embed DELIVERED ack")
+                    return@launch
+                }
+                
+                val giftWraps = NostrProtocol.createPrivateMessage(
+                    content = ack,
+                    recipientPubkey = recipientHex,
+                    senderIdentity = senderIdentity
+                )
+                
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending DELIVERED ack giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send delivery ack via Nostr: ${e.message}")
+            }
+        }
+    }
+    
+    // MARK: - Geohash ACK helpers (for per-geohash identity DMs)
+    
+    fun sendDeliveryAckGeohash(
+        messageID: String,
+        toRecipientHex: String,
+        fromIdentity: NostrIdentity
+    ) {
+        transportScope.launch {
+            try {
+                Log.d(TAG, "GeoDM: send DELIVERED -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}...")
+                
+                val embedded = NostrEmbeddedDogeChat.encodeAckForNostrNoRecipient(
+                    type = NoisePayloadType.DELIVERED,
+                    messageID = messageID,
+                    senderPeerID = senderPeerID
+                )
+                
+                if (embedded == null) return@launch
+                
+                val giftWraps = NostrProtocol.createPrivateMessage(
+                    content = embedded,
+                    recipientPubkey = toRecipientHex,
+                    senderIdentity = fromIdentity
+                )
+                
+                // Register pending gift wrap for deduplication and send all
+                giftWraps.forEach { event ->
+                    NostrRelayManager.registerPendingGiftWrap(event.id)
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send geohash delivery ack: ${e.message}")
+            }
+        }
+    }
+    
+    fun sendReadReceiptGeohash(
+        messageID: String,
+        toRecipientHex: String,
+        fromIdentity: NostrIdentity
+    ) {
+        transportScope.launch {
+            try {
+                Log.d(TAG, "GeoDM: send READ -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}...")
+                
+                val embedded = NostrEmbeddedDogeChat.encodeAckForNostrNoRecipient(
+                    type = NoisePayloadType.READ_RECEIPT,
+                    messageID = messageID,
+                    senderPeerID = senderPeerID
+                )
+                
+                if (embedded == null) return@launch
+                
+                val giftWraps = NostrProtocol.createPrivateMessage(
+                    content = embedded,
+                    recipientPubkey = toRecipientHex,
+                    senderIdentity = fromIdentity
+                )
+                
+                // Register pending gift wrap for deduplication and send all
+                giftWraps.forEach { event ->
+                    NostrRelayManager.registerPendingGiftWrap(event.id)
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send geohash read receipt: ${e.message}")
+            }
+        }
+    }
+    
+    // MARK: - Geohash DMs (per-geohash identity)
+    
+    fun sendPrivateMessageGeohash(
+        content: String,
+        toRecipientHex: String,
+        messageID: String,
+        sourceGeohash: String? = null
+    ) {
+        // Use provided geohash or derive from current location
+        val geohash = sourceGeohash ?: run {
+            val selected = try {
+                com.dogechat.android.geohash.LocationChannelManager.getInstance(context).selectedChannel.value
+            } catch (_: Exception) { null }
+            if (selected !is com.dogechat.android.geohash.ChannelID.Location) {
+                Log.w(TAG, "NostrTransport: cannot send geohash PM - not in a location channel and no geohash provided")
+                return
+            }
+            selected.channel.geohash
+        }
+        
+        val fromIdentity = try {
+            NostrIdentityBridge.deriveIdentity(geohash, context)
+        } catch (e: Exception) {
+            Log.e(TAG, "NostrTransport: cannot derive geohash identity for $geohash: ${e.message}")
+            return
+        }
+        
+        transportScope.launch {
+            try {
+                if (toRecipientHex.isEmpty()) return@launch
 
-    fun setIsTeleported(teleported: Boolean) { _isTeleported.value = teleported }
-    fun setGeohashPeople(people: List<GeoPerson>) { _geohashPeople.value = people }
-    fun setTeleportedGeo(teleported: Set<String>) { _teleportedGeo.value = teleported }
-    fun setGeohashParticipantCounts(counts: Map<String, Int>) { _geohashParticipantCounts.value = counts }
+                Log.d(
+                    TAG,
+                    "GeoDM: send PM -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}... geohash=$geohash"
+                )
+
+                // Build embedded DogeChat packet without recipient peer ID
+                val embedded = NostrEmbeddedDogeChat.encodePMForNostrNoRecipient(
+                    content = content,
+                    messageID = messageID,
+                    senderPeerID = senderPeerID
+                ) ?: run {
+                    Log.e(TAG, "NostrTransport: failed to embed geohash PM packet")
+                    return@launch
+                }
+
+                val giftWraps = NostrProtocol.createPrivateMessage(
+                    content = embedded,
+                    recipientPubkey = toRecipientHex,
+                    senderIdentity = fromIdentity
+                )
+
+                giftWraps.forEach { event ->
+                    Log.d(TAG, "NostrTransport: sending geohash PM giftWrap id=${event.id.take(16)}...")
+                    NostrRelayManager.registerPendingGiftWrap(event.id)
+                    NostrRelayManager.getInstance(context).sendEvent(event)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send geohash private message: ${e.message}")
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /**
+     * Resolve Nostr public key for a peer ID
+     */
+    private fun resolveNostrPublicKey(peerID: String): String? {
+        try {
+            // 1) Fast path: direct peerID→npub mapping (mutual favorites after mesh mapping)
+            com.dogechat.android.favorites.FavoritesPersistenceService.shared.findNostrPubkeyForPeerID(peerID)?.let { return it }
+
+            // 2) Legacy path: resolve by noise public key association
+            val noiseKey = hexStringToByteArray(peerID)
+            val favoriteStatus = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey)
+            if (favoriteStatus?.peerNostrPublicKey != null) return favoriteStatus.peerNostrPublicKey
+
+            // 3) Prefix match on noiseHex from 16-hex peerID
+            if (peerID.length == 16) {
+                val fallbackStatus = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(peerID)
+                return fallbackStatus?.peerNostrPublicKey
+            }
+            
+            return null
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resolve Nostr public key for $peerID: ${e.message}")
+            return null
+        }
+    }
+    
+    /**
+     * Convert full hex string to byte array
+     */
+    private fun hexStringToByteArray(hexString: String): ByteArray {
+        val clean = if (hexString.length % 2 == 0) hexString else "0$hexString"
+        return clean.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    }
+    
+    fun cleanup() {
+        transportScope.cancel()
+    }
 }

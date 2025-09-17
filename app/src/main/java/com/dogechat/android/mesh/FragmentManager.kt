@@ -8,16 +8,23 @@ import com.dogechat.android.model.FragmentPayload
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 
+// Map this package's FragmentManager reference to AndroidX FragmentManager to avoid naming conflicts.
+// This ensures any function signatures using com.dogechat.android.mesh.FragmentManager
+// actually refer to androidx.fragment.app.FragmentManager.
+typealias FragmentManager = androidx.fragment.app.FragmentManager
+
 /**
  * Manages message fragmentation and reassembly - 100% iOS Compatible
- * 
+ *
  * This implementation exactly matches iOS SimplifiedBluetoothService fragmentation:
  * - Same fragment payload structure (13-byte header + data)
  * - Same MTU thresholds and fragment sizes
  * - Same reassembly logic and timeout handling
  * - Uses new FragmentPayload model for type safety
+ *
+ * NOTE: Renamed from FragmentManager to PacketFragmentManager to avoid clash with AndroidX FragmentManager.
  */
-class FragmentManager {
+class PacketFragmentManager {
     
     companion object {
         private const val TAG = "FragmentManager"
@@ -34,7 +41,7 @@ class FragmentManager {
     private val fragmentMetadata = ConcurrentHashMap<String, Triple<UByte, Int, Long>>() // originalType, totalFragments, timestamp
     
     // Delegate for callbacks
-    var delegate: FragmentManagerDelegate? = null
+    var delegate: PacketFragmentManagerDelegate? = null
     
     // Coroutines
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -111,9 +118,6 @@ class FragmentManager {
             Log.w(TAG, "Fragment packet too small: ${packet.payload.size}")
             return null
         }
-        
-        // Don't process our own fragments - iOS equivalent check
-        // This would be done at a higher level but we'll include for safety
         
         try {
             // Use FragmentPayload for type-safe decoding
@@ -264,8 +268,11 @@ class FragmentManager {
 }
 
 /**
- * Delegate interface for fragment manager callbacks
+ * Delegate interface for packet fragment manager callbacks
  */
-interface FragmentManagerDelegate {
+interface PacketFragmentManagerDelegate {
     fun onPacketReassembled(packet: DogechatPacket)
 }
+
+// Backwards-compat: if any code references FragmentManagerDelegate, keep it working.
+typealias FragmentManagerDelegate = PacketFragmentManagerDelegate

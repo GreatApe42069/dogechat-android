@@ -6,7 +6,7 @@ import javax.inject.Singleton
 
 /**
  * Thin abstraction around WalletManager for transaction history & formatting.
- * Mirrors bitchat's TransactionManager for consistency.
+ * Mirrors bitchat's TransactionManager for consistency so when calle stops bullshitting they can add Btc instead of cashu tokens...lol.
  */
 @Singleton
 class TransactionManager @Inject constructor(

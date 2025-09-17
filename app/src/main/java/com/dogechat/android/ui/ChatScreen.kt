@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.parsing.ParsedDogeToken
-import com.dogechat.android.geohash.ChannelID
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -72,15 +71,29 @@ fun ChatScreen(
     var forceScrollToBottom by remember { mutableStateOf(false) }
     var isScrolledUp by remember { mutableStateOf(false) }
     // Show password dialog when needed
-    LaunchedEffect(showPasswordPrompt) { showPasswordDialog = showPasswordPrompt }
+    LaunchedEffect(showPasswordPrompt) {
+        showPasswordDialog = showPasswordPrompt
+    }
 
     val isConnected by viewModel.isConnected.observeAsState(false)
     val passwordPromptChannel by viewModel.passwordPromptChannel.observeAsState(null)
-    // Determine what messages to show
+
+    // Get location channel info for timeline switching
+    val selectedLocationChannel by viewModel.selectedLocationChannel.observeAsState()
+
+    // Determine what messages to show based on current context (unified timelines)
     val displayMessages = when {
         selectedPrivatePeer != null -> privateChats[selectedPrivatePeer] ?: emptyList()
         currentChannel != null -> channelMessages[currentChannel] ?: emptyList()
-        else -> messages
+        else -> {
+            val locationChannel = selectedLocationChannel
+            if (locationChannel is com.dogechat.android.geohash.ChannelID.Location) {
+                val geokey = "geo:${locationChannel.channel.geohash}"
+                channelMessages[geokey] ?: emptyList()
+            } else {
+                messages // Mesh timeline
+            }
+        }
     }
     // Use WindowInsets to handle keyboard properly
     Box(
@@ -90,6 +103,7 @@ fun ChatScreen(
     ) {
         val headerHeight = 42.dp
 
+        // Main content area that responds to keyboard/window insets
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -115,10 +129,13 @@ fun ChatScreen(
                     // Single click - mention user in text input
                     val currentText = messageText.text
                     val (baseName, hashSuffix) = splitSuffix(fullSenderName)
+                    // Extract base nickname and hash suffix from full sender name
                     val selectedLocationChannel = viewModel.selectedLocationChannel.value
                     val mentionText = if (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location && hashSuffix.isNotEmpty()) {
+                        // In geohash chat - include the hash suffix from the full display name
                         "@$baseName$hashSuffix"
                     } else {
+                        // Regular chat - just the base nickname
                         "@$baseName"
                     }
 
@@ -134,13 +151,9 @@ fun ChatScreen(
                     )
                 },
                 onMessageLongPress = { message ->
-                    val senderStr = try {
-                        val prop = message.javaClass.getMethod("getSender")
-                        prop?.invoke(message)?.toString()
-                    } catch (_: Exception) {
-                        null
-                    }
-                    val (baseName, _) = splitSuffix(senderStr ?: "")
+                    // Message long press - open user action sheet with message context
+                    // Extract base nickname from message sender (contains all necessary info)
+                    val (baseName, _) = splitSuffix(message.sender)
                     selectedUserForSheet = baseName
                     selectedMessageForSheet = message
                     showUserSheet = true
@@ -217,10 +230,13 @@ fun ChatScreen(
         // Sidebar overlay
         val alpha by animateFloatAsState(
             targetValue = if (showSidebar) 0.5f else 0f,
-            animationSpec = tween(durationMillis = 300, easing = EaseOutCubic),
-            label = "overlayAlpha"
+            animationSpec = tween(
+                durationMillis = 300,
+                easing = EaseOutCubic
+            ), label = "overlayAlpha"
         )
 
+        // Only render the background if it's visible
         if (alpha > 0f) {
             Box(
                 modifier = Modifier
@@ -391,8 +407,8 @@ private fun ChatFloatingHeader(
         modifier = Modifier
             .fillMaxWidth()
             .zIndex(1f)
-            .windowInsetsPadding(WindowInsets.statusBars),
-        color = colorScheme.background
+            .windowInsetsPadding(WindowInsets.statusBars), // Extend into status bar area
+        color = colorScheme.background // Solid background color extending into status bar
     ) {
         TopAppBar(
             title = {
@@ -417,7 +433,7 @@ private fun ChatFloatingHeader(
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent
             ),
-            modifier = Modifier.height(headerHeight)
+            modifier = Modifier.height(headerHeight) // Ensure compact header height
         )
     }
 }
@@ -451,10 +467,19 @@ private fun ChatDialogs(
     )
 
     // About sheet
+    var showDebugSheet by remember { mutableStateOf(false) }
     AboutSheet(
         isPresented = showAppInfo,
-        onDismiss = onAppInfoDismiss
+        onDismiss = onAppInfoDismiss,
+        onShowDebug = { showDebugSheet = true }
     )
+    if (showDebugSheet) {
+        com.dogechat.android.ui.debug.DebugSettingsSheet(
+            isPresented = showDebugSheet,
+            onDismiss = { showDebugSheet = false },
+            meshService = viewModel.meshService
+        )
+    }
     
     // Location channels sheet
     if (showLocationChannelsSheet) {
@@ -475,69 +500,4 @@ private fun ChatDialogs(
             viewModel = viewModel
         )
     }
-}
-
-/**
- * Simple reusable password prompt dialog for password-protected channels.
- * Kept here so ChatScreen builds regardless of other files.
- */
-@Composable
-fun PasswordPromptDialog(
-    show: Boolean,
-    channelName: String?,
-    passwordInput: String,
-    onPasswordChange: (String) -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    if (!show || channelName == null) return
-
-    val colorScheme = MaterialTheme.colorScheme
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Enter Channel Password",
-                style = MaterialTheme.typography.titleMedium,
-                color = colorScheme.onSurface
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    text = "Channel $channelName is password protected. Enter the password to join.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = passwordInput,
-                    onValueChange = onPasswordChange,
-                    label = { Text("Password", style = MaterialTheme.typography.bodyMedium) },
-                    textStyle = MaterialTheme.typography.bodyMedium
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(
-                    text = "Join",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.primary
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = "Cancel",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurface
-                )
-            }
-        },
-        containerColor = colorScheme.surface,
-        tonalElevation = 8.dp
-    )
 }

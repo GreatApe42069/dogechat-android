@@ -1,3 +1,4 @@
+
 package com.dogechat.android.mesh
 
 import android.bluetooth.BluetoothDevice
@@ -7,6 +8,8 @@ import android.bluetooth.BluetoothGattServer
 import android.util.Log
 import com.dogechat.android.protocol.SpecialRecipients
 import com.dogechat.android.model.RoutedPacket
+import com.dogechat.android.protocol.MessageType
+import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -43,6 +46,49 @@ class BluetoothPacketBroadcaster(
     companion object {
         private const val TAG = "BluetoothPacketBroadcaster"
         private const val CLEANUP_DELAY = 500L
+    }
+
+    // Optional nickname resolver injected by higher layer (peerID -> nickname?)
+    private var nicknameResolver: ((String) -> String?)? = null
+
+    fun setNicknameResolver(resolver: (String) -> String?) {
+        nicknameResolver = resolver
+    }
+    
+    /**
+     * Debug logging helper - can be easily removed/disabled for production
+     */
+    private fun logPacketRelay(
+        typeName: String,
+        senderPeerID: String,
+        senderNick: String?,
+        incomingPeer: String?,
+        incomingAddr: String?,
+        toPeer: String?,
+        toDeviceAddress: String,
+        ttl: UByte
+    ) {
+        try {
+            val fromNick = incomingPeer?.let { nicknameResolver?.invoke(it) }
+            val toNick = toPeer?.let { nicknameResolver?.invoke(it) }
+            val isRelay = (incomingAddr != null || incomingPeer != null)
+            
+            com.dogechat.android.ui.debug.DebugSettingsManager.getInstance().logPacketRelayDetailed(
+                packetType = typeName,
+                senderPeerID = senderPeerID,
+                senderNickname = senderNick,
+                fromPeerID = incomingPeer,
+                fromNickname = fromNick,
+                fromDeviceAddress = incomingAddr,
+                toPeerID = toPeer,
+                toNickname = toNick,
+                toDeviceAddress = toDeviceAddress,
+                ttl = ttl,
+                isRelay = isRelay
+            )
+        } catch (_: Exception) { 
+            // Silently ignore debug logging failures
+        }
     }
     
     // Data class to hold broadcast request information
@@ -96,6 +142,47 @@ class BluetoothPacketBroadcaster(
         broadcastSinglePacket(routed, gattServer, characteristic)
     }
 
+    /**
+     * Send a packet to a specific peer only, without broadcasting.
+     * Returns true if a direct path was found and used.
+     */
+    fun sendPacketToPeer(
+        routed: RoutedPacket,
+        targetPeerID: String,
+        gattServer: BluetoothGattServer?,
+        characteristic: BluetoothGattCharacteristic?
+    ): Boolean {
+        val packet = routed.packet
+        val data = packet.toBinaryData() ?: return false
+        val typeName = MessageType.fromValue(packet.type)?.name ?: packet.type.toString()
+        val incomingAddr = routed.relayAddress
+        val incomingPeer = incomingAddr?.let { connectionTracker.addressPeerMap[it] }
+        val senderPeerID = routed.peerID ?: packet.senderID.toHexString()
+        val senderNick = senderPeerID.let { pid -> nicknameResolver?.invoke(pid) }
+
+        // Prefer server-side subscriptions
+        val serverTarget = connectionTracker.getSubscribedDevices()
+            .firstOrNull { connectionTracker.addressPeerMap[it.address] == targetPeerID }
+        if (serverTarget != null) {
+            if (notifyDevice(serverTarget, data, gattServer, characteristic)) {
+                logPacketRelay(typeName, senderPeerID, senderNick, incomingPeer, incomingAddr, targetPeerID, serverTarget.address, packet.ttl)
+                return true
+            }
+        }
+
+        // Then client connections
+        val clientTarget = connectionTracker.getConnectedDevices().values
+            .firstOrNull { connectionTracker.addressPeerMap[it.device.address] == targetPeerID }
+        if (clientTarget != null) {
+            if (writeToDeviceConn(clientTarget, data)) {
+                logPacketRelay(typeName, senderPeerID, senderNick, incomingPeer, incomingAddr, targetPeerID, clientTarget.device.address, packet.ttl)
+                return true
+            }
+        }
+
+        return false
+    }
+
     
     /**
      * Public entry point for broadcasting - submits request to actor for serialization
@@ -127,6 +214,11 @@ class BluetoothPacketBroadcaster(
     ) {
         val packet = routed.packet
         val data = packet.toBinaryData() ?: return
+        val typeName = MessageType.fromValue(packet.type)?.name ?: packet.type.toString()
+        val senderPeerID = routed.peerID ?: packet.senderID.toHexString()
+        val incomingAddr = routed.relayAddress
+        val incomingPeer = incomingAddr?.let { connectionTracker.addressPeerMap[it] }
+        val senderNick = senderPeerID.let { pid -> nicknameResolver?.invoke(pid) }
         
         if (packet.recipientID != SpecialRecipients.BROADCAST) {
             val recipientID = packet.recipientID?.let {
@@ -140,8 +232,11 @@ class BluetoothPacketBroadcaster(
             // If found, send directly
             if (targetDevice != null) {
                 Log.d(TAG, "Send packet type ${packet.type} directly to target device for recipient $recipientID: ${targetDevice.address}")
-                if (notifyDevice(targetDevice, data, gattServer, characteristic))
+                if (notifyDevice(targetDevice, data, gattServer, characteristic)) {
+                    val toPeer = connectionTracker.addressPeerMap[targetDevice.address]
+                    logPacketRelay(typeName, senderPeerID, senderNick, incomingPeer, incomingAddr, toPeer, targetDevice.address, packet.ttl)
                     return  // Sent, no need to continue
+                }
             }
 
             // Try to find the recipient in client connections (connectedDevices)
@@ -151,8 +246,11 @@ class BluetoothPacketBroadcaster(
             // If found, send directly
             if (targetDeviceConn != null) {
                 Log.d(TAG, "Send packet type ${packet.type} directly to target client connection for recipient $recipientID: ${targetDeviceConn.device.address}")
-                if (writeToDeviceConn(targetDeviceConn, data))
+                if (writeToDeviceConn(targetDeviceConn, data)) {
+                    val toPeer = connectionTracker.addressPeerMap[targetDeviceConn.device.address]
+                    logPacketRelay(typeName, senderPeerID, senderNick, incomingPeer, incomingAddr, toPeer, targetDeviceConn.device.address, packet.ttl)
                     return  // Sent, no need to continue
+                }
             }
         }
 
@@ -174,7 +272,11 @@ class BluetoothPacketBroadcaster(
                 Log.d(TAG, "Skipping broadcast to client back to sender: ${device.address}")
                 return@forEach
             }
-            notifyDevice(device, data, gattServer, characteristic)
+            val sent = notifyDevice(device, data, gattServer, characteristic)
+            if (sent) {
+                val toPeer = connectionTracker.addressPeerMap[device.address]
+                logPacketRelay(typeName, senderPeerID, senderNick, incomingPeer, incomingAddr, toPeer, device.address, packet.ttl)
+            }
         }
         
         // Send to client connections (GATT servers we are connected to)
@@ -188,7 +290,11 @@ class BluetoothPacketBroadcaster(
                     Log.d(TAG, "Skipping roadcast to server back to sender: ${deviceConn.device.address}")
                     return@forEach
                 }
-                writeToDeviceConn(deviceConn, data)
+                val sent = writeToDeviceConn(deviceConn, data)
+                if (sent) {
+                    val toPeer = connectionTracker.addressPeerMap[deviceConn.device.address]
+                    logPacketRelay(typeName, senderPeerID, senderNick, incomingPeer, incomingAddr, toPeer, deviceConn.device.address, packet.ttl)
+                }
             }
         }
     }

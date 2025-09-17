@@ -188,34 +188,7 @@ fun PeerCounter(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.clickable { onClick() }.padding(end = 8.dp) // Added right margin to match "dogechat" logo spacing
-    ) {
-        if (hasUnreadChannels.values.any { it > 0 }) {
-            // Channel icon in a Box to ensure consistent size with other icons
-            Box(
-                modifier = Modifier.size(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "#",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFFFF00),
-                    fontSize = 16.sp
-                )
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-        }
-        
-        if (hasUnreadPrivateMessages.isNotEmpty()) {
-            // Filled mail icon to match sidebar style
-            Icon(
-                imageVector = Icons.Filled.Email,
-                contentDescription = "Unread private messages",
-                modifier = Modifier.size(16.dp),
-                tint = Color(0xFFFFD700) // Dogecoin Gold to match private message theme
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-        }
-        
+    ) {    
         Icon(
             imageVector = Icons.Default.Group,
             contentDescription = when (selectedLocationChannel) {
@@ -238,7 +211,7 @@ fun PeerCounter(
             Text(
                 text = " · ⧉ ${joinedChannels.size}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isConnected) Color(0xFFFFFF00) else Color.Red,
+                color = if (isConnected) Color(0xFFFF9800) else Color.Red,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -289,7 +262,8 @@ fun ChatHeaderContent(
                 selectedLocationChannel = selectedLocationChannel,
                 geohashPeople = geohashPeople,
                 onBackClick = onBackClick,
-                onToggleFavorite = { viewModel.toggleFavorite(selectedPrivatePeer) }
+                onToggleFavorite = { viewModel.toggleFavorite(selectedPrivatePeer) },
+                viewModel = viewModel
             )
         }
         currentChannel != null -> {
@@ -327,7 +301,8 @@ private fun PrivateChatHeader(
     selectedLocationChannel: com.dogechat.android.geohash.ChannelID?,
     geohashPeople: List<GeoPerson>,
     onBackClick: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    viewModel: ChatViewModel
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isNostrDM = peerID.startsWith("nostr_") || peerID.startsWith("nostr:")
@@ -346,12 +321,24 @@ private fun PrivateChatHeader(
 
     // Compute title text: for NIP-17 chats show "#geohash/@username" (iOS parity)
     val titleText: String = if (isNostrDM) {
-        val geohash = (selectedLocationChannel as? com.dogechat.android.geohash.ChannelID.Location)?.channel?.geohash
-        val shortId = peerID.removePrefix("nostr_").removePrefix("nostr:")
-        val person = geohashPeople.firstOrNull { it.id.startsWith(shortId, ignoreCase = true) }
-        val baseName = person?.displayName?.substringBefore('#') ?: peerNicknames[peerID] ?: "unknown"
-        val geoPart = geohash?.let { "#$it" } ?: "#geohash"
-        "$geoPart/@$baseName"
+        // For geohash DMs, get the actual source geohash and proper display name
+        val (conversationGeohash, baseName) = try {
+            val repoField = com.dogechat.android.ui.GeohashViewModel::class.java.getDeclaredField("repo")
+            repoField.isAccessible = true
+            val repo = repoField.get(viewModel.geohashViewModel) as com.dogechat.android.nostr.GeohashRepository
+            val gh = repo.getConversationGeohash(peerID) ?: "geohash"
+            val fullPubkey = com.dogechat.android.nostr.GeohashAliasRegistry.get(peerID) ?: ""
+            val displayName = if (fullPubkey.isNotEmpty()) {
+                repo.displayNameForGeohashConversation(fullPubkey, gh)
+            } else {
+                peerNicknames[peerID] ?: "unknown"
+            }
+            Pair(gh, displayName)
+        } catch (e: Exception) { 
+            Pair("geohash", peerNicknames[peerID] ?: "unknown")
+        }
+        
+        "#$conversationGeohash/@$baseName"
     } else {
         // Prefer live mesh nickname; fallback to favorites nickname (supports 16-hex), finally short key
         peerNicknames[peerID] ?: run {
@@ -407,7 +394,7 @@ private fun PrivateChatHeader(
             Text(
                 text = titleText,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFFFFF00) // Yellow
+                color = Color(0xFFFFD700) // dogeGold
             )
 
             Spacer(modifier = Modifier.width(4.dp))
@@ -531,6 +518,11 @@ private fun MainHeader(
     val isConnected by viewModel.isConnected.observeAsState(false)
     val selectedLocationChannel by viewModel.selectedLocationChannel.observeAsState()
     val geohashPeople by viewModel.geohashPeople.observeAsState(emptyList())
+
+    // Bookmarks store for current geohash toggle (iOS parity)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val bookmarksStore = remember { com.dogechat.android.geohash.GeohashBookmarksStore.getInstance(context) }
+    val bookmarks by bookmarksStore.bookmarks.observeAsState(emptyList())
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -564,13 +556,57 @@ private fun MainHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            // Location channels button (matching iOS implementation)
-            LocationChannelsButton(
-                viewModel = viewModel,
-                onClick = onLocationChannelsClick
-            )
+            // Unread private messages badge (click to open most recent DM)
+            if (hasUnreadPrivateMessages.isNotEmpty()) {
+                Icon(
+                    imageVector = Icons.Filled.Email,
+                    contentDescription = "Unread private messages",
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable { viewModel.openLatestUnreadPrivateChat() },
+                    tint = Color(0xFFFF9500)
+                )
+            }
+
+            // Location channels button (matching iOS implementation) and bookmark grouped tightly
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 14.dp)) {
+                LocationChannelsButton(
+                    viewModel = viewModel,
+                    onClick = onLocationChannelsClick
+                )
+
+                // Bookmark toggle for current geohash (not shown for mesh)
+                val currentGeohash: String? = when (val sc = selectedLocationChannel) {
+                    is com.dogechat.android.geohash.ChannelID.Location -> sc.channel.geohash
+                    else -> null
+                }
+                if (currentGeohash != null) {
+                    val isBookmarked = bookmarks.contains(currentGeohash)
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 1.dp) // minimal gap between geohash and bookmark
+                            .size(20.dp)
+                            .clickable { bookmarksStore.toggle(currentGeohash) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = "Toggle bookmark",
+                            tint = if (isBookmarked) Color(0xFF00C851) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
             // Tor status cable icon when Tor is enabled
             TorStatusIcon(modifier = Modifier.size(14.dp))
+
+            // PoW status indicator
+            PoWStatusIndicator(
+                modifier = Modifier,
+                style = PoWIndicatorStyle.COMPACT
+            )
 
             PeerCounter(
                 connectedPeers = connectedPeers.filter { it != viewModel.meshService.myPeerID },
@@ -617,7 +653,7 @@ private fun LocationChannelsButton(
         }
         is com.dogechat.android.geohash.ChannelID.Location -> {
             val geohash = (selectedChannel as com.dogechat.android.geohash.ChannelID.Location).channel.geohash
-            "#$geohash" to Color(0xFFFFFF00) // Yellow for location
+            "#$geohash" to Color(0xFFFFD700) // Gold for location lock
         }
         null -> "#mesh" to Color(0xFF007AFF) // Default to mesh
     }
@@ -628,7 +664,7 @@ private fun LocationChannelsButton(
             containerColor = Color.Transparent,
             contentColor = badgeColor
         ),
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+        contentPadding = PaddingValues(start = 4.dp, end = 0.dp, top = 2.dp, bottom = 2.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(

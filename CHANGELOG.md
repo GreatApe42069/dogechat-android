@@ -3,6 +3,58 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.9.6] - 2025-09-17
+This release introduces initial Dogecoin wallet support and syncs with upstream changes through permissionlesstech/bitchat-android commit 1178fc254a81e660fde509dbc9130f4c4940be68.
+
+### Added
+- Dogecoin wallet (alpha)
+  - Wallet screen and navigation from ChatHeader.
+  - DNS seed peer discovery for Dogecoin; connects to peers without Tor.
+  - Initial transaction fetch logic and detailed SPV logs for troubleshooting.
+  - WIF import support and private key display/backup action.
+  - Triple-tap emergency wallet data wipe from header for quick reset.
+  - About screen controls for starting the SPV node (exposed entry point for wallet/SPV controls).
+- Tor separation for wallet
+  - Early support to start wallet/SPV connectivity separately from main app Tor controls; added extensive logging to aid validation.
+
+### Changed
+- UI/Theming
+  - Wrapped wallet UI in Doge theme and refined wallet colors for visual consistency.
+  - Minor UI tweaks to resolve button clashes and improve layout on the Wallet screen.
+- About sheet
+  - Cleaned up duplicated network section and updated copy to reflect wallet/SPV sections and controls.
+- Dependencies
+  - Updated Dogecoin/Bitcoin libraries (dogecoinj/bitcoinj jars) during development.
+  - Switched back to libdohj snapshot 16 to stabilize builds due to upstream dogecoinj repo build gaps.
+- Codebase hygiene
+  - Removed unnecessary/obsolete files and simplified routing to reduce duplication.
+
+### Fixed
+- Wallet
+  - Reliability improvements for wallet wipe and WIF import flows.
+  - Resolved wallet UI button overlap and click handling issues.
+- App UI
+  - Fixed chat text display regressions encountered during wallet integration.
+  - Corrected AboutSheet navigation from header and resolved duplicate network section.
+- Networking
+  - Fixed DNS seed connection flow for Dogecoin when Tor is disabled; peers now connect via DNS seeds as expected.
+
+### Upstream sync
+- Merged upstream through permissionlesstech/bitchat-android commit `1178fc254a81e660fde509dbc9130f4c4940be68`:
+  - “remove the noise handshake if peer goes offline” (#435)
+- Previous upstream Tor-related improvements listed in 0.9.5 were already incorporated.
+
+### Known limitations
+- Tor-backed SPV for the wallet is experimental. Earlier iterations noted the SPV node not starting via Tor; this release separates wallet Tor management and adds detailed logs, but further validation across devices/networks is recommended.
+
+### Notes for testers
+- This is an alpha wallet integration. Back up any keys you import or generate. Use test funds first.
+- Try both connectivity modes:
+  - Without Tor: confirm DNS seed discovery and peer connections.
+  - With wallet Tor separation: verify SPV startup and sync behavior.
+- Validate WIF import/export, private key backup action, and emergency wipe gesture.
 
 ## [0.9.5] - 2025-09-04
 ### Updated
@@ -18,7 +70,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - app/src/main/java/com/dogechat/android/nostr/NostrRelayManager.kt    (DONE)
 - app/src/main/java/com/dogechat/android/nostr/RelayDirectory.kt     (DONE)
 - app/src/main/java/com/dogechat/android/ui/AboutSheet.kt      (DONE)
-- app/src/main/java/com/bitchat/android/ui/ChatHeader.kt     (DONE)
+- app/src/main/java/com/dogechat/android/ui/ChatHeader.kt     (DONE)
 - gradle/libs.versions.toml   (DONE)
 - settings.gradle.kts    (DONE)
 ### Details
@@ -271,8 +323,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Use contentPadding instead of padding so items remain fully visible
 
 
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [0.7]
 
 ### Added
@@ -407,7 +457,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core messaging features
 - Protocol compatibility with iOS Dogechat client
 
-[Unreleased]: https://github.com/permissionlesstech/bitchat-android/compare/0.5.1...HEAD
+[Unreleased]: https://github.com/GreatApe42069/dogechat-android/compare/0.10.0...HEAD
+[0.10.0]: https://github.com/GreatApe42069/dogechat-android/compare/0.9.5...0.10.0
+
+<!-- Upstream historical references retained below -->
 [0.5.1]: https://github.com/permissionlesstech/bitchat-android/compare/0.5...0.5.1
 [0.5]: https://github.com/permissionlesstech/bitchat-android/compare/0.4...0.5
 [0.4]: https://github.com/permissionlesstech/bitchat-android/compare/0.3...0.4
