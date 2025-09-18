@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.collect
 class BluetoothConnectionManager(
     private val context: Context,
     private val myPeerID: String,
-    private val fragmentManager: FragmentManager? = null
+    private val fragmentManager: FragmentManager? = null   // CHANGED
 ) : PowerManagerDelegate {
 
     companion object {

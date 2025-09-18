@@ -13,7 +13,8 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,6 +24,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Permission explanation screen shown before requesting permissions.
+ * Dogechat variant:
+ * - Keeps upstream structure
+ * - Adds "Internet & Network" explanatory card
+ * - Branding / tone adjusted (Đogechat)
+ */
 @Composable
 fun PermissionExplanationScreen(
     modifier: Modifier,
@@ -37,12 +45,13 @@ fun PermissionExplanationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 88.dp)
+                .padding(bottom = 88.dp) // leave space for bottom fixed button
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Header
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -73,6 +82,7 @@ fun PermissionExplanationScreen(
                 )
             }
 
+            // Privacy + reassurance surface
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
@@ -103,10 +113,12 @@ fun PermissionExplanationScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "• Đogechat doesn't track you or collect any personal data\n" +
-                                    "• Bluetooth mesh chats are fully offline and require no internet\n" +
-                                    "• Geohash chats use the internet but your location is generalized\n" +
-                                    "• Your messages stay locally on your device and peer devices only",
+                                text = buildString {
+                                    appendLine("• Đogechat doesn't track you or collect personal data")
+                                    appendLine("• Bluetooth mesh chats are fully offline")
+                                    appendLine("• Geohash chats use the internet (coarse location only)")
+                                    append("• Messages stay only on your device & peers")
+                                },
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontFamily = FontFamily.Monospace,
                                     color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -124,6 +136,7 @@ fun PermissionExplanationScreen(
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
             )
 
+            // Permission categories (mapped from upstream)
             permissionCategories.forEach { category ->
                 PermissionCategoryCard(
                     category = category,
@@ -131,6 +144,7 @@ fun PermissionExplanationScreen(
                 )
             }
 
+            // Internet & network explanatory card (Dogechat specific)
             Spacer(modifier = Modifier.height(8.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -161,17 +175,20 @@ fun PermissionExplanationScreen(
                         )
                     }
                     Text(
-                        text = "Đogechat only uses internet/network permissions for advanced features:",
+                        text = "Đogechat only uses internet/network access for advanced features:",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.8f)
                         )
                     )
                     Text(
-                        text = "• Dogecoin wallet (SPV) sync and blockchain access\n" +
-                            "• Tor Enhanced privacy mode (routes wallet and chat traffic over Tor)\n" +
-                            "• Geohash channels and relays (optional online chat)\n\n" +
-                            "Offline Bluetooth mesh chat does NOT require internet. You can always use Đogechat fully offline unless you want blockchain or Tor features.",
+                        text = buildString {
+                            appendLine("• Dogecoin wallet (SPV) sync + blockchain access")
+                            appendLine("• Tor enhanced privacy mode")
+                            appendLine("• Geohash channels & optional relay connectivity")
+                            appendLine()
+                            append("Offline Bluetooth mesh chat works with ZERO internet.")
+                        },
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.75f)
@@ -183,6 +200,7 @@ fun PermissionExplanationScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
+        // Fixed bottom action
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -278,6 +296,6 @@ private fun getPermissionIcon(permissionType: PermissionType): ImageVector {
         PermissionType.PRECISE_LOCATION -> Icons.Filled.LocationOn
         PermissionType.NOTIFICATIONS -> Icons.Filled.Notifications
         PermissionType.BATTERY_OPTIMIZATION -> Icons.Filled.Power
-        else -> Icons.Filled.Settings
+        PermissionType.OTHER -> Icons.Filled.Settings
     }
 }

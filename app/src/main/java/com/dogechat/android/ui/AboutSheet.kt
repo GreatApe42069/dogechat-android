@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +20,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LazyListScope
+import androidx.compose.material3.LazyListScopeImpl
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -30,7 +31,13 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -54,8 +61,10 @@ import com.dogechat.android.wallet.net.TorManagerWallet
 import com.dogechat.android.wallet.net.WalletTorPreferenceManager
 
 /**
- * About Sheet for dogechat app information
- * Matches the design language of LocationChannelsSheet
+ * About Sheet for Dogechat (merged variant).
+ * - Retains upstream structure
+ * - Adds wallet (SPV), Tor (chat + wallet), PoW, debug hook
+ * - Dogechat branding / styling
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,49 +76,29 @@ fun AboutSheet(
 ) {
     val context = LocalContext.current
 
-    // Get version name from package info
+    // Version name retrieval (remembered)
     val versionName by remember {
         mutableStateOf(
             try {
                 context.packageManager.getPackageInfo(context.packageName, 0).versionName
             } catch (_: Exception) {
-                "0.0.0" // fallback version
+                "0.0.0"
             }
         )
     }
 
     LaunchedEffect(Unit) {
-        WalletTorPreferenceManager.init(context)
+        // Ensure wallet Tor preference layer initialized
+        runCatching { WalletTorPreferenceManager.init(context) }
     }
 
-    // Bottom sheet state
+    // Animated sheet + scroll
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-
-    // Theme helpers
-    val colorScheme = MaterialTheme.colorScheme
-    val isDark = (colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue) < 1.5f
-    val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
-    val warnOrange = Color(0xFFFF9500)
-    val dogeGold = if (isDark) Color(0xFFFFD700) else Color(0xFFFFB300)
-
-    // Flows
-    val chatTorStatus by TorManager.statusFlow.collectAsState()
-    val chatTorMode by TorPreferenceManager.modeFlow.collectAsState(
-        initial = TorPreferenceManager.get(context)
-    )
-    val spvEnabled by SpvController.enabled.collectAsState(initial = false)
-    val spvStatus by SpvController.status.collectAsState()
-    val spvLogs by SpvLogBuffer.lines.collectAsState()
-    val walletTorMode by WalletTorPreferenceManager.modeFlow.collectAsState(
-        initial = TorMode.OFF
-    )
-    val walletTorStatus by TorManagerWallet.status.collectAsState()
-
-    // Scroll state and animated top bar alpha
     val lazyListState = rememberLazyListState()
     val isScrolled by remember {
         derivedStateOf {
-            lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0
+            lazyListState.firstVisibleItemIndex > 0 ||
+                lazyListState.firstVisibleItemScrollOffset > 0
         }
     }
     val topBarAlpha by animateFloatAsState(
@@ -117,12 +106,36 @@ fun AboutSheet(
         label = "topBarAlpha"
     )
 
+    // Reactive flows
+    val chatTorStatus by TorManager.statusFlow.collectAsState()
+    val chatTorMode by TorPreferenceManager.modeFlow.collectAsState(
+        initial = TorPreferenceManager.get(context)
+    )
+
+    val spvEnabled by SpvController.enabled.collectAsState(initial = false)
+    val spvStatus by SpvController.status.collectAsState()
+    val spvLogs by SpvLogBuffer.lines.collectAsState()
+
+    val walletTorMode by WalletTorPreferenceManager.modeFlow.collectAsState(
+        initial = TorMode.OFF
+    )
+    val walletTorStatus by TorManagerWallet.status.collectAsState()
+
+    // Theme derived accents
+    val colorScheme = MaterialTheme.colorScheme
+    val isDark = (colorScheme.background.red +
+            colorScheme.background.green +
+            colorScheme.background.blue) < 1.5f
+    val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
+    val warnOrange = Color(0xFFFF9500)
+    val dogeGold = if (isDark) Color(0xFFFFD700) else Color(0xFFFFB300)
+
     if (isPresented) {
         ModalBottomSheet(
             modifier = modifier.statusBarsPadding(),
             onDismissRequest = onDismiss,
             sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = colorScheme.background,
             dragHandle = null
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
@@ -138,34 +151,39 @@ fun AboutSheet(
                     featureWalletSection(dogeGold, colorScheme)
 
                     appearanceSection()
-
                     powSection(isDark)
-
                     networkSection(
                         chatTorMode = chatTorMode,
                         chatTorStatus = chatTorStatus,
                         isDark = isDark
                     )
-
-                    walletSpvSection(standardGreen, warnOrange, colorScheme, spvEnabled, spvStatus, spvLogs)
-
-                    walletTorSection(standardGreen, warnOrange, colorScheme, walletTorMode, walletTorStatus)
-
+                    walletSpvSection(
+                        standardGreen,
+                        warnOrange,
+                        colorScheme,
+                        spvEnabled,
+                        spvStatus,
+                        spvLogs
+                    )
+                    walletTorSection(
+                        standardGreen,
+                        warnOrange,
+                        colorScheme,
+                        walletTorMode,
+                        walletTorStatus
+                    )
                     warningSection()
-
                     footerSection(onShowDebug)
-
-                    // add bottom spacer
                     item { Spacer(Modifier.height(16.dp)) }
                 }
 
-                // TopBar
+                // Floating top bar scrim
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .height(64.dp)
-                        .background(MaterialTheme.colorScheme.background.copy(alpha = topBarAlpha))
+                        .background(colorScheme.background.copy(alpha = topBarAlpha))
                 ) {
                     TextButton(
                         onClick = onDismiss,
@@ -175,8 +193,10 @@ fun AboutSheet(
                     ) {
                         Text(
                             text = "Close",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = colorScheme.onBackground
                         )
                     }
                 }
@@ -185,7 +205,10 @@ fun AboutSheet(
     }
 }
 
-private fun LazyListScope.headerSection(versionName: String, colorScheme: androidx.compose.material3.ColorScheme) {
+private fun LazyListScope.headerSection(
+    versionName: String,
+    colorScheme: androidx.compose.material3.ColorScheme
+) {
     item(key = "header") {
         Column(
             modifier = Modifier
@@ -207,7 +230,6 @@ private fun LazyListScope.headerSection(versionName: String, colorScheme: androi
                     ),
                     color = colorScheme.onBackground
                 )
-
                 Text(
                     text = "v$versionName",
                     fontSize = 11.sp,
@@ -218,7 +240,6 @@ private fun LazyListScope.headerSection(versionName: String, colorScheme: androi
                     )
                 )
             }
-
             Text(
                 text = "Đecentralized mesh messaging with end-to-end encryption",
                 fontSize = 12.sp,
@@ -256,7 +277,8 @@ private fun LazyListScope.featureOfflineSection() {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Communicate directly via Bluetooth LE without a SIM card, internet or servers — messages relay through nearby devices to extend the mesh range.",
-                    style = MaterialTheme.typTypography.bodySmall(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                 )
             }
         }
@@ -272,7 +294,7 @@ private fun LazyListScope.featureGeohashSection() {
                 .padding(vertical = 8.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Public,
+                imageVector = Icons.Filled.Public,
                 contentDescription = "Online Geohash Channels",
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
@@ -333,7 +355,10 @@ private fun LazyListScope.featureEncryptionSection() {
     }
 }
 
-private fun LazyListScope.featureWalletSection(dogeGold: Color, colorScheme: androidx.compose.material3.ColorScheme) {
+private fun LazyListScope.featureWalletSection(
+    dogeGold: Color,
+    colorScheme: androidx.compose.material3.ColorScheme
+) {
     item(key = "feature_wallet") {
         Row(
             verticalAlignment = Alignment.Top,
@@ -414,6 +439,7 @@ private fun LazyListScope.powSection(isDark: Boolean) {
                 .padding(horizontal = 24.dp)
                 .padding(top = 24.dp, bottom = 8.dp)
         )
+
         LaunchedEffect(Unit) {
             PoWPreferenceManager.init(context)
         }
@@ -563,7 +589,8 @@ private fun LazyListScope.networkSection(
                             Text("tor on", fontFamily = FontFamily.Monospace)
                             val statusColor = when {
                                 chatTorStatus.running && chatTorStatus.bootstrapPercent < 100 -> Color(0xFFFF9500)
-                                chatTorStatus.running && chatTorStatus.bootstrapPercent >= 100 -> if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
+                                chatTorStatus.running && chatTorStatus.bootstrapPercent >= 100 ->
+                                    if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
                                 else -> Color.Red
                             }
                             IndicatorDot(statusColor)
@@ -621,7 +648,10 @@ private fun LazyListScope.walletSpvSection(
             spvStatus.syncPercent < 100 -> warnOrange
             else -> standardGreen
         }
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Text(
                 "Wallet (SPV)",
                 fontSize = 12.sp,
@@ -662,10 +692,13 @@ private fun LazyListScope.walletSpvSection(
                 color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(
+                    Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(
                         text = "spv: " + (if (spvStatus.running) "running" else "stopped") +
-                                ", peers=" + spvStatus.peerCount + ", sync=" + spvStatus.syncPercent + "%",
+                            ", peers=" + spvStatus.peerCount + ", sync=" + spvStatus.syncPercent + "%",
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.75f)
@@ -755,10 +788,13 @@ private fun LazyListScope.walletTorSection(
                 color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(
+                    Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(
                         text = "wallet tor: " + (if (walletTorStatus.running) "running" else "stopped") +
-                                ", bootstrap=" + walletTorStatus.bootstrapPercent + "%",
+                            ", bootstrap=" + walletTorStatus.bootstrapPercent + "%",
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.75f)
@@ -782,7 +818,6 @@ private fun LazyListScope.warningSection() {
     item(key = "warning_section") {
         val colorScheme = MaterialTheme.colorScheme
         val errorColor = colorScheme.error
-
         Surface(
             modifier = Modifier
                 .padding(horizontal = 24.dp, vertical = 24.dp)
@@ -862,8 +897,7 @@ private fun IndicatorDot(color: Color) {
 }
 
 /**
- * Password prompt dialog for password-protected channels
- * Kept as dialog since it requires user input
+ * Password prompt dialog for password-protected channels (kept from your variant).
  */
 @Composable
 fun PasswordPromptDialog(
@@ -874,70 +908,62 @@ fun PasswordPromptDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    if (show && channelName != null) {
-        val colorScheme = MaterialTheme.colorScheme
-
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            title = {
+    if (!show || channelName == null) return
+    val colorScheme = MaterialTheme.colorScheme
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "🔐 Enter Channel Password",
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onSurface
+            )
+        },
+        text = {
+            Column {
                 Text(
-                    text = "🔐 Enter Channel Password",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "Channel $channelName is password protected. Enter the password to join.",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = colorScheme.onSurface
                 )
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Channel $channelName is password protected. Enter the password to join.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = passwordInput,
+                    onValueChange = onPasswordChange,
+                    label = { Text("Password", style = MaterialTheme.typography.bodyMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colorScheme.primary,
+                        unfocusedBorderColor = colorScheme.outline
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = passwordInput,
-                        onValueChange = onPasswordChange,
-                        label = { Text("Password", style = MaterialTheme.typography.bodyMedium) },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = FontFamily.Monospace
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorScheme.primary,
-                            unfocusedBorderColor = colorScheme.outline
-                        )
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = onConfirm) {
-                    Text(
-                        text = "Join",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.primary
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface
-                    )
-                }
-            },
-            containerColor = colorScheme.surface,
-            tonalElevation = 8.dp
-        )
-    }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = "Join",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.primary
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurface
+                )
+            }
+        },
+        containerColor = colorScheme.surface,
+        tonalElevation = 8.dp
+    )
 }
 
-// Small extension to avoid repeating style
+// Keeping your small extension (used in featureOfflineSection call)
 @Composable
 private fun MaterialTheme.typTypography() = this.typography
-
-@Composable
-private fun androidx.compose.material3.Typography.bodySmall(): androidx.compose.material3.TextStyle {
-    return this.bodySmall
-}
