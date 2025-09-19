@@ -383,9 +383,9 @@ fun PeopleSection(
             val displayName = if (peerID == nickname) "You" else (peerNicknames[peerID] ?: (privateChats[peerID]?.lastOrNull()?.sender ?: peerID.take(12)))
             val (bName, _) = com.dogechat.android.ui.splitSuffix(displayName)
             val showHash = (baseNameCounts[bName] ?: 0) > 1
+
             val directMap by viewModel.peerDirect.observeAsState(emptyMap())
             val isDirectLive = directMap[peerID] ?: try { viewModel.meshService.getPeerInfo(peerID)?.isDirectConnection == true } catch (_: Exception) { false }
-
             PeerItem(
                 peerID = peerID,
                 displayName = displayName,
@@ -445,8 +445,8 @@ fun PeopleSection(
 
             PeerItem(
                 peerID = favPeerID,
+                displayName = dn,
                 isDirect = false,
-                signalStrength = 0,
                 isSelected = (mappedConnectedPeerID ?: favPeerID) == selectedPrivatePeer,
                 isFavorite = true,
                 hasUnreadDM = hasUnread,
@@ -465,7 +465,6 @@ fun PeopleSection(
         }
 
         // NOTE: Do NOT append Nostr-only (nostr_*) conversations to the mesh people list.
-        // This ensures a user can open and read Nostr messages while the sender remains offline
         // Geohash DMs should appear in the GeohashPeople list for the active geohash, not in mesh offline contacts.
         // We intentionally remove previously-added behavior that mixed geohash DMs into mesh sidebar.
         // If you need to surface non-geohash offline mesh conversations in the future, do it here for 64-hex noise IDs only.
@@ -506,6 +505,7 @@ fun PeopleSection(
             }
         */
         // End intentional removal
+        
     }
 }
 
@@ -513,7 +513,7 @@ fun PeopleSection(
 private fun PeerItem(
     peerID: String,
     displayName: String,
-    signalStrength: Boolean,
+    isDirect: Boolean,
     isSelected: Boolean,
     isFavorite: Boolean,
     hasUnreadDM: Boolean,

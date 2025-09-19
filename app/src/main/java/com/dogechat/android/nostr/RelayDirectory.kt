@@ -9,7 +9,6 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.lang.reflect.InvocationTargetException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlin.math.*
@@ -20,12 +19,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.ResponseBody
 
 /**
  * Loads relay coordinates from assets and provides nearest-relay lookup by geohash.
- *
- * Uses reflection for okhttp3.Response access to avoid package-private field issues.
  */
 object RelayDirectory {
 
@@ -93,7 +89,8 @@ object RelayDirectory {
         val snapshot = synchronized(relaysLock) { relays.toList() }
         if (snapshot.isEmpty()) return emptyList()
         val center = try {
-            decodeGeohashCenter(geohash)
+            val c = com.dogechat.android.geohash.Geohash.decodeToCenter(geohash)
+            c
         } catch (e: Exception) {
             Log.e(TAG, "Failed to decode geohash '$geohash': ${e.message}")
             return emptyList()
@@ -197,43 +194,13 @@ object RelayDirectory {
         return try {
             val req = Request.Builder().url(url).get().build()
             httpClient.newCall(req).execute().use { resp ->
-                // Use reflection exclusively to avoid package-private field access in some okhttp versions.
-                val code: Int = try {
-                    val m = resp.javaClass.getMethod("code")
-                    (m.invoke(resp) as? Int) ?: -1
-                } catch (ex: NoSuchMethodException) {
-                    // very unlikely: fallback safe value
-                    try { resp.javaClass.getMethod("code").invoke(resp) as Int } catch (_: Throwable) { -1 }
-                } catch (ex: InvocationTargetException) {
-                    -1
-                } catch (ex: IllegalAccessException) {
-                    -1
-                } catch (ex: Exception) {
-                    -1
-                }
-
-                if (code < 200 || code >= 300) {
-                    Log.w(TAG, "HTTP $code when fetching $url")
+                if (!resp.isSuccessful) {
+                    Log.w(TAG, "HTTP ${'$'}{resp.code} when fetching $url")
                     return false
                 }
-
-                val body: ResponseBody? = try {
-                    val m = resp.javaClass.getMethod("body")
-                    m.invoke(resp) as? ResponseBody
-                } catch (ex: NoSuchMethodException) {
-                    null
-                } catch (ex: InvocationTargetException) {
-                    null
-                } catch (ex: IllegalAccessException) {
-                    null
-                } catch (ex: Exception) {
-                    null
-                }
-
-                val responseBody = body ?: return false
-
+                val body = resp.body ?: return false
                 FileOutputStream(dest).use { out ->
-                    responseBody.byteStream().use { input ->
+                    body.byteStream().use { input ->
                         input.copyTo(out)
                     }
                 }
@@ -277,12 +244,13 @@ object RelayDirectory {
             relays.clear()
             relays.addAll(list)
         }
+        // Compute asset hash for logging
         val hash = try {
             application.assets.open(ASSET_FILE).use { input ->
                 streamSha256Hex(input)
             }
         } catch (e: Exception) {
-            "error:${e.message}"
+            "error:${'$'}{e.message}"
         }
         Log.i(TAG, "📦 Loaded ${list.size} relay entries from assets/$ASSET_FILE, sha256=$hash")
     }
@@ -294,7 +262,7 @@ object RelayDirectory {
             while (true) {
                 line = reader.readLine()
                 if (line == null) break
-                val trimmed = line.trim()
+                val trimmed = line!!.trim()
                 if (trimmed.isEmpty()) continue
                 if (trimmed.lowercase().startsWith("relay url")) continue
                 val parts = trimmed.split(",")
@@ -330,36 +298,5 @@ object RelayDirectory {
             val s = Integer.toHexString(v)
             if (s.length == 1) "0$s" else s
         }
-    }
-
-    // ------------------------
-    // Minimal geohash decoder (returns center lat/lon)
-    // ------------------------
-    private val BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
-
-    private fun decodeGeohashCenter(geohash: String): Pair<Double, Double> {
-        var even = true
-        val latInterval = doubleArrayOf(-90.0, 90.0)
-        val lonInterval = doubleArrayOf(-180.0, 180.0)
-
-        for (c in geohash.lowercase()) {
-            val cd = BASE32.indexOf(c)
-            if (cd == -1) throw IllegalArgumentException("Invalid geohash character: $c")
-            for (mask in listOf(16, 8, 4, 2, 1)) {
-                val bitSet = (cd and mask) != 0
-                if (even) {
-                    val mid = (lonInterval[0] + lonInterval[1]) / 2.0
-                    if (bitSet) lonInterval[0] = mid else lonInterval[1] = mid
-                } else {
-                    val mid = (latInterval[0] + latInterval[1]) / 2.0
-                    if (bitSet) latInterval[0] = mid else latInterval[1] = mid
-                }
-                even = !even
-            }
-        }
-
-        val lat = (latInterval[0] + latInterval[1]) / 2.0
-        val lon = (lonInterval[0] + lonInterval[1]) / 2.0
-        return Pair(lat, lon)
     }
 }

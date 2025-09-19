@@ -1,134 +1,271 @@
 package com.dogechat.android.mesh
 
 import android.util.Log
-import com.dogechat.android.model.FragmentPayload
 import com.dogechat.android.protocol.DogechatPacket
-import com.dogechat.android.protocol.MessagePadding
 import com.dogechat.android.protocol.MessageType
+import com.dogechat.android.protocol.MessagePadding
+import com.dogechat.android.model.FragmentPayload
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Renamed from FragmentManager → FragmentManager to avoid collision with
- * androidx.fragment.app.FragmentManager. Provides identical functionality.
- *
- * iOS-compatible fragmentation and reassembly.
+ * Manages message fragmentation and reassembly - 100% iOS Compatible
+ * 
+ * This implementation exactly matches iOS SimplifiedBluetoothService fragmentation:
+ * - Same fragment payload structure (13-byte header + data)
+ * - Same MTU thresholds and fragment sizes
+ * - Same reassembly logic and timeout handling
+ * - Uses new FragmentPayload model for type safety
  */
 class FragmentManager {
-
+    
     companion object {
         private const val TAG = "FragmentManager"
-        private const val FRAGMENT_SIZE_THRESHOLD = 512
-        private const val MAX_FRAGMENT_SIZE = 469
-        private const val FRAGMENT_TIMEOUT = 30_000L
-        private const val CLEANUP_INTERVAL = 10_000L
+        // iOS values: 512 MTU threshold, 469 max fragment size (512 MTU - headers)
+        private const val FRAGMENT_SIZE_THRESHOLD = 512 // Matches iOS: if data.count > 512
+        private const val MAX_FRAGMENT_SIZE = 469        // Matches iOS: maxFragmentSize = 469 
+        private const val FRAGMENT_TIMEOUT = 30000L     // Matches iOS: 30 seconds cleanup
+        private const val CLEANUP_INTERVAL = 10000L     // 10 seconds cleanup check
     }
-
+    
+    // Fragment storage - iOS equivalent: incomingFragments: [String: [Int: Data]]
     private val incomingFragments = ConcurrentHashMap<String, MutableMap<Int, ByteArray>>()
-    private val fragmentMetadata = ConcurrentHashMap<String, Triple<UByte, Int, Long>>()
-
+    // iOS equivalent: fragmentMetadata: [String: (type: UInt8, total: Int, timestamp: Date)]
+    private val fragmentMetadata = ConcurrentHashMap<String, Triple<UByte, Int, Long>>() // originalType, totalFragments, timestamp
+    
+    // Delegate for callbacks
     var delegate: FragmentManagerDelegate? = null
-
+    
+    // Coroutines
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
+    
     init {
         startPeriodicCleanup()
     }
-
+    
+    /**
+     * Create fragments from a large packet - 100% iOS Compatible
+     * Matches iOS sendFragmentedPacket() implementation exactly
+     */
     fun createFragments(packet: DogechatPacket): List<DogechatPacket> {
         val encoded = packet.toBinaryData() ?: return emptyList()
+        
+        // Fragment the unpadded frame; each fragment will be encoded (and padded) independently - iOS fix
         val fullData = MessagePadding.unpad(encoded)
-
-        if (fullData.size <= FRAGMENT_SIZE_THRESHOLD ||
-            packet.type == MessageType.fragment.rawValue
-        ) {
-            return listOf(packet)
+        
+        // iOS logic: if data.count > 512 && packet.type != MessageType.fragment.rawValue
+        if (fullData.size <= FRAGMENT_SIZE_THRESHOLD) {
+            return listOf(packet) // No fragmentation needed
         }
-
+        
         val fragments = mutableListOf<DogechatPacket>()
+        
+        // iOS: let fragmentID = Data((0..<8).map { _ in UInt8.random(in: 0...255) })
         val fragmentID = FragmentPayload.generateFragmentID()
-
+        
+        // iOS: stride(from: 0, to: fullData.count, by: maxFragmentSize)
         val fragmentChunks = stride(0, fullData.size, MAX_FRAGMENT_SIZE) { offset ->
             val endOffset = minOf(offset + MAX_FRAGMENT_SIZE, fullData.size)
-            fullData.sliceArray(offset until endOffset)
+            fullData.sliceArray(offset..<endOffset)
         }
-
-        Log.d(TAG, "Creating ${fragmentChunks.size} fragments for ${fullData.size} bytes")
-
-        fragmentChunks.forEachIndexed { index, fragmentData ->
+        
+        Log.d(TAG, "Creating ${fragmentChunks.size} fragments for ${fullData.size} byte packet (iOS compatible)")
+        
+        // iOS: for (index, fragment) in fragments.enumerated()
+        for (index in fragmentChunks.indices) {
+            val fragmentData = fragmentChunks[index]
+            
+            // Create iOS-compatible fragment payload
             val fragmentPayload = FragmentPayload(
                 fragmentID = fragmentID,
-                fragmentIndex = index,
-                totalFragments = fragmentChunks.size,
-                originalType = packet.type.toUByte(),
+                index = index,
+                total = fragmentChunks.size,
+                originalType = packet.type,
                 data = fragmentData
             )
+            
+            // iOS: MessageType.fragment.rawValue (single fragment type)
             val fragmentPacket = DogechatPacket(
-                type = MessageType.fragment.rawValue,
-                sender = packet.sender,
-                payload = fragmentPayload.encode()
+                type = MessageType.FRAGMENT.value,
+                ttl = packet.ttl,
+                senderID = packet.senderID,
+                recipientID = packet.recipientID,
+                timestamp = packet.timestamp,
+                payload = fragmentPayload.encode(),
+                signature = null // iOS: signature: nil
             )
-            fragments += fragmentPacket
+            
+            fragments.add(fragmentPacket)
         }
-
+        
         return fragments
     }
-
-    fun handleIncomingFragment(packet: DogechatPacket) {
-        val payload = FragmentPayload.decode(packet.payload) ?: return
-        val key = payload.fragmentIDHex()
-
-        val now = System.currentTimeMillis()
-        fragmentMetadata.putIfAbsent(
-            key,
-            Triple(payload.originalType, payload.totalFragments, now)
-        )
-        val map = incomingFragments.getOrPut(key) { ConcurrentHashMap<Int, ByteArray>().toMutableMap() }
-        map[payload.fragmentIndex] = payload.data
-
-        if (map.size == payload.totalFragments) {
-            // Reassemble
-            val ordered = (0 until payload.totalFragments).mapNotNull { map[it] }
-            if (ordered.size == payload.totalFragments) {
-                val reassembled = ordered.reduce { acc, bytes -> acc + bytes }
-                val originalPacket = DogechatPacket(
-                    type = payload.originalType.toInt(),
-                    sender = packet.sender,
-                    payload = reassembled
+    
+    /**
+     * Handle incoming fragment - 100% iOS Compatible  
+     * Matches iOS handleFragment() implementation exactly
+     */
+    fun handleFragment(packet: DogechatPacket): DogechatPacket? {
+        // iOS: guard packet.payload.count > 13 else { return }
+        if (packet.payload.size < FragmentPayload.HEADER_SIZE) {
+            Log.w(TAG, "Fragment packet too small: ${packet.payload.size}")
+            return null
+        }
+        
+        // Don't process our own fragments - iOS equivalent check
+        // This would be done at a higher level but we'll include for safety
+        
+        try {
+            // Use FragmentPayload for type-safe decoding
+            val fragmentPayload = FragmentPayload.decode(packet.payload)
+            if (fragmentPayload == null || !fragmentPayload.isValid()) {
+                Log.w(TAG, "Invalid fragment payload")
+                return null
+            }
+            
+            // iOS: let fragmentID = packet.payload[0..<8].map { String(format: "%02x", $0) }.joined()
+            val fragmentIDString = fragmentPayload.getFragmentIDString()
+            
+            Log.d(TAG, "Received fragment ${fragmentPayload.index}/${fragmentPayload.total} for fragmentID: $fragmentIDString, originalType: ${fragmentPayload.originalType}")
+            
+            // iOS: if incomingFragments[fragmentID] == nil
+            if (!incomingFragments.containsKey(fragmentIDString)) {
+                incomingFragments[fragmentIDString] = mutableMapOf()
+                fragmentMetadata[fragmentIDString] = Triple(
+                    fragmentPayload.originalType, 
+                    fragmentPayload.total, 
+                    System.currentTimeMillis()
                 )
-                incomingFragments.remove(key)
-                fragmentMetadata.remove(key)
-                delegate?.onReassembledPacket(originalPacket)
+            }
+            
+            // iOS: incomingFragments[fragmentID]?[index] = Data(fragmentData)
+            incomingFragments[fragmentIDString]?.put(fragmentPayload.index, fragmentPayload.data)
+            
+            // iOS: if let fragments = incomingFragments[fragmentID], fragments.count == total
+            val fragmentMap = incomingFragments[fragmentIDString]
+            if (fragmentMap != null && fragmentMap.size == fragmentPayload.total) {
+                Log.d(TAG, "All fragments received for $fragmentIDString, reassembling...")
+                
+                // iOS reassembly logic: for i in 0..<total { if let fragment = fragments[i] { reassembled.append(fragment) } }
+                val reassembledData = mutableListOf<Byte>()
+                for (i in 0 until fragmentPayload.total) {
+                    fragmentMap[i]?.let { data ->
+                        reassembledData.addAll(data.asIterable())
+                    }
+                }
+                
+                // Decode the original packet bytes we reassembled, so flags/compression are preserved - iOS fix
+                val originalPacket = DogechatPacket.fromBinaryData(reassembledData.toByteArray())
+                if (originalPacket != null) {
+                    // iOS cleanup: incomingFragments.removeValue(forKey: fragmentID)
+                    incomingFragments.remove(fragmentIDString)
+                    fragmentMetadata.remove(fragmentIDString)
+                    
+                    Log.d(TAG, "Successfully reassembled and decoded original packet of ${reassembledData.size} bytes")
+                    return originalPacket
+                } else {
+                    val metadata = fragmentMetadata[fragmentIDString]
+                    Log.e(TAG, "Failed to decode reassembled packet (type=${metadata?.first}, total=${metadata?.second})")
+                }
+            } else {
+                val received = fragmentMap?.size ?: 0
+                Log.d(TAG, "Fragment ${fragmentPayload.index} stored, have $received/${fragmentPayload.total} fragments for $fragmentIDString")
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to handle fragment: ${e.message}")
+        }
+        
+        return null
+    }
+    
+    /**
+     * Helper function to match iOS stride functionality
+     * stride(from: 0, to: fullData.count, by: maxFragmentSize)
+     */
+    private fun <T> stride(from: Int, to: Int, by: Int, transform: (Int) -> T): List<T> {
+        val result = mutableListOf<T>()
+        var current = from
+        while (current < to) {
+            result.add(transform(current))
+            current += by
+        }
+        return result
+    }
+    
+    /**
+     * iOS cleanup - exactly matching performCleanup() implementation
+     * Clean old fragments (> 30 seconds old)
+     */
+    private fun cleanupOldFragments() {
+        val now = System.currentTimeMillis()
+        val cutoff = now - FRAGMENT_TIMEOUT
+        
+        // iOS: let oldFragments = fragmentMetadata.filter { $0.value.timestamp < cutoff }.map { $0.key }
+        val oldFragments = fragmentMetadata.filter { it.value.third < cutoff }.map { it.key }
+        
+        // iOS: for fragmentID in oldFragments { incomingFragments.removeValue(forKey: fragmentID) }
+        for (fragmentID in oldFragments) {
+            incomingFragments.remove(fragmentID)
+            fragmentMetadata.remove(fragmentID)
+        }
+        
+        if (oldFragments.isNotEmpty()) {
+            Log.d(TAG, "Cleaned up ${oldFragments.size} old fragment sets (iOS compatible)")
+        }
+    }
+    
+    /**
+     * Get debug information - matches iOS debugging
+     */
+    fun getDebugInfo(): String {
+        return buildString {
+            appendLine("=== Fragment Manager Debug Info (iOS Compatible) ===")
+            appendLine("Active Fragment Sets: ${incomingFragments.size}")
+            appendLine("Fragment Size Threshold: $FRAGMENT_SIZE_THRESHOLD bytes")
+            appendLine("Max Fragment Size: $MAX_FRAGMENT_SIZE bytes")
+            
+            fragmentMetadata.forEach { (fragmentID, metadata) ->
+                val (originalType, totalFragments, timestamp) = metadata
+                val received = incomingFragments[fragmentID]?.size ?: 0
+                val ageSeconds = (System.currentTimeMillis() - timestamp) / 1000
+                appendLine("  - $fragmentID: $received/$totalFragments fragments, type: $originalType, age: ${ageSeconds}s")
             }
         }
     }
-
+    
+    /**
+     * Start periodic cleanup of old fragments - matches iOS maintenance timer
+     */
     private fun startPeriodicCleanup() {
         managerScope.launch {
             while (isActive) {
-                try {
-                    delay(CLEANUP_INTERVAL)
-                    val cutoff = System.currentTimeMillis() - FRAGMENT_TIMEOUT
-                    val expired = fragmentMetadata.filter { (_, meta) ->
-                        meta.third < cutoff
-                    }.keys
-                    if (expired.isNotEmpty()) {
-                        expired.forEach {
-                            incomingFragments.remove(it)
-                            fragmentMetadata.remove(it)
-                        }
-                        Log.d(TAG, "Cleaned up expired fragments: ${expired.size}")
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Cleanup error: ${e.message}")
-                }
+                delay(CLEANUP_INTERVAL)
+                cleanupOldFragments()
             }
         }
+    }
+    
+    /**
+     * Clear all fragments
+     */
+    fun clearAllFragments() {
+        incomingFragments.clear()
+        fragmentMetadata.clear()
+    }
+    
+    /**
+     * Shutdown the manager
+     */
+    fun shutdown() {
+        managerScope.cancel()
+        clearAllFragments()
     }
 }
 
 /**
- * Backwards compatibility alias so existing references to FragmentManager
- * still compile until all call sites are migrated.
+ * Delegate interface for fragment manager callbacks
  */
-typealias FragmentManager = FragmentManager
+interface FragmentManagerDelegate {
+    fun onPacketReassembled(packet: DogechatPacket)
+}

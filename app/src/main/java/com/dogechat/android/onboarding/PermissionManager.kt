@@ -10,7 +10,7 @@ import androidx.core.content.ContextCompat
 
 /**
  * Centralized permission management for dogechat app
- * Handles all Bluetooth, network, and notification permissions required for the app to function
+ * Handles all Bluetooth and notification permissions required for the app to function
  */
 class PermissionManager(private val context: Context) {
 
@@ -66,20 +66,6 @@ class PermissionManager(private val context: Context) {
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION
         ))
-
-        // Network permissions (required for SPV, Tor, and mesh features)
-        permissions.addAll(listOf(
-            Manifest.permission.INTERNET,
-            Manifest.permission.ACCESS_NETWORK_STATE
-        ))
-
-        // Storage permissions (needed for wallet files on Android 9 and lower)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            permissions.addAll(listOf(
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ))
-        }
 
         // Notification permission intentionally excluded to keep it optional
 
@@ -190,38 +176,6 @@ class PermissionManager(private val context: Context) {
             )
         )
 
-        // Network/Internet category
-        val networkPermissions = listOf(
-            Manifest.permission.INTERNET,
-            Manifest.permission.ACCESS_NETWORK_STATE
-        )
-        categories.add(
-            PermissionCategory(
-                type = PermissionType.NETWORK,
-                description = "Required to connect to the Dogecoin blockchain, Tor, and geohash chat channels.",
-                permissions = networkPermissions,
-                isGranted = networkPermissions.all { isPermissionGranted(it) },
-                systemDescription = "Allow dogechat to access the internet for decentralized features"
-            )
-        )
-
-        // Storage (legacy) category
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            val storagePermissions = listOf(
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            )
-            categories.add(
-                PermissionCategory(
-                    type = PermissionType.STORAGE,
-                    description = "Required to store wallet and chat data on external storage (Android 9 and below).",
-                    permissions = storagePermissions,
-                    isGranted = storagePermissions.all { isPermissionGranted(it) },
-                    systemDescription = "Allow dogechat to save encrypted files"
-                )
-            )
-        }
-
         // Notifications category (if applicable)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             categories.add(
@@ -303,8 +257,6 @@ data class PermissionCategory(
 enum class PermissionType(val nameValue: String) {
     NEARBY_DEVICES("Nearby Devices"),
     PRECISE_LOCATION("Precise Location"),
-    NETWORK("Internet & Network"),
-    STORAGE("Storage"),
     NOTIFICATIONS("Notifications"),
     BATTERY_OPTIMIZATION("Battery Optimization"),
     OTHER("Other")
