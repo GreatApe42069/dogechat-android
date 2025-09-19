@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import com.bitchat.android.geohash.ChannelID
+import com.dogechat.android.geohash.ChannelID
 import kotlinx.coroutines.launch
 import com.dogechat.android.geohash.GeohashChannel
 import com.dogechat.android.geohash.GeohashChannelLevel
@@ -108,6 +108,7 @@ fun LocationChannelsSheet(
     val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
     val standardYellow = if (isDark) Color(0xFFFFFF00) else Color(0xFF248A3D) // standard Yellow
     val standardBlue = Color(0xFF007AFF) // iOS blue
+    val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D) // iOS green
     
     if (isPresented) {
         ModalBottomSheet(

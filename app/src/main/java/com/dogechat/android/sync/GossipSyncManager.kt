@@ -142,6 +142,7 @@ class GossipSyncManager(
         delegate?.sendPacketToPeer(peerID, signed)
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     fun handleRequestSync(fromPeerID: String, request: RequestSyncPacket) {
         // Decode GCS into sorted set for membership checks
         val sorted = GCSFilter.decodeToSortedSet(request.p, request.m, request.data)
