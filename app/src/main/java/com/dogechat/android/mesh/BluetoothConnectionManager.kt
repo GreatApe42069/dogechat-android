@@ -3,7 +3,6 @@ package com.dogechat.android.mesh
 import android.bluetooth.*
 import android.content.Context
 import android.util.Log
-import androidx.fragment.app.FragmentManager
 import com.dogechat.android.model.RoutedPacket
 import com.dogechat.android.protocol.DogechatPacket
 import kotlinx.coroutines.*
@@ -15,42 +14,37 @@ import kotlinx.coroutines.flow.collect
  * Coordinates smaller, focused components for better maintainability
  */
 class BluetoothConnectionManager(
-    private val context: Context,
+    private val context: Context, 
     private val myPeerID: String,
-    private val fragmentManager: FragmentManager? = null   // CHANGED
+    private val fragmentManager: FragmentManager? = null
 ) : PowerManagerDelegate {
-
+    
     companion object {
         private const val TAG = "BluetoothConnectionManager"
     }
-
+    
     // Core Bluetooth components
-    private val bluetoothManager: BluetoothManager =
+    private val bluetoothManager: BluetoothManager = 
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
-
+    
     // Power management
     private val powerManager = PowerManager(context)
-
+    
     // Coroutines
     private val connectionScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
+    
     // Component managers
     private val permissionManager = BluetoothPermissionManager(context)
     private val connectionTracker = BluetoothConnectionTracker(connectionScope, powerManager)
     private val packetBroadcaster = BluetoothPacketBroadcaster(connectionScope, connectionTracker, fragmentManager)
-
+    
     // Delegate for component managers to call back to main manager
     private val componentDelegate = object : BluetoothConnectionManagerDelegate {
         override fun onPacketReceived(packet: DogechatPacket, peerID: String, device: BluetoothDevice?) {
             Log.d(TAG, "onPacketReceived: Packet received from ${device?.address} ($peerID)")
             device?.let { bluetoothDevice ->
-                // If connection does not have a peerID yet, assume the first packet's peerID
-                if (!connectionTracker.addressPeerMap.containsKey(bluetoothDevice.address)) {
-                    Log.d(TAG, "First packet from ${bluetoothDevice.address}, assuming peerID: $peerID")
-                    connectionTracker.addressPeerMap[bluetoothDevice.address] = peerID
-                }
-                // Update RSSI if we have a reading
+                // Get current RSSI for this device and update if available
                 val currentRSSI = connectionTracker.getBestRSSI(bluetoothDevice.address)
                 if (currentRSSI != null) {
                     delegate?.onRSSIUpdated(bluetoothDevice.address, currentRSSI)
@@ -61,7 +55,7 @@ class BluetoothConnectionManager(
 
             delegate?.onPacketReceived(packet, peerID, device)
         }
-
+        
         override fun onDeviceConnected(device: BluetoothDevice) {
             delegate?.onDeviceConnected(device)
         }
@@ -69,28 +63,28 @@ class BluetoothConnectionManager(
         override fun onDeviceDisconnected(device: BluetoothDevice) {
             delegate?.onDeviceDisconnected(device)
         }
-
+        
         override fun onRSSIUpdated(deviceAddress: String, rssi: Int) {
             delegate?.onRSSIUpdated(deviceAddress, rssi)
         }
     }
-
+    
     private val serverManager = BluetoothGattServerManager(
         context, connectionScope, connectionTracker, permissionManager, powerManager, componentDelegate
     )
     private val clientManager = BluetoothGattClientManager(
         context, connectionScope, connectionTracker, permissionManager, powerManager, componentDelegate
     )
-
+    
     // Service state
     private var isActive = false
-
+    
     // Delegate for callbacks
     var delegate: BluetoothConnectionManagerDelegate? = null
-
+    
     // Public property for address-peer mapping
     val addressPeerMap get() = connectionTracker.addressPeerMap
-
+    
     init {
         powerManager.delegate = this
         // Observe debug settings to enforce role state while active
@@ -114,7 +108,7 @@ class BluetoothConnectionManager(
                 dbg.maxConnectionsOverall.collect {
                     if (!isActive) return@collect
                     connectionTracker.enforceConnectionLimits()
-                    // Best-effort server limit enforcement
+                    // Also enforce server side best-effort
                     serverManager.enforceServerLimit(dbg.maxServerConnections.value)
                 }
             }
@@ -130,53 +124,48 @@ class BluetoothConnectionManager(
                     serverManager.enforceServerLimit(dbg.maxServerConnections.value)
                 }
             }
-        } catch (_: Exception) {
-        }
+        } catch (_: Exception) { }
     }
-
+    
     /**
      * Start all Bluetooth services with power optimization
      */
     fun startServices(): Boolean {
         Log.i(TAG, "Starting power-optimized Bluetooth services...")
-
+        
         if (!permissionManager.hasBluetoothPermissions()) {
             Log.e(TAG, "Missing Bluetooth permissions")
             return false
         }
-
+        
         if (bluetoothAdapter?.isEnabled != true) {
             Log.e(TAG, "Bluetooth is not enabled")
             return false
         }
-
-        return try {
+        
+        try {
             isActive = true
 
-            // Optionally set adapter name to peerID (requires BLUETOOTH_CONNECT on Android 12+)
-            // try {
-            //     if (bluetoothAdapter?.name != myPeerID) {
-            //         bluetoothAdapter?.name = myPeerID
-            //         Log.d(TAG, "Set Bluetooth adapter name to peerID: $myPeerID for iOS compatibility.")
-            //     }
-            // } catch (se: SecurityException) {
-            //     Log.e(TAG, "Missing BLUETOOTH_CONNECT permission to set adapter name.", se)
-            // }
+        // set the adapter's name to our 8-character peerID for iOS privacy, TODO: Make this configurable
+        // try {
+        //     if (bluetoothAdapter?.name != myPeerID) {
+        //         bluetoothAdapter?.name = myPeerID
+        //         Log.d(TAG, "Set Bluetooth adapter name to peerID: $myPeerID for iOS compatibility.")
+        //     }
+        // } catch (se: SecurityException) {
+        //     Log.e(TAG, "Missing BLUETOOTH_CONNECT permission to set adapter name.", se)
+        // }
 
             // Start all component managers
             connectionScope.launch {
                 // Start connection tracker first
                 connectionTracker.start()
-
+                
                 // Start power manager
                 powerManager.start()
-
+                
                 // Start server/client based on debug settings
-                val dbg = try {
-                    com.dogechat.android.ui.debug.DebugSettingsManager.getInstance()
-                } catch (_: Exception) {
-                    null
-                }
+                val dbg = try { com.dogechat.android.ui.debug.DebugSettingsManager.getInstance() } catch (_: Exception) { null }
                 val startServer = dbg?.gattServerEnabled?.value != false
                 val startClient = dbg?.gattClientEnabled?.value != false
 
@@ -199,42 +188,45 @@ class BluetoothConnectionManager(
                 } else {
                     Log.i(TAG, "GATT Client disabled by debug settings; not starting")
                 }
+                
+                Log.i(TAG, "Bluetooth services started successfully")
             }
-
-            true
+            
+            return true
+            
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start Bluetooth services: ${e.message}")
             isActive = false
-            false
+            return false
         }
     }
-
+    
     /**
      * Stop all Bluetooth services with proper cleanup
      */
     fun stopServices() {
         Log.i(TAG, "Stopping power-optimized Bluetooth services")
-
+        
         isActive = false
-
+        
         connectionScope.launch {
             // Stop component managers
             clientManager.stop()
             serverManager.stop()
-
+            
             // Stop power manager
             powerManager.stop()
-
+            
             // Stop connection tracker
             connectionTracker.stop()
-
+            
             // Cancel the coroutine scope
             connectionScope.cancel()
-
+            
             Log.i(TAG, "All Bluetooth services stopped")
         }
     }
-
+    
     /**
      * Set app background state for power optimization
      */
@@ -248,7 +240,7 @@ class BluetoothConnectionManager(
      */
     fun broadcastPacket(routed: RoutedPacket) {
         if (!isActive) return
-
+        
         packetBroadcaster.broadcastPacket(
             routed,
             serverManager.getGattServer(),
@@ -268,28 +260,16 @@ class BluetoothConnectionManager(
             serverManager.getCharacteristic()
         )
     }
+    
 
     // Expose role controls for debug UI
-    fun startServer() {
-        connectionScope.launch { serverManager.start() }
-    }
-
-    fun stopServer() {
-        connectionScope.launch { serverManager.stop() }
-    }
-
-    fun startClient() {
-        connectionScope.launch { clientManager.start() }
-    }
-
-    fun stopClient() {
-        connectionScope.launch { clientManager.stop() }
-    }
+    fun startServer() { connectionScope.launch { serverManager.start() } }
+    fun stopServer() { connectionScope.launch { serverManager.stop() } }
+    fun startClient() { connectionScope.launch { clientManager.start() } }
+    fun stopClient() { connectionScope.launch { clientManager.stop() } }
 
     // Inject nickname resolver for broadcaster logs
-    fun setNicknameResolver(resolver: (String) -> String?) {
-        packetBroadcaster.setNicknameResolver(resolver)
-    }
+    fun setNicknameResolver(resolver: (String) -> String?) { packetBroadcaster.setNicknameResolver(resolver) }
 
     // Debug snapshots for connected devices
     fun getConnectedDeviceEntries(): List<Triple<String, Boolean, Int?>> {
@@ -304,27 +284,18 @@ class BluetoothConnectionManager(
     }
 
     // Expose local adapter address for debug UI
-    fun getLocalAdapterAddress(): String? = try {
-        bluetoothAdapter?.address
-    } catch (e: Exception) {
-        null
-    }
+    fun getLocalAdapterAddress(): String? = try { bluetoothAdapter?.address } catch (e: Exception) { null }
 
     fun isClientConnection(address: String): Boolean? {
-        return try {
-            connectionTracker.getConnectedDevices()[address]?.isClient
-        } catch (e: Exception) {
-            null
-        }
+        return try { connectionTracker.getConnectedDevices()[address]?.isClient } catch (e: Exception) { null }
     }
 
     /**
      * Public: connect/disconnect helpers for debug UI
      */
     fun connectToAddress(address: String): Boolean = clientManager.connectToAddress(address)
-    fun disconnectAddress(address: String) {
-        connectionTracker.disconnectDevice(address)
-    }
+    fun disconnectAddress(address: String) { connectionTracker.disconnectDevice(address) }
+
 
     // Optionally disconnect all connections (server and client)
     fun disconnectAll() {
@@ -341,11 +312,12 @@ class BluetoothConnectionManager(
         }
     }
 
+
     /**
      * Get connected device count
      */
     fun getConnectedDeviceCount(): Int = connectionTracker.getConnectedDeviceCount()
-
+    
     /**
      * Get debug information including power management
      */
@@ -363,37 +335,29 @@ class BluetoothConnectionManager(
             appendLine(connectionTracker.getDebugInfo())
         }
     }
-
+    
     // MARK: - PowerManagerDelegate Implementation
-
+    
     override fun onPowerModeChanged(newMode: PowerManager.PowerMode) {
         Log.i(TAG, "Power mode changed to: $newMode")
-
+        
         connectionScope.launch {
             // Avoid rapid scan restarts by checking if we need to change scan behavior
             val wasUsingDutyCycle = powerManager.shouldUseDutyCycle()
-
+            
             // Update advertising with new power settings if server enabled
-            val serverEnabled = try {
-                com.dogechat.android.ui.debug.DebugSettingsManager.getInstance().gattServerEnabled.value
-            } catch (_: Exception) {
-                true
-            }
+            val serverEnabled = try { com.dogechat.android.ui.debug.DebugSettingsManager.getInstance().gattServerEnabled.value } catch (_: Exception) { true }
             if (serverEnabled) {
                 serverManager.restartAdvertising()
             } else {
                 serverManager.stop()
             }
-
+            
             // Only restart scanning if the duty cycle behavior changed
             val nowUsingDutyCycle = powerManager.shouldUseDutyCycle()
             if (wasUsingDutyCycle != nowUsingDutyCycle) {
-                Log.d(TAG, "Duty cycle behavior changed ($wasUsingDutyCycle -> $nowUsingDutyCycle), restarting scan")
-                val clientEnabled = try {
-                    com.dogechat.android.ui.debug.DebugSettingsManager.getInstance().gattClientEnabled.value
-                } catch (_: Exception) {
-                    true
-                }
+                Log.d(TAG, "Duty cycle behavior changed (${wasUsingDutyCycle} -> ${nowUsingDutyCycle}), restarting scan")
+                val clientEnabled = try { com.dogechat.android.ui.debug.DebugSettingsManager.getInstance().gattClientEnabled.value } catch (_: Exception) { true }
                 if (clientEnabled) {
                     clientManager.restartScanning()
                 } else {
@@ -402,22 +366,21 @@ class BluetoothConnectionManager(
             } else {
                 Log.d(TAG, "Duty cycle behavior unchanged, keeping existing scan state")
             }
-
+            
             // Enforce connection limits
             connectionTracker.enforceConnectionLimits()
             // Best-effort server cap
             try {
                 val maxServer = com.dogechat.android.ui.debug.DebugSettingsManager.getInstance().maxServerConnections.value
                 serverManager.enforceServerLimit(maxServer)
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) { }
         }
     }
-
+    
     override fun onScanStateChanged(shouldScan: Boolean) {
         clientManager.onScanStateChanged(shouldScan)
     }
-
+    
     // MARK: - Private Implementation - All moved to component managers
 }
 

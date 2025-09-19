@@ -1,19 +1,19 @@
 [versions]
-# Android and Kotlin
+# Android / Kotlin toolchains
 agp = "8.10.1"
 kotlin = "2.0.0"
 compileSdk = "35"
 minSdk = "26"
 targetSdk = "34"
 
-# AndroidX Core / Lifecycle / Navigation
+# AndroidX Core / Lifecycle / Activity / AppCompat / Navigation
 core-ktx = "1.16.0"
 lifecycle-runtime = "2.9.1"
 activity-compose = "1.10.1"
 appcompat = "1.7.1"
 navigation-compose = "2.9.1"
 
-# Compose (BOM controls sub‑artifacts)
+# Compose (BOM controls versions of sub‑artifacts)
 compose-bom = "2025.06.01"
 
 # Accompanist
@@ -39,16 +39,16 @@ okhttp = "4.12.0"
 tor-android-binary = "0.4.4.6"
 arti-mobile-ex = "1.2.3"
 protobuf-javalite = "3.18.0"
-lz4 = "1.8.0"
+lz4 = "1.8.0"                # Using org.lz4:lz4-java (WORKING coordinate)
 zxing = "3.5.1"
 
 # Google Play Services
-gms-location = "21.2.0"
+gms-location = "21.3.0"      # Was 21.2.0 in last working set; keep or downgrade as needed
 
 # Logging
 slf4j-api = "2.0.7"
 
-# Material / UI
+# UI / Material / Layout
 material = "1.12.0"
 constraintlayout = "2.2.0"
 
@@ -58,11 +58,12 @@ androidx-test-ext = "1.2.1"
 espresso = "3.6.1"
 mockito-kotlin = "4.1.0"
 mockito-inline = "4.1.0"
-roboelectric = "4.15"
+roboelectric = "4.15"        # Keep alias name you already used
+robolectric = "4.15"         # Added correct spelling alias (optional future use)
 kotlinx-coroutines-test = "1.10.2"
 
 [libraries]
-# AndroidX Core / Lifecycle
+# Core / Lifecycle
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle-runtime" }
 androidx-lifecycle-livedata-ktx = { module = "androidx.lifecycle:lifecycle-livedata-ktx", version.ref = "lifecycle-runtime" }
@@ -73,7 +74,7 @@ androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-ru
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 
-# Compose (via BOM)
+# Compose (BOM + modules without explicit versions)
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }
 androidx-compose-foundation = { module = "androidx.compose.foundation:foundation" }
@@ -110,7 +111,7 @@ okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 tor-android-binary = { module = "org.torproject:tor-android-binary", version.ref = "tor-android-binary" }
 arti-mobile-ex = { module = "info.guardianproject:arti-mobile-ex", version.ref = "arti-mobile-ex" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf-javalite" }
-lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
+lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }     # Working coordinate
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 # Google Play Services
@@ -124,7 +125,7 @@ slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j-api" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
 
-# Testing
+# Testing libs
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-test-ext" }
 androidx-test-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
@@ -132,15 +133,16 @@ androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4
 androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockito-kotlin" }
 mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito-inline" }
-roboelectric = { module = "org.robolectric:robolectric", version.ref = "roboelectric" }
+roboelectric = { module = "org.robolectric:robolectric", version.ref = "roboelectric" }   # Existing alias
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }     # Correct spelling alias
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-android-library = { id = "com.android.library", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
-kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+android-library     = { id = "com.android.library", version.ref = "agp" }
+kotlin-android      = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-parcelize    = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
+kotlin-compose      = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
 [bundles]
 compose = [
@@ -171,7 +173,8 @@ testing = [
   "androidx-test-espresso-core",
   "mockito-kotlin",
   "mockito-inline",
-  "roboelectric"
+  "roboelectric",
+  "kotlinx-coroutines-test"
 ]
 
 compose-testing = [
