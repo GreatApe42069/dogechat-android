@@ -1,6 +1,6 @@
 [versions]
 # Android / Kotlin toolchains
-agp = "8.3.2"
+agp = "8.6.1"
 kotlin = "2.0.0"
 compileSdk = "35"
 minSdk = "26"
@@ -111,7 +111,7 @@ okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 tor-android-binary = { module = "org.torproject:tor-android-binary", version.ref = "tor-android-binary" }
 arti-mobile-ex = { module = "info.guardianproject:arti-mobile-ex", version.ref = "arti-mobile-ex" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf-javalite" }
-lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }     # Working coordinate
+lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 # Google Play Services
@@ -133,8 +133,8 @@ androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4
 androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockito-kotlin" }
 mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito-inline" }
-roboelectric = { module = "org.robolectric:robolectric", version.ref = "roboelectric" }   # Existing alias
-robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }     # Correct spelling alias
+roboelectric = { module = "org.robolectric:robolectric", version.ref = "roboelectric" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
 
 [plugins]
