@@ -1,6 +1,6 @@
 [versions]
 # Android / Kotlin toolchains
-agp = "8.10.1"
+agp = "7.4.2"
 kotlin = "2.0.0"
 compileSdk = "35"
 minSdk = "26"
