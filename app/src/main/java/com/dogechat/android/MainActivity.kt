@@ -44,6 +44,14 @@ import com.dogechat.android.nostr.PoWPreferenceManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// ADDED for system bars + location lock
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.dogechat.android.geohash.LocationChannelManager
+
 class MainActivity : ComponentActivity() {
     
     private lateinit var permissionManager: PermissionManager
@@ -67,8 +75,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Enable edge-to-edge display for modern Android look
+        // ADDED: remove gray flash and set edge-to-edge with brand system bars
+        window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
         enableEdgeToEdge()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Bright yellow status bar with dark icons
+        @Suppress("DEPRECATION")
+        run {
+            window.statusBarColor = 0xFFFFFF00.toInt()
+        }
+        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
+        // Transparent nav bar; disable contrast so no scrims
+        @Suppress("DEPRECATION")
+        run {
+            window.navigationBarColor = Color.TRANSPARENT
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
 
         // Initialize permission management
         permissionManager = PermissionManager(this)
@@ -361,6 +385,19 @@ class MainActivity : ComponentActivity() {
         checkLocationAndProceed()
     }
 
+    // ADDED: force-lock location channels immediately (mirror bitchat behavior)
+    private fun lockLocationNow() {
+        runCatching {
+            val mgr = LocationChannelManager.getInstance(this)
+            mgr.enableLocationServices()
+            mgr.setTeleported(false)
+            mgr.refreshChannels()
+            mgr.beginLiveRefresh()
+        }.onFailure {
+            Log.w("MainActivity", "lockLocationNow error: ${it.message}")
+        }
+    }
+
     /**
      * Check Location services status and proceed with onboarding flow
      */
@@ -381,6 +418,8 @@ class MainActivity : ComponentActivity() {
         
         when (mainViewModel.locationStatus.value) {
             LocationStatus.ENABLED -> {
+                // ADDED: lock location immediately
+                lockLocationNow()
                 // Location services enabled, check battery optimization next
                 checkBatteryOptimizationAndProceed()
             }
@@ -406,6 +445,8 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "Location services enabled by user")
         mainViewModel.updateLocationLoading(false)
         mainViewModel.updateLocationStatus(LocationStatus.ENABLED)
+        // ADDED: lock immediately
+        lockLocationNow()
         checkBatteryOptimizationAndProceed()
     }
 
@@ -605,6 +646,11 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
+                // ADDED: if location is already enabled, lock now (no restart required)
+                if (locationStatusManager.checkLocationStatus() == LocationStatus.ENABLED) {
+                    lockLocationNow()
+                }
+
                 // Set up mesh service delegate and start services
                 meshService.delegate = chatViewModel
                 meshService.startServices()
@@ -658,6 +704,9 @@ class MainActivity : ComponentActivity() {
                 mainViewModel.updateLocationStatus(currentLocationStatus)
                 mainViewModel.updateOnboardingState(OnboardingState.LOCATION_CHECK)
                 mainViewModel.updateLocationLoading(false)
+            } else {
+                // ADDED: ensure lock remains active when returning
+                lockLocationNow()
             }
         }
     }

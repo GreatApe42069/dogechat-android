@@ -13,7 +13,6 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 
 /**
@@ -43,9 +42,9 @@ private val LightColorScheme = lightColorScheme(
     secondary = ThemeColors.DarkGold,
     onSecondary = Color.Black,
     background = ThemeColors.BackgroundLight, // 0xFFEBCA66
-    onBackground = Color(0xFF000000),         // dark text for readability
-    surface = ThemeColors.SurfaceLight,       // slightly darker gold
-    onSurface = Color(0xFF000000),            // dark text on surfaces
+    onBackground = Color(0xFF000000),
+    surface = ThemeColors.SurfaceLight,
+    onSurface = Color(0xFF000000),
     error = ThemeColors.ErrorRed,
     onError = Color.White
 )
@@ -55,7 +54,6 @@ fun DogechatTheme(
     darkTheme: Boolean? = null,
     content: @Composable () -> Unit
 ) {
-    // App-level override from ThemePreferenceManager
     val themePref by ThemePreferenceManager.themeFlow.collectAsState(initial = ThemePreference.System)
     val shouldUseDark = when (darkTheme) {
         true -> true
@@ -69,29 +67,22 @@ fun DogechatTheme(
 
     val colorScheme = if (shouldUseDark) DarkColorScheme else LightColorScheme
 
-    // Adjust system UI chrome based on theme
+    // Adjust status bar icon appearance (light/dark icons). Colors are set in MainActivity.
     val view = LocalView.current
     SideEffect {
         (view.context as? Activity)?.window?.let { window ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Use dark status bar icons when in light theme
+                // Dark icons on bright yellow status bar (we always want light status bars)
                 window.insetsController?.setSystemBarsAppearance(
-                    if (!shouldUseDark) WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS else 0,
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
                     WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
                 )
             } else {
                 @Suppress("DEPRECATION")
-                window.decorView.systemUiVisibility = if (!shouldUseDark) {
-                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                } else {
-                    0
-                }
+                window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             }
 
-            // Match nav bar to background for a seamless look
-            window.navigationBarColor = colorScheme.background.toArgb()
-
-            // Disable contrast enforcement for nav bar (prevents forced scrims)
+            // Keep nav bar contrast off to avoid forced scrims when transparent
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 window.isNavigationBarContrastEnforced = false
             }

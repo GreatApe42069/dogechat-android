@@ -67,12 +67,11 @@ private fun LocationDisabledContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Location icon - using LocationOn outlined icon in app's gold color
         Icon(
             imageVector = Icons.Outlined.LocationOn,
             contentDescription = "Location Services",
             modifier = Modifier.size(64.dp),
-            tint = Color(0xFFFFD700) // App's main doge gold color
+            tint = Color(0xFFFFD700)
         )
 
         Text(
@@ -96,7 +95,6 @@ private fun LocationDisabledContent(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Privacy assurance section
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -112,11 +110,11 @@ private fun LocationDisabledContent(
                         text = "Privacy First",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFFFF00) // bright doge yellow
+                            color = Color(0xFFFFFF00)
                         )
                     )
                 }
-                
+
                 Text(
                     text = "Đogechat does NOT track your location.\n\nLocation services are required for Bluetooth scanning and for the Geohash chat feature.",
                     style = MaterialTheme.typography.bodySmall.copy(
@@ -131,12 +129,12 @@ private fun LocationDisabledContent(
                     text = "Đogechat needs Much location services for:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFFFFFF00) // bright doge yellow
+                        color = Color(0xFFFFFF00)
                     ),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
-                
+
                 Text(
                     text = "• Bluetooth device Such Scanning\n" +
                             "• Điscovering nearby Shibes on the mesh network\n" +
@@ -155,13 +153,16 @@ private fun LocationDisabledContent(
         } else {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding() // Ensure buttons aren’t hidden by bottom bar
             ) {
                 Button(
                     onClick = onEnableLocation,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFD700) // App's main doge gold  color
+                        containerColor = Color(0xFFFFD700)
                     )
                 ) {
                     Text(
@@ -199,7 +200,6 @@ private fun LocationNotAvailableContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Error icon
         Icon(
             imageVector = Icons.Filled.ErrorOutline,
             contentDescription = "Error",
@@ -269,7 +269,6 @@ private fun LocationCheckingContent(
 
 @Composable
 private fun LocationLoadingIndicator() {
-    // Animated rotation for the loading indicator
     val infiniteTransition = rememberInfiniteTransition(label = "location_loading")
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -289,7 +288,7 @@ private fun LocationLoadingIndicator() {
             modifier = Modifier
                 .fillMaxSize()
                 .rotate(rotationAngle),
-            color = Color(0xFFFFD700), // spinner doge gold
+            color = Color(0xFFFFD700),
             strokeWidth = 3.dp
         )
     }
