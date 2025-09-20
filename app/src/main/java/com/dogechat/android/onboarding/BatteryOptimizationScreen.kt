@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -37,7 +38,7 @@ fun BatteryOptimizationScreen(
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
-    
+
     // Initialize preference manager
     LaunchedEffect(Unit) {
         BatteryOptimizationPreferenceManager.init(context)
@@ -57,13 +58,13 @@ fun BatteryOptimizationScreen(
                     isLoading = isLoading
                 )
             }
-            
+
             BatteryOptimizationStatus.DISABLED -> {
                 BatteryOptimizationCheckingContent(
                     colorScheme = colorScheme
                 )
             }
-            
+
             BatteryOptimizationStatus.NOT_SUPPORTED -> {
                 BatteryOptimizationNotSupportedContent(
                     onRetry = onRetry,
@@ -83,7 +84,8 @@ private fun BatteryOptimizationEnabledContent(
     isLoading: Boolean
 ) {
     val context = LocalContext.current
-    
+    val dogeGold = Color(0xFFFFD700)
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -109,17 +111,17 @@ private fun BatteryOptimizationEnabledContent(
                         fontWeight = FontWeight.Bold,
                         fontSize = 32.sp
                     ),
-                    color = colorScheme.onBackground
+                    color = dogeGold
                 )
 
                 Text(
-                    text = "battery optimization detected",
+                    text = "Such Battery Optimization Đetected",
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     color = colorScheme.onBackground.copy(alpha = 0.7f)
                 )
             }
-            
+
             // Battery optimization info section
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -147,7 +149,7 @@ private fun BatteryOptimizationEnabledContent(
                                 text = "Battery Optimization Enabled",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Medium,
-                                color = colorScheme.onBackground
+                                color = Color (0xFFFFFF00)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -159,7 +161,7 @@ private fun BatteryOptimizationEnabledContent(
                     }
                 }
             }
-            
+
             // Benefits section
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -177,7 +179,7 @@ private fun BatteryOptimizationEnabledContent(
                         Icon(
                             imageVector = Icons.Filled.CheckCircle,
                             contentDescription = "Benefits",
-                            tint = colorScheme.primary,
+                            tint = Color(0xFF00FF00),
                             modifier = Modifier
                                 .padding(top = 2.dp)
                                 .size(20.dp)
@@ -187,7 +189,7 @@ private fun BatteryOptimizationEnabledContent(
                                 text = "Benefits of Disabling",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Medium,
-                                color = colorScheme.onBackground
+                                color = Color(0xFFFFFF00)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -199,8 +201,23 @@ private fun BatteryOptimizationEnabledContent(
                     }
                 }
             }
+
+            // Fill bottom space with a Doge Gold battery icon
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(69.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.BatteryFull,
+                    contentDescription = "Doge Battery",
+                    tint = dogeGold,
+                    modifier = Modifier.size(110.dp)
+                )
+            }
         }
-        
+
         // Fixed buttons at the bottom
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -230,7 +247,7 @@ private fun BatteryOptimizationEnabledContent(
                     )
                 )
             }
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -247,7 +264,7 @@ private fun BatteryOptimizationEnabledContent(
                         )
                     )
                 }
-                
+
                 TextButton(
                     onClick = {
                         BatteryOptimizationPreferenceManager.setSkipped(context, true)
@@ -272,6 +289,8 @@ private fun BatteryOptimizationEnabledContent(
 private fun BatteryOptimizationCheckingContent(
     colorScheme: ColorScheme
 ) {
+    val dogeGold = Color(0xFFFFD700)
+
     Column(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -288,7 +307,7 @@ private fun BatteryOptimizationCheckingContent(
                     fontWeight = FontWeight.Bold,
                     fontSize = 32.sp
                 ),
-                color = colorScheme.onBackground
+                color = dogeGold
             )
 
             Text(
@@ -298,7 +317,7 @@ private fun BatteryOptimizationCheckingContent(
                 color = colorScheme.onBackground.copy(alpha = 0.7f)
             )
         }
-        
+
         val infiniteTransition = rememberInfiniteTransition(label = "rotation")
         val rotation by infiniteTransition.animateFloat(
             initialValue = 0f,
@@ -309,16 +328,16 @@ private fun BatteryOptimizationCheckingContent(
             ),
             label = "rotation"
         )
-        
+
         Icon(
-            imageVector = Icons.Filled.BatteryStd,
+            imageVector = Icons.Filled.BatteryFull,
             contentDescription = "Checking Battery Optimization",
             modifier = Modifier
                 .size(64.dp)
                 .rotate(rotation),
-            tint = colorScheme.primary
+            tint = colorScheme.primary // dogeGold in our theme
         )
-        
+
         Text(
             text = "Đogechat can run reliably in the background",
             style = MaterialTheme.typography.bodyMedium.copy(
@@ -335,6 +354,8 @@ private fun BatteryOptimizationNotSupportedContent(
     onRetry: () -> Unit,
     colorScheme: ColorScheme
 ) {
+    val dogeGold = Color(0xFFFFD700)
+
     Column(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -351,7 +372,7 @@ private fun BatteryOptimizationNotSupportedContent(
                     fontWeight = FontWeight.Bold,
                     fontSize = 32.sp
                 ),
-                color = colorScheme.onBackground
+                color = dogeGold
             )
 
             Text(
@@ -361,14 +382,14 @@ private fun BatteryOptimizationNotSupportedContent(
                 color = colorScheme.onBackground.copy(alpha = 0.7f)
             )
         }
-        
+
         Icon(
             imageVector = Icons.Filled.CheckCircle,
             contentDescription = "Battery Optimization Not Supported",
             modifier = Modifier.size(64.dp),
             tint = colorScheme.primary
         )
-        
+
         Text(
             text = "your device doesn't require battery optimization settings. Đogechat will run normally.",
             style = MaterialTheme.typography.bodyMedium.copy(
@@ -377,7 +398,7 @@ private fun BatteryOptimizationNotSupportedContent(
             ),
             textAlign = TextAlign.Center
         )
-        
+
         Button(
             onClick = onRetry,
             modifier = Modifier.fillMaxWidth(),

@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
@@ -24,6 +25,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dogechat.android.nostr.NostrProofOfWork
@@ -48,6 +51,10 @@ fun AboutSheet(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+
+    // Colors requested
+    val dogeGold = Color(0xFFFFD700)
+    val brandAccent = Color(0xFFFFFF00) // bright doge yellow
 
     // Init wallet Tor prefs for wallet section
     LaunchedEffect(Unit) {
@@ -133,7 +140,7 @@ fun AboutSheet(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
                                     ),
-                                    color = MaterialTheme.colorScheme.onBackground
+                                    color = dogeGold // Title color -> dogeGold
                                 )
 
                                 Text(
@@ -148,10 +155,15 @@ fun AboutSheet(
                             }
 
                             Text(
-                                text = "Đecentralized mesh messaging with Much end-to-end encryption",
-                                fontSize = 12.sp,
+                                text = "Đecentralized Mesh messaging • Much end-to-end encryption",
+                                fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -167,7 +179,7 @@ fun AboutSheet(
                             Icon(
                                 imageVector = Icons.Filled.Bluetooth,
                                 contentDescription = "Offline Mesh Chat",
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = Color(0xFF007AFF), // Bluetooth icon color as requested
                                 modifier = Modifier
                                     .padding(top = 2.dp)
                                     .size(20.dp)
@@ -178,7 +190,7 @@ fun AboutSheet(
                                     text = "Offline Mesh Chat",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onBackground
+                                    color = brandAccent
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
@@ -199,7 +211,7 @@ fun AboutSheet(
                             Icon(
                                 imageVector = Icons.Default.Public,
                                 contentDescription = "Online Geohash Channels",
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = standardGreen, // Geohash icon -> standardGreen
                                 modifier = Modifier
                                     .padding(top = 2.dp)
                                     .size(20.dp)
@@ -210,7 +222,7 @@ fun AboutSheet(
                                     text = "Online Geohash Channels",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onBackground
+                                    color = brandAccent
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
@@ -231,7 +243,7 @@ fun AboutSheet(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "End-to-End Encryption",
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = brandAccent, // E2EE icon -> brandAccent
                                 modifier = Modifier
                                     .padding(top = 2.dp)
                                     .size(20.dp)
@@ -242,7 +254,7 @@ fun AboutSheet(
                                     text = "End-to-End Encryption",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onBackground
+                                    color = brandAccent
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
@@ -253,13 +265,46 @@ fun AboutSheet(
                             }
                         }
                     }
+                    // New: Dogecoin Wallet feature card (below encryption)
+                    item(key = "feature_wallet") {
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier
+                                .padding(horizontal = 24.dp)
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AccountBalanceWallet,
+                                contentDescription = "Đogecoin Wallet",
+                                tint = dogeGold, // wallet icon -> dogeGold
+                                modifier = Modifier
+                                    .padding(top = 2.dp)
+                                    .size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = "Đogecoin Wallet",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = brandAccent
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Light doge wallet (spv) with tor support for privacy-preserving node connectivity. Manage addresses and send/receive dogecoin.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
 
                     // Appearance Section
                     item(key = "appearance_section") {
                         Text(
-                            text = "appearance",
+                            text = "Appearance",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            color = brandAccent, // requested section title color
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 24.dp, bottom = 8.dp)
@@ -283,11 +328,11 @@ fun AboutSheet(
                             FilterChip(
                                 selected = themePref.isLight,
                                 onClick = {
-                                    AppLog.action("AboutSheet", "theme", "light")
-                                    com.dogechat.android.ui.theme.ThemePreferenceManager.set(
-                                        context,
-                                        com.dogechat.android.ui.theme.ThemePreference.Light
-                                    )
+                                        AppLog.action("AboutSheet", "theme", "light")
+                                        com.dogechat.android.ui.theme.ThemePreferenceManager.set(
+                                            context,
+                                            com.dogechat.android.ui.theme.ThemePreference.Light
+                                        )
                                 },
                                 label = { Text("light", fontFamily = FontFamily.Monospace) }
                             )
@@ -310,7 +355,7 @@ fun AboutSheet(
                         Text(
                             text = "Such Proof of Work",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            color = brandAccent, // requested section title color
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 24.dp, bottom = 8.dp)
@@ -362,7 +407,7 @@ fun AboutSheet(
                             }
 
                             Text(
-                                text = "Add Much Proof of Work to geohash messages for Such spam deterrence",
+                                text = "Add Much Proof of Work to geohash messages for Such spam Đeterrence",
                                 fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = colorScheme.onSurface.copy(alpha = 0.6f)
@@ -374,11 +419,12 @@ fun AboutSheet(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = "difficulty: $powDifficulty bits (~${NostrProofOfWork.estimateMiningTime(powDifficulty)})",
+                                        text = "Much Đifficulty: $powDifficulty bits (~${NostrProofOfWork.estimateMiningTime(powDifficulty)})",
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,
                                     )
 
+                                    // Slider track/thumb -> dogeGold
                                     Slider(
                                         value = powDifficulty.toFloat(),
                                         onValueChange = {
@@ -388,8 +434,8 @@ fun AboutSheet(
                                         valueRange = 0f..32f,
                                         steps = 33,
                                         colors = SliderDefaults.colors(
-                                            thumbColor = standardGreen,
-                                            activeTrackColor = standardGreen
+                                            thumbColor = dogeGold,
+                                            activeTrackColor = dogeGold
                                         )
                                     )
 
@@ -416,7 +462,7 @@ fun AboutSheet(
                                                     powDifficulty <= 16 -> "medium - good spam protection"
                                                     powDifficulty <= 20 -> "High - Such Strong spam Protection"
                                                     powDifficulty <= 24 -> "Very High - may cause delays"
-                                                    else -> "Đegenerate - significant computation required"
+                                                    else -> "Such Đegenerate - significant computation required"
                                                 },
                                                 fontSize = 10.sp,
                                                 fontFamily = FontFamily.Monospace,
@@ -432,9 +478,9 @@ fun AboutSheet(
                     // Network (Tor) section
                     item(key = "network_section") {
                         Text(
-                            text = "network",
+                            text = "Network",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            color = brandAccent, // requested section title color
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 24.dp, bottom = 8.dp)
@@ -519,9 +565,9 @@ fun AboutSheet(
                     // Wallet (SPV) section
                     item(key = "wallet_spv_section") {
                         Text(
-                            text = "wallet (spv)",
+                            text = "Đoge Wallet (spv)",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            color = brandAccent, // requested section title color
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 24.dp, bottom = 8.dp)
@@ -607,9 +653,9 @@ fun AboutSheet(
                     item(key = "wallet_tor_section") {
                         val app = context.applicationContext as Application
                         Text(
-                            text = "wallet tor (spv only)",
+                            text = "Wallet tor (spv only)",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            color = brandAccent, // requested section title color
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 16.dp, bottom = 8.dp)
@@ -763,7 +809,7 @@ fun AboutSheet(
                                 TextButton(
                                     onClick = onShowDebug,
                                     colors = ButtonDefaults.textButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        contentColor = Color(0xFF8D6E63)
                                     )
                                 ) {
                                     Text(
@@ -775,9 +821,14 @@ fun AboutSheet(
                             }
                             Text(
                                 text = "Very Open Source • Such Privacy First • Much Đecentralized",
-                                fontSize = 11.sp,
+                                fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                color = dogeGold,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -795,14 +846,14 @@ fun AboutSheet(
                 ) {
                     TextButton(
                         onClick = onDismiss,
+                        colors = ButtonDefaults.textButtonColors(contentColor = dogeGold), // Close button color -> dogeGold
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .padding(horizontal = 16.dp)
                     ) {
                         Text(
                             text = "Close",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                         )
                     }
                 }

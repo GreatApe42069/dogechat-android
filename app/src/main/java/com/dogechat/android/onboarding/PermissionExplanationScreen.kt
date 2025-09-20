@@ -2,34 +2,22 @@ package com.dogechat.android.onboarding
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Power
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Permission explanation screen shown before requesting permissions.
- * Dogechat variant:
- * - Keeps upstream structure
- * - Adds "Internet & Network" explanatory card
- * - Branding / tone adjusted (Đogechat)
+ * Permission explanation screen shown before requesting permissions
+ * Explains why Đogechat needs each permission and reassures users about privacy
  */
 @Composable
 fun PermissionExplanationScreen(
@@ -40,111 +28,111 @@ fun PermissionExplanationScreen(
     val colorScheme = MaterialTheme.colorScheme
     val scrollState = rememberScrollState()
 
-    Box(modifier = modifier) {
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Scrollable content
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 88.dp) // leave space for bottom fixed button
+                .padding(bottom = 88.dp) // Leave space for the fixed button
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
-
             // Header
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.Bottom,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Đogechat",
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 32.sp
-                        ),
-                        color = colorScheme.onBackground
-                    )
-                }
+                Text(
+                    text = "Welcome to Đogechat",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary
+                    ),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "Đecentralized mesh messaging over Bluetooth",
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = colorScheme.onBackground.copy(alpha = 0.7f)
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        color = colorScheme.onSurface.copy(alpha = 0.7f)
+                    ),
+                    textAlign = TextAlign.Center
                 )
             }
 
-            // Privacy + reassurance surface
-            Surface(
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Privacy assurance section
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                shape = RoundedCornerShape(12.dp)
+                colors = CardDefaults.cardColors(
+                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Security,
-                            contentDescription = "Privacy Protected",
-                            tint = colorScheme.primary,
-                            modifier = Modifier
-                                .padding(top = 2.dp)
-                                .size(20.dp)
+                        Text(
+                            text = "🔒",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Column {
-                            Text(
-                                text = "Your Privacy Much is Protected",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = colorScheme.onBackground
+                        Text(
+                            text = "Your Privacy is Protected",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFFF00)
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = buildString {
-                                    appendLine("• Đogechat doesn't track you or collect personal data")
-                                    appendLine("• Bluetooth mesh chats are fully offline")
-                                    appendLine("• Geohash chats use the internet (coarse location only)")
-                                    append("• Messages stay only on your device & peers")
-                                },
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    color = colorScheme.onSurface.copy(alpha = 0.8f)
-                                )
-                            )
-                        }
+                        )
                     }
+
+                    Text(
+                        text = "• Đogechat doesn't track you or collect any personal data\n" +
+                                "• Bluetooth mesh chats are fully offline and require no internet\n" +
+                                "• Geohash chats use the internet but your location is generalized\n" +
+                                "• Your messages stay locally on your device and peer devices only",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                    )
                 }
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = "To work properly, Đogechat needs these permissions:",
-                style = MaterialTheme.typography.labelLarge,
-                color = colorScheme.onBackground.copy(alpha = 0.7f),
-                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
+                text = "To work properly, Đogechat needs Such permissions:",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFFFD700)
+                )
             )
 
-            // Permission categories (mapped from upstream)
-            permissionCategories.forEach { category ->
-                PermissionCategoryCard(
-                    category = category,
-                    colorScheme = colorScheme
-                )
-            }
+            // Permission categories
+            permissionCategories
+                .forEach { category ->
+                    PermissionCategoryCard(
+                        category = category,
+                        colorScheme = colorScheme
+                    )
+                }
 
-            // Internet & network explanatory card (Dogechat specific)
+            // --- Network/Internet Permission Explanation Section (kept) ---
             Spacer(modifier = Modifier.height(8.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -170,25 +158,22 @@ fun PermissionExplanationScreen(
                             text = "Internet & Network Permissions",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = colorScheme.onSurface
+                                color = Color(0xFFFFFF00)
                             )
                         )
                     }
                     Text(
-                        text = "Đogechat only uses internet/network access for advanced features:",
+                        text = "Đogechat only uses internet/network permissions for advanced features:",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.8f)
                         )
                     )
                     Text(
-                        text = buildString {
-                            appendLine("• Dogecoin wallet (SPV) sync + blockchain access")
-                            appendLine("• Tor enhanced privacy mode")
-                            appendLine("• Geohash channels & optional relay connectivity")
-                            appendLine()
-                            append("Offline Bluetooth mesh chat works with ZERO internet.")
-                        },
+                        text = "• Dogecoin wallet (SPV) sync and blockchain access\n" +
+                                "• Tor Enhanced privacy mode (routes wallet and chat traffic over Tor)\n" +
+                                "• Geohash channels and relays (optional online chat)\n\n" +
+                                "Offline Bluetooth mesh chat does NOT require internet. You can always use Đogechat fully offline unless you want blockchain or Tor features.",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.75f)
@@ -196,11 +181,12 @@ fun PermissionExplanationScreen(
                     )
                 }
             }
+            // --- End Network/Internet Section ---
 
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Fixed bottom action
+        // Fixed button at bottom
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -235,45 +221,55 @@ private fun PermissionCategoryCard(
     category: PermissionCategory,
     colorScheme: ColorScheme
 ) {
-    Row(
-        verticalAlignment = Alignment.Top,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Icon(
-            imageVector = getPermissionIcon(category.type),
-            contentDescription = category.type.nameValue,
-            tint = colorScheme.primary,
-            modifier = Modifier
-                .padding(top = 2.dp)
-                .size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(
-                text = category.type.nameValue,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                color = colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = getPermissionEmoji(category.type),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = getPermissionIconColor(category.type),
+                    modifier = Modifier.size(24.dp)
+                )
+
+                Text(
+                    text = category.type.nameValue,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onSurface
+                    )
+                )
+            }
+
             Text(
                 text = category.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onBackground.copy(alpha = 0.8f)
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    color = colorScheme.onSurface.copy(alpha = 0.8f),
+                    lineHeight = 18.sp
+                )
             )
 
             if (category.type == PermissionType.PRECISE_LOCATION) {
-                Spacer(modifier = Modifier.height(4.dp))
+                // Extra emphasis for location permission
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Warning,
-                        contentDescription = "Warning",
-                        tint = Color(0xFFFF9800),
+                    Text(
+                        text = "⚠️",
+                        style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
@@ -290,12 +286,22 @@ private fun PermissionCategoryCard(
     }
 }
 
-private fun getPermissionIcon(permissionType: PermissionType): ImageVector {
+private fun getPermissionEmoji(permissionType: PermissionType): String {
     return when (permissionType) {
-        PermissionType.NEARBY_DEVICES -> Icons.Filled.Bluetooth
-        PermissionType.PRECISE_LOCATION -> Icons.Filled.LocationOn
-        PermissionType.NOTIFICATIONS -> Icons.Filled.Notifications
-        PermissionType.BATTERY_OPTIMIZATION -> Icons.Filled.Power
-        PermissionType.OTHER -> Icons.Filled.Settings
+        PermissionType.NEARBY_DEVICES -> "📱"
+        PermissionType.PRECISE_LOCATION -> "📍"
+        PermissionType.NOTIFICATIONS -> "🔔"
+        PermissionType.BATTERY_OPTIMIZATION -> "🔋"
+        PermissionType.OTHER -> "🔧"
+    }
+}
+
+private fun getPermissionIconColor(permissionType: PermissionType): Color {
+    return when (permissionType) {
+        PermissionType.NEARBY_DEVICES -> Color(0xFF2196F3) // Blue
+        PermissionType.PRECISE_LOCATION -> Color(0xFFFFD700) // Gold
+        PermissionType.NOTIFICATIONS -> Color(0xFFFFD700) // Gold
+        PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
+        PermissionType.OTHER -> Color(0xFF9C27B0) // Purple
     }
 }

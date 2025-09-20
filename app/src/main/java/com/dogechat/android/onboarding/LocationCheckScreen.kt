@@ -67,12 +67,12 @@ private fun LocationDisabledContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Location icon - using LocationOn outlined icon in app's green color
+        // Location icon - using LocationOn outlined icon in app's gold color
         Icon(
             imageVector = Icons.Outlined.LocationOn,
             contentDescription = "Location Services",
             modifier = Modifier.size(64.dp),
-            tint = Color(0xFF00C851) // App's main green color
+            tint = Color(0xFFFFD700) // App's main doge gold color
         )
 
         Text(
@@ -104,15 +104,15 @@ private fun LocationDisabledContent(
                     Icon(
                         imageVector = Icons.Filled.Security,
                         contentDescription = "Privacy",
-                        tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(20.dp)
+                        tint = Color(0xFFFFD700),
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Privacy First",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurface
+                            color = Color(0xFFFFFF00) // bright doge yellow
                         )
                     )
                 }
@@ -131,7 +131,7 @@ private fun LocationDisabledContent(
                     text = "Đogechat needs Much location services for:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
-                        color = colorScheme.onSurface
+                        color = Color(0xFFFFFF00) // bright doge yellow
                     ),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -161,7 +161,7 @@ private fun LocationDisabledContent(
                     onClick = onEnableLocation,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF00C851) // App's main green color
+                        containerColor = Color(0xFFFFD700) // App's main doge gold  color
                     )
                 ) {
                     Text(
@@ -289,7 +289,7 @@ private fun LocationLoadingIndicator() {
             modifier = Modifier
                 .fillMaxSize()
                 .rotate(rotationAngle),
-            color = Color(0xFF4CAF50), // Location green
+            color = Color(0xFFFFD700), // spinner doge gold
             strokeWidth = 3.dp
         )
     }

@@ -12,45 +12,42 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 
 /**
  * Compose Material3 theme for Dogechat.
- * Uses ThemeColors as single source of truth for color values.
- *
- * Merged with upstream bitchat system UI logic:
- * - Adjusts system bar icon appearance based on dark/light mode
- * - Sets navigation bar color to match background and disables contrast enforcement on Q+
- * - Keeps Dogechat brand color palette (ThemeColors)
+ * Uses ThemeColors as single source of truth for brand colors.
+ * Light mode uses jasmine gold background with dark text for readability.
  */
 
 // Dark theme palette (Dogechat brand)
 private val DarkColorScheme = darkColorScheme(
-    primary = ThemeColors.Gold,
-    onPrimary = androidx.compose.ui.graphics.Color.Black,
+    primary = ThemeColors.dogeGold,
+    onPrimary = Color.Black,
     secondary = ThemeColors.DarkGold,
-    onSecondary = androidx.compose.ui.graphics.Color.Black,
+    onSecondary = Color.Black,
     background = ThemeColors.BackgroundDark,
-    onBackground = ThemeColors.BackgroundLight, // text on dark background -> white
+    onBackground = ThemeColors.BackgroundLight,
     surface = ThemeColors.SurfaceDark,
     onSurface = ThemeColors.BackgroundLight,
     error = ThemeColors.ErrorRed,
-    onError = androidx.compose.ui.graphics.Color.Black
+    onError = Color.Black
 )
 
-// Light theme palette (Dogechat brand)
+// Light theme palette (jasmine gold background + dark text)
 private val LightColorScheme = lightColorScheme(
-    primary = ThemeColors.Gold,
-    onPrimary = androidx.compose.ui.graphics.Color.Black,
+    primary = ThemeColors.dogeGold,
+    onPrimary = Color.Black,
     secondary = ThemeColors.DarkGold,
-    onSecondary = androidx.compose.ui.graphics.Color.Black,
-    background = ThemeColors.BackgroundLight,
-    onBackground = ThemeColors.SurfaceLight, // text on light background -> black
-    surface = ThemeColors.SurfaceLight,
-    onSurface = androidx.compose.ui.graphics.Color.Black,
+    onSecondary = Color.Black,
+    background = ThemeColors.BackgroundLight, // 0xFFEBCA66
+    onBackground = Color(0xFF000000),         // dark text for readability
+    surface = ThemeColors.SurfaceLight,       // slightly darker gold
+    onSurface = Color(0xFF000000),            // dark text on surfaces
     error = ThemeColors.ErrorRed,
-    onError = androidx.compose.ui.graphics.Color.White
+    onError = Color.White
 )
 
 @Composable
@@ -72,12 +69,12 @@ fun DogechatTheme(
 
     val colorScheme = if (shouldUseDark) DarkColorScheme else LightColorScheme
 
-    // Upstream parity: adjust system UI chrome based on theme
+    // Adjust system UI chrome based on theme
     val view = LocalView.current
     SideEffect {
         (view.context as? Activity)?.window?.let { window ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Light status bar icons when in light theme
+                // Use dark status bar icons when in light theme
                 window.insetsController?.setSystemBarsAppearance(
                     if (!shouldUseDark) WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS else 0,
                     WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
