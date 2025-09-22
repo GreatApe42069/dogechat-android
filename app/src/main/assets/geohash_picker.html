@@ -4,32 +4,31 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      :root { --text:#333; --dogeGold:#FFD700; }
-      html, body, #map { height:100%; margin:0; padding:0; background:#ffffff; }
-      .leaflet-container { background:#ffffff; }
+      :root { --dogeGold:#FFD700; --black:#000000; }
+      html, body, #map { height:100%; margin:0; padding:0; background:#000; }
+      .leaflet-container { background:#000; }
 
-      /* Header: title only (clean) */
+      /* Header title (unchanged, black+gold aesthetic) */
       .header-overlay {
         position:fixed; top:10px; left:50%; transform:translateX(-50%);
         display:inline-flex; align-items:center;
         padding:8px 14px; border-radius:10px;
-        background:rgba(0,0,0,0.35);
-        border:1px solid rgba(255,215,0,0.45);
+        background:rgba(0,0,0,0.55);
+        border:1px solid rgba(255,215,0,0.6);
         box-shadow:0 4px 18px rgba(0,0,0,0.25);
-        z-index:9999; pointer-events:none; /* header is display only */
+        z-index:9999; pointer-events:none;
       }
       .title-text {
         color:var(--dogeGold); font-weight:800; letter-spacing:.4px;
         text-shadow:0 0 6px rgba(255,215,0,.8);
         font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif;
       }
-      .dark .header-overlay { background:rgba(0,0,0,.55); border-color:rgba(255,215,0,.6); }
 
       /* Theme toggle icon (top-right) */
       .theme-fab {
         position:fixed; top:10px; right:10px; z-index:10000;
-        background:rgba(255,255,255,0.95);
-        color:#222;
+        background:rgba(0,0,0,0.85);
+        color:var(--dogeGold);
         border:1px solid var(--dogeGold);
         border-radius:10px;
         padding:6px 10px;
@@ -37,59 +36,41 @@
         cursor:pointer;
         box-shadow:0 2px 10px rgba(0,0,0,0.2);
       }
-      .dark .theme-fab {
-        background:rgba(20,20,20,0.9);
-        color:var(--dogeGold);
-        border-color:var(--dogeGold);
-      }
 
-      .leaflet-div-icon { background:transparent; border:none; }
-      .gh-label { background:transparent; border:none; pointer-events:none; filter:none; }
-      .gh-text {
-        color:#444; font-weight:700; font-size:14px; line-height:1;
-        text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 2px #fff;
-        font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
-      }
-      .dark .gh-text { color:var(--dogeGold); text-shadow:0 0 2px #000,0 0 2px #000,0 0 2px #000; }
-      .gh-text-selected { color:var(--dogeGold) !important; }
-
-      .dark html, .dark body, .dark #map { background:#000; }
-      .dark .leaflet-container { background:#000; }
-
-      /* Zoom buttons force to Doge Gold */
+      /* Black + Gold Zoom controls (requested) */
       .leaflet-control-zoom a,
-      .leaflet-control-zoom a:link,
-      .leaflet-control-zoom a:visited,
-      .leaflet-control-zoom a:active,
-      .leaflet-control-zoom a:hover,
       .leaflet-touch .leaflet-bar a,
       .leaflet-bottom .leaflet-control-zoom a,
       [aria-label="Zoom in"], [aria-label="Zoom out"] {
-        background:rgba(255,255,255,.95) !important;
+        background:rgba(0,0,0,.85) !important;
         color:var(--dogeGold) !important;
         border:1px solid var(--dogeGold) !important;
-        box-shadow:0 0 8px rgba(255,215,0,.15) !important;
+        box-shadow:0 0 10px rgba(255,215,0,.25) !important;
         text-shadow:none !important;
         background-image:none !important;
       }
       .leaflet-control-zoom a:hover,
-      [aria-label="Zoom in"]:hover, [aria-label="Zoom out"]:hover { background:rgba(255,215,0,.12) !important; }
-      .leaflet-control-zoom a.leaflet-disabled { color:rgba(255,215,0,.6) !important; opacity:.7 !important; cursor:default !important; }
-      .leaflet-control-zoom { border:1px solid var(--dogeGold) !important; border-radius:8px !important; overflow:hidden; box-shadow:0 0 10px rgba(255,215,0,.2); }
-      .leaflet-control-zoom a:focus { outline:2px solid var(--dogeGold) !important; outline-offset:0; }
-      .leaflet-control-zoom a svg, .leaflet-control-zoom a svg * { fill:var(--dogeGold) !important; stroke:var(--dogeGold) !important; }
-      .dark .leaflet-control-zoom a,
-      .dark .leaflet-touch .leaflet-bar a,
-      .dark .leaflet-bottom .leaflet-control-zoom a,
-      .dark [aria-label="Zoom in"], .dark [aria-label="Zoom out"] {
-        background:rgba(20,20,20,.9) !important; color:var(--dogeGold) !important; border-color:var(--dogeGold) !important;
+      [aria-label="Zoom in"]:hover, [aria-label="Zoom out"]:hover {
+        background:rgba(20,20,20,.95) !important;
       }
-      .dark .leaflet-control-zoom a:hover,
-      .dark [aria-label="Zoom in"]:hover, .dark [aria-label="Zoom out"]:hover { background:rgba(255,215,0,.15) !important; }
-      .dark .leaflet-control-zoom { border-color:var(--dogeGold) !important; box-shadow:0 0 12px rgba(255,215,0,.25); }
-
-      /* Remove Leaflet attribution bar */
+      .leaflet-control-zoom a.leaflet-disabled {
+        color:rgba(255,215,0,.6) !important; opacity:.8 !important; cursor:default !important;
+      }
+      .leaflet-control-zoom {
+        border:1px solid var(--dogeGold) !important; border-radius:8px !important; overflow:hidden; box-shadow:0 0 12px rgba(255,215,0,.25) !important;
+      }
       .leaflet-control-attribution { display:none !important; }
+
+      /* Favorite star overlay */
+      .fav-star { color:var(--dogeGold); text-shadow:0 0 6px rgba(255,215,0,.9); font-size:18px; transform:translate(-50%, -50%); }
+      .leaflet-div-icon { background:transparent; border:none; }
+      .gh-label { background:transparent; border:none; pointer-events:none; filter:none; }
+      .gh-text {
+        color:var(--dogeGold); font-weight:800; font-size:14px; line-height:1;
+        text-shadow:0 0 2px #000,0 0 2px #000,0 0 2px #000;
+        font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      }
+      .gh-text-selected { color:var(--dogeGold) !important; text-decoration: underline; }
 
       /* Doge icon glow */
       .doge-marker-icon { filter:drop-shadow(0 0 4px rgba(255,215,0,.8)) drop-shadow(0 0 12px rgba(255,215,0,.6)); }
@@ -105,30 +86,23 @@
       .doge-beacon::after { animation-delay:1.6s; opacity:.8; }
       @keyframes beaconPulse { 0%{transform:scale(.2);opacity:.9}70%{transform:scale(2.6);opacity:.15}100%{transform:scale(3.2);opacity:0} }
 
-      /* Pulse particles */
+      /* Pulses (capped sizes, adaptive) */
       .doge-pulse {
         width:var(--size,18px); height:var(--size,18px); border-radius:50%;
-        background:radial-gradient(circle, rgba(255,215,0,.9) 0%, rgba(255,215,0,.5) 40%, rgba(255,215,0,.15) 70%, rgba(255,215,0,0) 80%);
-        box-shadow:0 0 8px rgba(255,215,0,.8), 0 0 16px rgba(255,215,0,.5), 0 0 24px rgba(255,215,0,.35);
-        animation:dogePulse 1.8s ease-out infinite; will-change:transform,opacity;
-      }
-      .dark .doge-pulse {
-        background:radial-gradient(circle, rgba(255,215,0,1) 0%, rgba(255,215,0,.65) 40%, rgba(255,215,0,.25) 70%, rgba(255,215,0,0) 82%);
+        background:radial-gradient(circle, rgba(255,215,0,.95) 0%, rgba(255,215,0,.55) 40%, rgba(255,215,0,.18) 70%, rgba(255,215,0,0) 82%);
         box-shadow:0 0 10px rgba(255,215,0,.9), 0 0 22px rgba(255,215,0,.6), 0 0 30px rgba(255,215,0,.4);
+        animation:dogePulse 1.6s ease-out infinite; will-change:transform,opacity;
       }
-      @keyframes dogePulse { 0%{ transform:scale(.6); opacity:.95; } 70%{ transform:scale(1.6); opacity:.2; } 100%{ transform:scale(.9); opacity:0; } }
+      @keyframes dogePulse { 0%{ transform:scale(.6); opacity:.95; } 70%{ transform:scale(1.5); opacity:.2; } 100%{ transform:scale(.9); opacity:0; } }
 
-      /* Live status HUD */
+      /* HUD */
       .hud {
-        position:fixed; top:56px; right:10px; z-index:9999; /* drop it under the theme icon */
-        background:rgba(0,0,0,.5); border:1px solid rgba(255,215,0,.6); color:var(--dogeGold);
+        position:fixed; top:56px; right:10px; z-index:9999;
+        background:rgba(0,0,0,.55); border:1px solid rgba(255,215,0,.6); color:var(--dogeGold);
         padding:6px 10px; border-radius:8px; font:600 12px/1.1 system-ui,Segoe UI,Roboto,Arial;
         text-shadow:0 0 4px rgba(255,215,0,.7);
       }
       .hud .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--dogeGold); box-shadow:0 0 6px rgba(255,215,0,.9); margin-right:6px; }
-
-      /* Favorite star overlay */
-      .fav-star { color:var(--dogeGold); text-shadow:0 0 6px rgba(255,215,0,.9); font-size:18px; transform:translate(-50%,-50%); }
 
       /* Day/Night terminator tint */
       .terminator-path { fill:rgba(255,215,0,.08); stroke:none; }
@@ -137,12 +111,9 @@
   <body>
     <div id="map"></div>
 
-    <!-- Clean centered title -->
     <div class="header-overlay"><div class="title-text">Dogechat Geohash Map</div></div>
-    <!-- Top-right theme icon -->
     <button id="themeToggleFab" class="theme-fab" type="button" aria-label="Toggle theme">🌙</button>
 
-    <!-- HUD -->
     <div id="hud" class="hud"><span class="dot"></span><span id="hudText">0 pts • —</span></div>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -151,7 +122,7 @@
     <script src="https://unpkg.com/leaflet.terminator"></script>
 
     <script>
-      /* -------- Geohash core -------- */
+      // Geohash utils
       (function () {
         const base32 = "0123456789bcdefghjkmnpqrstuvwxyz";
         function bounds(geohash) {
@@ -189,12 +160,50 @@
         window.__geohash = { bounds, encode, adjacent };
       })();
 
-      /* -------- Map init -------- */
-      const map = L.map("map", { zoomControl: true, attributionControl: false, minZoom: 2, maxZoom: 21 }).setView([0,0], 3);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", { maxZoom:21, opacity:1.0 }).addTo(map);
-      const darkTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom:21, opacity:1.0 });
+      // PERFORMANCE / STABILITY TUNING
+      const MAX_CELLS = 1000;           // hard cap for rectangles
+      const LABEL_THRESHOLD = 600;      // heavy label reduction gate
+      const CHUNK_SIZE = 350;           // chunked draw size
+      const MAX_PULSES_IN_VIEW = 100;   // cap pulses to avoid DOM overload
+      const MIN_PULSE_SIZE = 10;        // px
+      const MAX_PULSE_SIZE = 26;        // px
+      const ADAPTIVE_BUCKET_PREC = 5;   // normalization geohash precision
+      const TARGET_BUCKET_RATE_5MIN = 40; // target pulses per bucket/5min before scaling down
+      const REBALANCE_MS = 369000;      // 369s adaptive rebalance cadence
+      const MIN_ZOOM = 4;               // cap max zoom-out to prevent app freeze
 
-      let selectedGeohash = "";
+      const boundsCache = new Map();
+      function getBoundsCached(gh){
+        let b = boundsCache.get(gh);
+        if (!b) { b = window.__geohash.bounds(gh); boundsCache.set(gh, b); if (boundsCache.size>8000) boundsCache.clear(); }
+        return b;
+      }
+
+      // Map (canvas mode) with tighter minZoom so we never go to world-level
+      const map = L.map("map", {
+        zoomControl: true,
+        attributionControl: false,
+        minZoom: MIN_ZOOM,
+        maxZoom: 21,
+        preferCanvas: true
+      });
+
+      // Default center: #d0ge and zoom to MIN_ZOOM initially (safe max-out level)
+      (function defaultCenter(){
+        try {
+          const b = getBoundsCached("d0ge");
+          const c = [(b.sw.lat+b.ne.lat)/2,(b.sw.lng+b.ne.lng)/2];
+          map.setView(c, MIN_ZOOM);
+        } catch (_) {
+          map.setView([0,0], MIN_ZOOM);
+        }
+      })();
+
+      const lightTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", { maxZoom:21, opacity:1.0 });
+      const darkTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom:21, opacity:1.0 });
+      lightTiles.addTo(map);
+
+      let selectedGeohash = "d0ge";
       let pinnedPrecision = null;
 
       const gridLayer = L.layerGroup().addTo(map);
@@ -203,50 +212,71 @@
       const specialMarkerLayer = L.layerGroup().addTo(map);
       const pulseLayer = L.layerGroup().addTo(map);
 
-      /* -------- Heat (always on) -------- */
-      let heatPoints = []; // [lat,lng,intensity,ts]
+      // Heat state (store bucket too for adaptive scaling): [lat,lng,intensity,ts,bucket]
+      let heatPoints = [];
       let heatTTLms = 0, heatPruneTimer = null, lastHeatUpdateTs = 0;
       let heatLayer = L.heatLayer([], {
-        radius: 18, blur: 18, maxZoom: 17, minOpacity: 0.15,
-        gradient: { 0.2:"#fff6bf", 0.4:"#ffe675", 0.6:"#ffd94a", 0.8:"#ffcd1a", 1.0:"#ffd700" }
+        radius: 18, blur: 18, maxZoom: 17, minOpacity: 0.18,
+        gradient: { 0.2:"rgba(255,215,0,.25)", 0.4:"rgba(255,215,0,.45)", 0.6:"rgba(255,215,0,.65)", 0.8:"rgba(255,215,0,.85)", 1.0:"#ffd700" }
       }).addTo(map);
 
-      /* -------- Counts + Favorites -------- */
-      let ghCounts = {}; // { "9q": 27, ... }
+      // Counts + Favorites (favorites mirrored from Android; also persisted locally)
+      let ghCounts = {};
       let favorites = new Set(JSON.parse(localStorage.getItem("doge_favs")||"[]"));
       function saveFavs(){ localStorage.setItem("doge_favs", JSON.stringify([...favorites])); }
       function renderFavorites() {
         favoriteLayer.clearLayers();
         favorites.forEach(gh=>{
           try {
-            const b=window.__geohash.bounds(gh);
+            const b=getBoundsCached(gh);
             const center=[(b.sw.lat+b.ne.lat)/2,(b.sw.lng+b.ne.lng)/2];
             const icon=L.divIcon({className:'', html:'<div class="fav-star">★</div>', iconSize:[18,18], iconAnchor:[9,9]});
-            L.marker(center,{icon,interactive:false}).addTo(favoriteLayer);
+            L.marker(center,{icon,interactive:false, zIndexOffset:800}).addTo(favoriteLayer);
           }catch(_){}
         });
       }
 
-      /* -------- Doge marker + beacon at d0ge (always on) -------- */
+      // Utility: centralize favorite toggling + Android sync
+      function toggleFavorite(gh){
+        try {
+          if (favorites.has(gh)) favorites.delete(gh); else favorites.add(gh);
+          saveFavs();
+          renderFavorites();
+          if (window.Android && typeof window.Android.onFavoriteChanged === 'function') {
+            try { window.Android.onFavoriteChanged(gh, favorites.has(gh)); } catch(_) {}
+          }
+        } catch(_){}
+      }
+
+      // Doge marker + beacon (CLICKABLE to zoom to #d0ge square and stop there)
       const DOGE_HASH = "d0ge";
       const DOGE_ICON_URL = "android-chrome-192x192.png";
       const dogeIcon = L.icon({ iconUrl:DOGE_ICON_URL, iconRetinaUrl:DOGE_ICON_URL, iconSize:[48,48], iconAnchor:[24,44], popupAnchor:[0,-44], className:"doge-marker-icon" });
       let dogeMarker=null, dogeBeacon=null;
+      function zoomToDogeSquare(){
+        try {
+          focusGeohash(DOGE_HASH);
+          setPrecision(4); // zoom to geohash length 4 exactly
+          pinnedPrecision = 4;
+        } catch(_){}
+      }
       function addOrUpdateDogeMarker() {
         try {
-          const b = window.__geohash.bounds(DOGE_HASH);
+          const b = getBoundsCached(DOGE_HASH);
           const center = [(b.sw.lat+b.ne.lat)/2,(b.sw.lng+b.ne.lng)/2];
           if (!dogeMarker) {
-            dogeMarker = L.marker(center, { icon: dogeIcon, interactive:false, zIndexOffset:1000 }).addTo(specialMarkerLayer);
+            dogeMarker = L.marker(center, { icon: dogeIcon, interactive:true, zIndexOffset:1000 }).addTo(specialMarkerLayer);
             const beaconIcon = L.divIcon({ className:"", html:'<div class="doge-beacon"></div>', iconSize:[24,24], iconAnchor:[12,12] });
-            dogeBeacon = L.marker(center, { icon: beaconIcon, interactive:false, zIndexOffset:900 }).addTo(specialMarkerLayer);
+            dogeBeacon = L.marker(center, { icon: beaconIcon, interactive:true, zIndexOffset:900 }).addTo(specialMarkerLayer);
+            dogeMarker.on('click', zoomToDogeSquare);
+            dogeBeacon.on('click', zoomToDogeSquare);
           } else {
             dogeMarker.setLatLng(center); dogeBeacon.setLatLng(center);
           }
         } catch (_) {}
       }
 
-      /* -------- Day/Night terminator -------- */
+      // Day/Night terminator
       let terminator=null;
       function updateTerminator(){
         try{ if (terminator) { map.removeLayer(terminator); } }catch(_){}
@@ -257,7 +287,7 @@
       }
       setInterval(updateTerminator, 60000);
 
-      /* -------- Helpers -------- */
+      // Helpers
       function notifySelection(){ if (window.Android && window.Android.onGeohashChanged && selectedGeohash) window.Android.onGeohashChanged(selectedGeohash); }
       function zoomForPrecision(p){ if (p<=1)return 1; if(p===2)return 2; if(p===3)return 3; if(p===4)return 4; if(p===5)return 5; if(p===6)return 7; if(p===7)return 9; if(p===8)return 11; if(p===9)return 13; if(p===10)return 15; if(p===11)return 17; return 18; }
 
@@ -266,7 +296,7 @@
         let chosen=1, lastAboveMin=1;
         for (let p=1;p<=12;p++){
           const gh = window.__geohash.encode(c.lat,c.lng,p);
-          const b = window.__geohash.bounds(gh);
+          const b = getBoundsCached(gh);
           const pSw = map.latLngToLayerPoint([b.sw.lat,b.sw.lng]);
           const pNe = map.latLngToLayerPoint([b.ne.lat,b.ne.lng]);
           const cellPx = Math.min(Math.abs(pNe.x-pSw.x), Math.abs(pSw.y-pNe.y));
@@ -278,32 +308,35 @@
         return chosen;
       }
 
-      /* Full grid across viewport at precision p */
       function geohashesInView(p) {
         const view = map.getBounds();
         const west = view.getWest(), east = view.getEast(), north = view.getNorth(), south = view.getSouth();
         let start = window.__geohash.encode(north, west, p);
-        for (let i=0;i<200;i++){ const b = window.__geohash.bounds(start); if (b.sw.lng > west) { start = window.__geohash.adjacent(start,'w'); } else break; }
+        for (let i=0;i<200;i++){
+          const b = getBoundsCached(start);
+          if (b.sw.lng > west) { start = window.__geohash.adjacent(start,'w'); } else break;
+        }
         start = window.__geohash.adjacent(start,'e');
+
         const results = [];
         let row = start;
         let safety = 0;
         while (safety++ < 6000) {
-          const br = window.__geohash.bounds(row);
+          const br = getBoundsCached(row);
           if (br.ne.lat < south) break;
           let gh = row; let colSafe = 0;
           while (colSafe++ < 6000) {
-            const b = window.__geohash.bounds(gh);
+            const b = getBoundsCached(gh);
             if (!(b.ne.lat < south || b.sw.lat > north || b.sw.lng > east || b.ne.lng < west)) results.push(gh);
             if (b.sw.lng > east) break;
             gh = window.__geohash.adjacent(gh,'e');
           }
           row = window.__geohash.adjacent(row,'s');
         }
-        return results.slice(0, 4000);
+        return results;
       }
 
-      /* Selected halo */
+      // Selected halo
       let selectedRect = null; let haloT = 0; let haloRAF = null;
       function startHalo(rect) {
         if (haloRAF) cancelAnimationFrame(haloRAF);
@@ -321,13 +354,15 @@
 
       function labelHtml(gh) {
         const count = ghCounts[gh] || 0;
-        const text = count>0 ? `${gh} (${count})` : gh;
-        const add = (gh==='d0ge'||gh==='#d0ge') ? ' gh-doge' : '';
+        theText = count>0 ? `${gh} (${count})` : gh;
         const sel = (gh===selectedGeohash) ? ' gh-text-selected' : '';
-        return `<span class="gh-text${sel}${add}">${text}</span>`;
+        return `<span class="gh-text${sel}">${theText}</span>`;
       }
 
+      // Chunked overlay render with sampling (always keep grid visible + favorites)
+      let overlayVersion = 0;
       function updateOverlay() {
+        const myVersion = ++overlayVersion;
         gridLayer.clearLayers(); labelLayer.clearLayers(); pulseLayer.clearLayers();
 
         const p = (pinnedPrecision!==null) ? pinnedPrecision : pickPrecisionForViewport();
@@ -335,60 +370,132 @@
         selectedGeohash = window.__geohash.encode(c.lat, c.lng, p);
         notifySelection();
 
-        const hashes = geohashesInView(p);
+        // Compute hashes and sample if too many (but always include selected + favorites + d0ge)
+        let hashes = geohashesInView(p);
+        if (hashes.length > MAX_CELLS) {
+          const keep = new Set();
+          keep.add(selectedGeohash);
+          keep.add(DOGE_HASH);
+          favorites.forEach(gh => { if (gh.length === p) keep.add(gh); });
+          // sample others evenly
+          const step = Math.ceil(hashes.length / (MAX_CELLS - keep.size));
+          const sampled = [];
+          for (let i=0;i<hashes.length; i+=step) sampled.push(hashes[i]);
+          hashes = Array.from(new Set([...keep, ...sampled.filter(gh => gh)]));
+        }
+
+        const renderLabels = (hashes.length <= LABEL_THRESHOLD);
         let selectedRectLocal = null;
+        let i = 0;
 
-        hashes.forEach(gh=>{
-          const b=window.__geohash.bounds(gh);
-          const sw=[b.sw.lat,b.sw.lng], ne=[b.ne.lat,b.ne.lng];
-          const isSelected=(gh===selectedGeohash);
+        function drawChunk(){
+          if (myVersion !== overlayVersion) return; // superseded
+          const end = Math.min(i + CHUNK_SIZE, hashes.length);
+          for (; i < end; i++) {
+            const gh = hashes[i];
+            const b = getBoundsCached(gh);
+            const sw=[b.sw.lat,b.sw.lng], ne=[b.ne.lat,b.ne.lng];
+            const isSelected=(gh===selectedGeohash);
 
-          const rect = L.rectangle([sw,ne],{
-            color: isSelected ? '#FFD700' : '#bfbfbf',
-            weight: isSelected ? 3 : 1,
-            fillOpacity: 0.0,
-            opacity: 0.95,
-            interactive: true
-          }).addTo(gridLayer);
+            const rect = L.rectangle([sw,ne],{
+              color: isSelected ? '#FFD700' : '#6f6f6f',
+              weight: isSelected ? 3 : 1,
+              fillOpacity: 0.0,
+              opacity: 0.9,
+              interactive: true
+            }).addTo(gridLayer);
 
-          if (isSelected) selectedRectLocal = rect;
+            if (isSelected) selectedRectLocal = rect;
 
-          // Toggle favorite + notify Android
-          rect.on('click', ()=>{
-            if (favorites.has(gh)) favorites.delete(gh); else favorites.add(gh);
-            saveFavs(); renderFavorites();
-            if (window.Android && window.Android.onFavoriteChanged) {
-              try { window.Android.onFavoriteChanged(gh, favorites.has(gh)); } catch(_){}
+            // Toggle favorite + notify Android
+            rect.on('click', ()=> toggleFavorite(gh) );
+
+            if (renderLabels || isSelected || favorites.has(gh) || (ghCounts[gh]||0) > 0) {
+              const center=[(b.sw.lat+b.ne.lat)/2,(b.sw.lng+b.ne.lng)/2];
+              L.marker(center, { icon:L.divIcon({ className:'gh-label', html:labelHtml(gh) }), interactive:false }).addTo(labelLayer);
             }
-            if (window.Android && window.Android.shareText) {
-              try{ window.Android.shareText(`dogechat://map?gh=${gh}`);}catch(_){ }
-            }
-          });
+          }
 
-          const center=[(b.sw.lat+b.ne.lat)/2,(b.sw.lng+b.ne.lng)/2];
-          L.marker(center, { icon:L.divIcon({ className:'gh-label', html:labelHtml(gh) }), interactive:false }).addTo(labelLayer);
-        });
-
-        if (selectedRectLocal) startHalo(selectedRectLocal);
-
-        renderPulseLayer();
-        addOrUpdateDogeMarker();
+          if (i < hashes.length) {
+            requestAnimationFrame(drawChunk);
+          } else {
+            if (selectedRectLocal) startHalo(selectedRectLocal);
+            renderPulseLayer();
+            addOrUpdateDogeMarker();
+          }
+        }
+        requestAnimationFrame(drawChunk);
       }
 
-      /* Pulses */
+      // Map-wide click fallback: toggle the tapped cell if rectangle events are missed
+      map.on('click', function(ev){
+        try {
+          const p = (pinnedPrecision!==null) ? pinnedPrecision : pickPrecisionForViewport();
+          const gh = window.__geohash.encode(ev.latlng.lat, ev.latlng.lng, p);
+          toggleFavorite(gh);
+        } catch(_){}
+      });
+
+      // Adaptive pulse/heat normalization -------------------------------------------------
+      const bucketCounts = new Map(); // key-> array of timestamps (ms) within TTL
+      const lastPulseTsByBucket = new Map();
+      let globalAdaptiveScale = 1.0;
+
+      function bucketKey(lat, lng) {
+        try { return window.__geohash.encode(lat, lng, ADAPTIVE_BUCKET_PREC); } catch(_) { return ""; }
+      }
+
+      function pruneBuckets(cutoff) {
+        bucketCounts.forEach((arr, key) => {
+          const kept = arr.filter(ts => ts >= cutoff);
+          if (kept.length) bucketCounts.set(key, kept); else bucketCounts.delete(key);
+        });
+      }
+
+      function effectiveIntensity(lat, lng, baseI) {
+        const key = bucketKey(lat, lng);
+        const arr = bucketCounts.get(key) || [];
+        const rate = arr.length; // over TTL
+        // local scale reduces intensity when over target
+        const localScale = 1.0 / (1.0 + Math.max(0, (rate - TARGET_BUCKET_RATE_5MIN)) / TARGET_BUCKET_RATE_5MIN);
+        // clamp and apply global scaling
+        const i = Math.min(0.8, baseI) * localScale * globalAdaptiveScale;
+        return Math.max(0.2, i);
+      }
+
+      // Rebalance global scale every 369s (smooths extremes on busy maps)
+      setInterval(() => {
+        const total = Array.from(bucketCounts.values()).reduce((a, arr) => a + arr.length, 0);
+        const buckets = Math.max(1, bucketCounts.size);
+        const avgPerBucket = total / buckets; // per TTL window
+        const desired = TARGET_BUCKET_RATE_5MIN;
+        const scale = desired / Math.max(1, avgPerBucket);
+        globalAdaptiveScale = Math.max(0.6, Math.min(1.0, scale));
+      }, REBALANCE_MS);
+
+      // -------------------------------------------------------------------------------
+
       function renderPulseLayer() {
         const bounds=map.getBounds(); const zoom=map.getZoom();
-        const minI = Math.max(0.2, 1.2 - (zoom/10));
+        const minI = Math.max(0.22, 1.2 - (zoom/10));
         const vis=[];
         for (const p of heatPoints) {
-          const lat=p[0], lng=p[1], i=p[2]??0.5;
+          const lat=p[0], lng=p[1], baseI=p[2]??0.5;
+          const i = effectiveIntensity(lat, lng, baseI);
           if (i<minI) continue;
-          if (bounds.contains([lat,lng])) vis.push([lat,lng,i]);
+          if (bounds.contains([lat,lng])) vis.push([lat,lng,i,p[4]||""]); // include bucket
         }
         vis.sort((a,b)=>b[2]-a[2]);
-        const list=vis.slice(0,160);
-        list.forEach(([lat,lng,i])=>{
-          const size=Math.max(14,Math.min(36,10+i*28));
+        const list=vis.slice(0,MAX_PULSES_IN_VIEW);
+        pulseLayer.clearLayers();
+        const now = Date.now();
+        list.forEach(([lat,lng,i,bucket])=>{
+          // throttle arcs per bucket to avoid spamming when busy
+          const last = lastPulseTsByBucket.get(bucket) || 0;
+          if (now - last < 1200) return;
+          lastPulseTsByBucket.set(bucket, now);
+
+          const size=Math.max(MIN_PULSE_SIZE, Math.min(MAX_PULSE_SIZE, 8 + i*20));
           const icon=L.divIcon({ className:'doge-pulse-icon', html:`<div class="doge-pulse" style="--size:${size}px"></div>`, iconSize:[size,size], iconAnchor:[size/2,size/2] });
           L.marker([lat,lng],{icon,interactive:false}).addTo(pulseLayer);
         });
@@ -402,24 +509,23 @@
       function latLngToPoint(latlng){ return map.latLngToContainerPoint(latlng); }
       let arcs=[]; // {a:[lat,lng], b:[lat,lng], t, v}
       function spawnArcFrom(lat,lng,intensity){
-        const b=window.__geohash.bounds(DOGE_HASH); const to=[(b.sw.lat+b.ne.lat)/2,(b.sw.lng+b.ne.lng)/2];
-        arcs.push({ a:[lat,lng], b:to, t:0, v:0.003 + 0.012*(intensity||0.5) });
-        if (arcs.length>150) arcs.splice(0, arcs.length-150);
+        const b=getBoundsCached(DOGE_HASH); const to=[(b.sw.lat+b.ne.lat)/2,(b.sw.lng+b.ne.lng)/2];
+        arcs.push({ a:[lat,lng], b:to, t:0, v: 0.003 + 0.010*(intensity||0.5) });
+        if (arcs.length>100) arcs.splice(0, arcs.length-100);
       }
       function drawArcs(){
         ctx.clearRect(0,0,arcCanvas.width,arcCanvas.height);
-        const dark=document.body.classList.contains('dark');
         for (const arc of arcs){
-          arc.t += arc.v; if (arc.t>1) arc.t=1;
+          arc.t += arc.v; if (arc.t>1){ arc.t=1; }
           const A=latLngToPoint(arc.a), B=latLngToPoint(arc.b);
           const mid={ x:(A.x+B.x)/2, y:(A.y+B.y)/2 - 60 };
           const t=arc.t;
           const x = (1-t)*(1-t)*A.x + 2*(1-t)*t*mid.x + t*t*B.x;
           const y = (1-t)*(1-t)*A.y + 2*(1-t)*t*mid.y + t*t*B.y;
-          const sz = 2 + 3*t;
+          const sz = 2 + 2.5*t;
           ctx.beginPath();
-          ctx.fillStyle = dark ? 'rgba(255,215,0,0.9)' : 'rgba(255,175,0,0.9)';
-          ctx.shadowColor = 'rgba(255,215,0,0.9)'; ctx.shadowBlur = 12;
+          ctx.fillStyle = 'rgba(255,215,0,0.9)';
+          ctx.shadowColor = 'rgba(255,215,0,0.9)'; ctx.shadowBlur = 8;
           ctx.arc(x,y,sz,0,Math.PI*2); ctx.fill();
         }
         arcs = arcs.filter(a=>a.t<1);
@@ -427,91 +533,90 @@
       }
       requestAnimationFrame(drawArcs);
       function spawnArcsFromNewPoints(points){
-        points.forEach(p=>{ const i=p[2]??0.5; if (i>=0.35) spawnArcFrom(p[0],p[1],i); });
+        points.forEach(p=>{
+          const lat=p[0], lng=p[1], baseI=p[2]??0.5;
+          const i = effectiveIntensity(lat, lng, baseI);
+          if (i>=0.35) spawnArcFrom(lat,lng,i);
+        });
       }
 
-      /* HUD */
+      // HUD
       function updateHUD(){
         const age = lastHeatUpdateTs? Math.max(0, Math.round((Date.now()-lastHeatUpdateTs)/1000)) : '—';
         document.getElementById('hudText').textContent = `${heatPoints.length} pts • ${age}s`;
       }
       setInterval(updateHUD, 1000);
 
-      /* Foreign hints/buttons killer */
-      function suppressForeignHint(root=document.body){
-        const nodes = root.querySelectorAll('*');
-        for (const n of nodes) {
-          const t = (n.textContent||'').trim().toLowerCase();
-          if (!t) continue;
-          if (t.includes('pan and zoom') || t.includes('select a geohash')) n.style.display='none';
-        }
-      }
-      const mo = new MutationObserver(muts=>{
-        muts.forEach(m=>{ if (m.addedNodes && m.addedNodes.length) m.addedNodes.forEach(n=>{ if (n.nodeType===1) suppressForeignHint(n); }); });
-      });
-      mo.observe(document.documentElement, { childList:true, subtree:true });
-      suppressForeignHint();
-
-      function styleExternalZoomButtons(){
-        const cand = Array.from(document.querySelectorAll('button, a, div')).filter(el=>{
-          const t=(el.textContent||'').trim();
-          if (t==='+'||t==='-'||t==='＝'||t==='－') return true;
-          const aria=el.getAttribute('aria-label')||''; return /zoom in|zoom out/i.test(aria);
-        });
-        cand.forEach(el=>{
-          el.style.background = document.body.classList.contains('dark') ? 'rgba(20,20,20,0.9)' : 'rgba(255,255,255,0.95)';
-          el.style.color = 'var(--dogeGold)';
-          el.style.border = '1px solid var(--dogeGold)';
-          el.style.boxShadow = '0 0 8px rgba(255,215,0,0.2)';
-        });
-      }
-      setInterval(styleExternalZoomButtons, 800);
-
-      /* Theme handling + icon */
-      function updateThemeFab(){
-        const el = document.getElementById('themeToggleFab');
-        el.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+      // Theme handling
+      function rebuildHeatLayer(keepOn=true){
+        try{ if (heatLayer) map.removeLayer(heatLayer); }catch(_){}
+        heatLayer = L.heatLayer(heatPoints.map(p=>{
+          const i = effectiveIntensity(p[0],p[1],p[2]??0.5);
+          return [p[0],p[1],i];
+        }), { radius: 18, blur: 18, maxZoom:17, minOpacity:.18,
+          gradient: {0.2:"rgba(255,215,0,.25)",0.4:"rgba(255,215,0,.45)",0.6:"rgba(255,215,0,.65)",0.8:"rgba(255,215,0,.85)",1.0:"#ffd700"} });
+        if (keepOn) heatLayer.addTo(map);
       }
       function applyTheme(theme){
         const dark=(theme==='dark');
-        if (dark){ document.body.classList.add('dark'); if (!map.hasLayer(darkTiles)) darkTiles.addTo(map); }
-        else { document.body.classList.remove('dark'); if (map.hasLayer(darkTiles)) map.removeLayer(darkTiles); }
+        if (dark){ document.body.classList.add('dark'); if (!map.hasLayer(darkTiles)) { map.removeLayer(lightTiles); darkTiles.addTo(map); } }
+        else { document.body.classList.remove('dark'); if (!map.hasLayer(lightTiles)) { map.removeLayer(darkTiles); lightTiles.addTo(map); } }
         rebuildHeatLayer(true);
-        styleExternalZoomButtons();
-        updateThemeFab();
       }
       function setMapTheme(theme){ applyTheme(theme); }
-
       document.getElementById('themeToggleFab').addEventListener('click', ()=>{
         const isDark=document.body.classList.contains('dark'); applyTheme(isDark?'light':'dark');
       });
 
-      /* Public API kept */
-      function setCenter(lat, lng) { map.setView([lat, lng], map.getZoom()); }
-      function setPrecision(p) { const clamped=Math.max(1,Math.min(12,p|0)); map.setZoom(zoomForPrecision(clamped)); }
-      function focusGeohash(gh){ if(!gh||typeof gh!=='string')return; const g=gh.toLowerCase(); const b=window.__geohash.bounds(g); pinnedPrecision=g.length; map.fitBounds([[b.sw.lat,b.sw.lng],[b.ne.lat,b.ne.lng]],{animate:false,padding:[8,8]}); selectedGeohash=g; }
+      // Public API
+      function setCenter(lat, lng) { map.setView([lat, lng], Math.max(MIN_ZOOM, map.getZoom())); }
+      function setPrecision(p) { const clamped=Math.max(1,Math.min(12,p|0)); const targetZ = Math.max(MIN_ZOOM, zoomForPrecision(clamped)); map.setZoom(targetZ); }
+      function focusGeohash(gh){
+        if(!gh||typeof gh!=='string')return;
+        const g=gh.toLowerCase(); const b=getBoundsCached(g); pinnedPrecision=g.length;
+        const pad = {padding:[8,8]};
+        // fitBounds then enforce min zoom cap
+        map.fitBounds([[b.sw.lat,b.sw.lng],[b.ne.lat,b.ne.lng]], Object.assign({animate:false}, pad));
+        if (map.getZoom() < MIN_ZOOM) map.setZoom(MIN_ZOOM);
+        selectedGeohash=g;
+      }
       function getGeohash(){ return selectedGeohash; }
 
-      function rebuildHeatLayer(keepOn=true){
-        const dark=document.body.classList.contains('dark');
-        const gradient = dark ? {0.2:"rgba(255,215,0,.25)",0.4:"rgba(255,215,0,.45)",0.6:"rgba(255,215,0,.65)",0.8:"rgba(255,215,0,.85)",1.0:"#ffd700"} : {0.2:"#fff6bf",0.4:"#ffe675",0.6:"#ffd94a",0.8:"#ffcd1a",1.0:"#ffd700"};
-        try{ if (heatLayer) map.removeLayer(heatLayer); }catch(_){}
-        heatLayer = L.heatLayer(heatPoints.map(p=>[p[0],p[1],p[2]]), { radius: dark?20:18, blur: dark?20:18, maxZoom:17, minOpacity:.15, gradient });
-        if (keepOn) heatLayer.addTo(map);
-      }
       function setHeatmap(points){
         if (!Array.isArray(points)) return;
         const now=Date.now();
-        heatPoints = points.map(p=>[p[0],p[1],p[2]??0.5, now]);
+        const cutoff = now - heatTTLms;
+        heatPoints = points.map(p=>{
+          const lat=p[0], lng=p[1], i=p[2]??0.5, bucket=bucketKey(lat,lng);
+          const arr = bucketCounts.get(bucket) || [];
+          arr.push(now);
+          bucketCounts.set(bucket, arr);
+          return [lat,lng,i, now, bucket];
+        }).filter(p => p[3] >= cutoff || heatTTLms===0);
+        pruneBuckets(cutoff);
         lastHeatUpdateTs = now;
-        rebuildHeatLayer(true); renderPulseLayer(); spawnArcsFromNewPoints(points); updateHUD();
+        rebuildHeatLayer(true);
+        renderPulseLayer();
+        spawnArcsFromNewPoints(points);
+        updateHUD();
       }
       function addHeatPoints(points){
         if (!Array.isArray(points)) return;
         const now=Date.now();
-        for (const p of points){ if(!p || p.length<2) continue; const i=p[2]??0.5; heatPoints.push([p[0],p[1],i,now]); }
+        const cutoff = now - heatTTLms;
+        for (const p of points){
+          if(!p || p.length<2) continue;
+          const lat=p[0], lng=p[1], i=p[2]??0.5, bucket=bucketKey(lat,lng);
+          heatPoints.push([lat,lng,i,now,bucket]);
+          const arr = bucketCounts.get(bucket) || [];
+          arr.push(now); bucketCounts.set(bucket, arr);
+        }
+        pruneBuckets(cutoff);
         lastHeatUpdateTs = now;
-        if (heatLayer) heatLayer.setLatLngs(heatPoints.map(p=>[p[0],p[1],p[2]]));
+        if (heatLayer) heatLayer.setLatLngs(heatPoints.map(pp=>{
+          const i = effectiveIntensity(pp[0],pp[1],pp[2]??0.5);
+          return [pp[0],pp[1],i];
+        }));
         renderPulseLayer(); spawnArcsFromNewPoints(points); updateHUD();
       }
       function clearHeatmap(){ heatPoints=[]; if (heatLayer) heatLayer.setLatLngs([]); pulseLayer.clearLayers(); updateHUD(); }
@@ -522,14 +627,22 @@
           heatPruneTimer=setInterval(()=>{
             const cutoff=Date.now()-heatTTLms; let changed=false;
             heatPoints=heatPoints.filter(p=>{ const keep=(p[3]??0)>=cutoff; if(!keep) changed=true; return keep; });
-            if (changed){ if (heatLayer) heatLayer.setLatLngs(heatPoints.map(p=>[p[0],p[1],p[2]])); renderPulseLayer(); updateHUD(); }
+            if (changed){ if (heatLayer) heatLayer.setLatLngs(heatPoints.map(pp=>{
+              const i = effectiveIntensity(pp[0],pp[1],pp[2]??0.5); return [pp[0],pp[1],i];
+            })); renderPulseLayer(); updateHUD(); }
+            pruneBuckets(cutoff);
           }, Math.min(heatTTLms, 5000));
         }
       }
       function getHeatStats(){ return { count:heatPoints.length, lastUpdate:lastHeatUpdateTs }; }
 
       function setGeohashCounts(mapCounts){ if (mapCounts && typeof mapCounts==='object'){ ghCounts=mapCounts; updateOverlay(); } }
-      function setFavorites(list){ try{ favorites=new Set(Array.isArray(list)?list:[]); saveFavs(); renderFavorites(); }catch(_){ } }
+      function setFavorites(list){
+        try{
+          favorites=new Set(Array.isArray(list)?list:[]);
+          saveFavs(); renderFavorites();
+        }catch(_){ }
+      }
       function getFavorites(){ return [...favorites]; }
       function quickShareForSelected(){
         const link=`dogechat://map?gh=${selectedGeohash}`;
@@ -542,12 +655,15 @@
       const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
       applyTheme(prefersDark ? 'dark' : 'light');
       map.whenReady(()=>{
-        const sz=map.getSize(); arcCanvas.width=sz.x; arcCanvas.height=sz.y; arcCanvas.style.width=sz.x+'px'; arcCanvas.style.height=sz.y+'px';
-        updateTerminator(); addOrUpdateDogeMarker(); renderFavorites(); updateOverlay();
+        const sz=map.getSize(); resizeCanvas();
+        updateTerminator(); addOrUpdateDogeMarker(); renderFavorites();
+        // Ensure default looks like requested screenshot: focus #d0ge and clamp zoom
+        try { focusGeohash('d0ge'); setPrecision(5); } catch(_){}
+        updateOverlay();
       });
 
-      // Keep overlays in sync
-      map.on("resize", ()=>{ const sz=map.getSize(); arcCanvas.width=sz.x; arcCanvas.height=sz.y; });
+      // Keep overlays in sync (but no hyper-frequent rescans; overlay draws on move/zoom end)
+      map.on("resize", ()=>{ resizeCanvas(); });
       map.on("movestart", ()=>{ pinnedPrecision=null; });
       map.on("zoomstart", ()=>{ pinnedPrecision=null; });
       map.on("moveend", updateOverlay);
@@ -557,8 +673,7 @@
       window.setCenter=setCenter; window.setPrecision=setPrecision; window.focusGeohash=focusGeohash; window.getGeohash=getGeohash;
       window.setMapTheme=setMapTheme;
       window.setHeatmap=setHeatmap; window.addHeatPoints=addHeatPoints; window.clearHeatmap=clearHeatmap; window.setHeatmapTTL=setHeatmapTTL; window.getHeatStats=getHeatStats;
-      window.setGeohashCounts=setGeohashCounts; window.setFavorites=setFavorites; window.getFavorites=getFavorites; window.quickShareForSelected=quickShareForSelected;
-      window.__geohash = window.__geohash || {};
+      window.setGeohashCounts=setGeohashCounts; window.setFavorites=setFavorites; window.getFavorites=getFavorites;
     </script>
   </body>
 </html>

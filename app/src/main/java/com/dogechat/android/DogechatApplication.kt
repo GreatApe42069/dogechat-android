@@ -39,6 +39,13 @@ class DogechatApplication : Application() {
         runCatching { com.dogechat.android.ui.debug.DebugPreferenceManager.init(this) }
             .onFailure { Log.w("DogechatApp", "DebugPreferenceManager init failed: ${it.message}") }
 
+        // 7. Map warm-up: ensure the heat bus is hot from app launch (keeps warm start instant)
+        runCatching {
+            com.dogechat.android.ui.HeatStreamBus.setTTL(300_000L) // 5 minutes default TTL
+        }.onFailure {
+            Log.w("DogechatApp", "HeatStreamBus warm-up failed: ${it.message}")
+        }
+
         // Hilt injection: @HiltAndroidApp sets up DI graph automatically
     }
 }

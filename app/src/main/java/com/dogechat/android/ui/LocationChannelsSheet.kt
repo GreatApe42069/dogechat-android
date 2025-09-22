@@ -103,7 +103,7 @@ fun LocationChannelsSheet(
     // iOS system colors (matches iOS exactly) + app brand colors
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
-    val standardYellow = if (isDark) Color(0xFFFFFF00) else ThemeColors.dogeGold // fixed 'if' expression
+    val standardYellow = if (isDark) Color(0xFFFFFF00) else ThemeColors.dogeGold
     val standardBlue = Color(0xFF007AFF) // iOS blue
     val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D) // iOS green
     val dogeGold = ThemeColors.dogeGold
@@ -111,8 +111,6 @@ fun LocationChannelsSheet(
     val mapTint = if (isDark) dogeGold else brandAccent
 
     // Robust system Location Services reconciliation:
-    // - Check on open and on resume
-    // - Poll while sheet is visible to reconcile app state vs system state
     fun isSystemLocationEnabled(): Boolean = try {
         val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as LocationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -126,10 +124,8 @@ fun LocationChannelsSheet(
     LaunchedEffect(isPresented) {
         if (isPresented) {
             val systemEnabled = isSystemLocationEnabled()
-            // Reconcile app's toggle with system state
             if (systemEnabled && !locationServicesEnabled) {
                 locationManager.enableLocationServices()
-                // kick sampling if we already have permission
                 if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED) {
                     locationManager.refreshChannels()
                 }
@@ -139,7 +135,7 @@ fun LocationChannelsSheet(
         }
     }
 
-    // Check again when app resumes (user might toggle location from QS/Settings)
+    // Check again when app resumes
     DisposableEffect(lifecycleOwner, isPresented) {
         val observer = LifecycleEventObserver { _, event ->
             if (isPresented && event == Lifecycle.Event.ON_RESUME) {
@@ -160,7 +156,7 @@ fun LocationChannelsSheet(
         }
     }
 
-    // Lightweight polling while sheet is visible, to stay in sync without restart
+    // Lightweight polling while sheet is visible
     LaunchedEffect(isPresented, permissionState) {
         if (isPresented) {
             while (isActive) {
@@ -222,10 +218,20 @@ fun LocationChannelsSheet(
                             )
 
                             Text(
-                                text = "Much chat with Shibes near you using Many Geohash channels. Only a coarse Geohash is shared, never exact gps. ⚠️ Do NOT screenshot or share this screen to protect your privacy ⚠️",
+                                text = "Much chat with Shibes near you using Many Geohash channels. Only a coarse Geohash is shared, never exact gps.",
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                            )
+
+                            // Spaced, highlighted privacy notice (gold) under the above lines
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "🕵️ Do NOT screenshot or share this screen to protect your privacy",
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = dogeGold
                             )
                         }
                     }
@@ -261,7 +267,7 @@ fun LocationChannelsSheet(
                                     LocationChannelManager.PermissionState.RESTRICTED -> {
                                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(
-                                                text = "⚠️ Location Permission So Denied. Very enable in settings to use Many location channels",
+                                                text = "⚠️ Location Permission So Đenied. Very enable in settings to use Many location channels",
                                                 fontSize = 11.sp,
                                                 fontFamily = FontFamily.Monospace,
                                                 color = Color.Red.copy(alpha = 0.8f)
@@ -505,13 +511,13 @@ fun LocationChannelsSheet(
 
                                 // Map picker button
                                 IconButton(onClick = {
-                                    val initial = when {
-                                        normalized.isNotBlank() -> normalized
-                                        selectedChannel is ChannelID.Location -> (selectedChannel as ChannelID.Location).channel.geohash
-                                        else -> ""
-                                    }
+                                    // IMPORTANT: Only pass initial when user explicitly entered a geohash.
+                                    // Otherwise GeohashPicker defaults to #d0ge (prevents jumping to real location).
+                                    val initial = if (normalized.isNotBlank()) normalized else ""
                                     val intent = Intent(context, GeohashPickerActivity::class.java).apply {
-                                        putExtra(GeohashPickerActivity.EXTRA_INITIAL_GEOHASH, initial)
+                                        if (initial.isNotBlank()) {
+                                            putExtra(GeohashPickerActivity.EXTRA_INITIAL_GEOHASH, initial)
+                                        }
                                     }
                                     mapPickerLauncher.launch(intent)
                                 }) {
@@ -592,8 +598,15 @@ fun LocationChannelsSheet(
                             Button(
                                 onClick = {
                                     if (locationServicesEnabled) {
-                                        locationManager.disableLocationServices()
+                                        // Open system Location settings so user can disable location services
+                                        runCatching {
+                                            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(intent)
+                                        }
                                     } else {
+                                        // Enable app-side location usage and then system will be reconciled by observers
                                         locationManager.enableLocationServices()
                                     }
                                 },

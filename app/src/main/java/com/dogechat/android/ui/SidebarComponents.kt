@@ -34,13 +34,14 @@ import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 fun SidebarOverlay(
     viewModel: ChatViewModel,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onWalletClick: (() -> Unit)? = null // NEW: optional wallet handler
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
 
     val connectedPeers by viewModel.connectedPeers.observeAsState(emptyList())
-    val joinedChannels by viewModel.joinedChannels.observeAsState(emptyList())
+    val joinedChannels by viewModel.joinedChannels.observeAsState(emptySet())
     val currentChannel by viewModel.currentChannel.observeAsState()
     val selectedPrivatePeer by viewModel.selectedPrivateChatPeer.observeAsState()
     val nickname by viewModel.nickname.observeAsState("")
@@ -75,7 +76,7 @@ fun SidebarOverlay(
                     .background(colorScheme.background.copy(alpha = 0.95f))
                     .windowInsetsPadding(WindowInsets.statusBars) // Add status bar padding
             ) {
-                SidebarHeader()
+                SidebarHeader(onWalletClick = onWalletClick)
 
                 HorizontalDivider()
                 
@@ -146,8 +147,11 @@ fun SidebarOverlay(
 }
 
 @Composable
-private fun SidebarHeader() {
+private fun SidebarHeader(
+    onWalletClick: (() -> Unit)? = null // NEW: wallet icon in sidebar header
+) {
     val colorScheme = MaterialTheme.colorScheme
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     Row(
         modifier = Modifier
@@ -166,6 +170,28 @@ private fun SidebarHeader() {
             color = colorScheme.onSurface
         )
         Spacer(modifier = Modifier.weight(1f))
+        // Wallet icon pinned on the right of the sidebar header
+        IconButton(
+            onClick = {
+                if (onWalletClick != null) {
+                    onWalletClick()
+                } else {
+                    // Fallback: open wallet activity directly if no callback is provided
+                    runCatching {
+                        val intent = android.content.Intent(context, com.dogechat.android.wallet.WalletActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                }
+            },
+            modifier = Modifier.size(20.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.AccountBalanceWallet,
+                contentDescription = "Wallet",
+                tint = Color(0xFFFFD700), // dogeGold
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 
@@ -711,4 +737,5 @@ private fun convertRSSIToSignalStrength(rssi: Int?): Int {
         rssi >= -100 -> 25  // Poor signal
         else -> 0           // Very poor or no signal
     }
+
 }

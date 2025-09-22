@@ -7,7 +7,6 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
@@ -15,8 +14,10 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -67,12 +68,12 @@ class GeohashPickerActivity : ComponentActivity() {
                 initLat = lat; initLon = lon
             }
         } else {
+            // Do not default to real device location. Only use #d0ge when no explicit geohash is supplied.
             val locationManager = LocationChannelManager.getInstance(applicationContext)
             val channels = locationManager.availableChannels.value
             if (!channels.isNullOrEmpty()) {
                 val coarsest = channels.minByOrNull { it.geohash.length }
                 if (coarsest != null) {
-                    geohashToFocus = coarsest.geohash
                     runCatching {
                         val (lat, lon) = Geohash.decodeToCenter(coarsest.geohash)
                         initLat = lat; initLon = lon
@@ -150,11 +151,13 @@ class GeohashPickerActivity : ComponentActivity() {
                                             val theme = if (nightMode == Configuration.UI_MODE_NIGHT_YES) "dark" else "light"
                                             evaluateJavascript("window.setMapTheme('$theme')", null)
 
-                                            // Focus center
+                                            // Default start: center on #d0ge unless explicit geohash is provided by intent
                                             if (!geohashToFocus.isNullOrEmpty()) {
                                                 evaluateJavascript("window.focusGeohash('${geohashToFocus}')", null)
+                                                evaluateJavascript("window.setPrecision(${geohashToFocus!!.length})", null)
                                             } else {
-                                                evaluateJavascript("window.setCenter($initLat, $initLon)", null)
+                                                evaluateJavascript("window.focusGeohash('d0ge')", null)
+                                                evaluateJavascript("window.setPrecision(5)", null)
                                             }
 
                                             // TTL 5 minutes and warm start
@@ -171,7 +174,7 @@ class GeohashPickerActivity : ComponentActivity() {
                                                 evaluateJavascript("window.setGeohashCounts(${gson.toJson(cSnap)});", null)
                                             }
 
-                                            // Mirror favorites into the map (optional)
+                                            // Mirror favorites into the map (from Android store)
                                             runCatching {
                                                 val favs = GeohashBookmarksStore.getInstance(applicationContext).bookmarks.value ?: emptyList()
                                                 evaluateJavascript("window.setFavorites(${gson.toJson(favs)});", null)
@@ -191,25 +194,24 @@ class GeohashPickerActivity : ComponentActivity() {
 
                                         @JavascriptInterface
                                         fun onFavoriteChanged(gh: String, isFav: Boolean) {
-                                            runCatching {
-                                                val store = GeohashBookmarksStore.getInstance(applicationContext)
-                                                val already = store.isBookmarked(gh)
-                                                if (isFav && !already) store.toggle(gh)
-                                                if (!isFav && already) store.toggle(gh)
+                                            // Ensure we mutate bookmarks on the main thread so LiveData observers (Location sheet) update reliably.
+                                            runOnUiThread {
+                                                runCatching {
+                                                    val store = GeohashBookmarksStore.getInstance(applicationContext)
+                                                    val already = store.isBookmarked(gh)
+                                                    if (isFav && !already) store.toggle(gh)
+                                                    if (!isFav && already) store.toggle(gh)
+                                                }
                                             }
                                         }
 
                                         @JavascriptInterface
                                         fun shareText(text: String) {
-                                            // Optional hook - your app can route this to Android Sharesheet if desired
+                                            // Optional Android Sharesheet hook
                                         }
                                     }, "Android")
 
-                                    // Load local HTML
                                     loadUrl("file:///android_asset/geohash_picker.html")
-
-                                    // NOTE: We remove HeatStreamBus listener in onRelease below,
-                                    // so we don't need a fragile ViewGroup.OnHierarchyChangeListener here.
                                 }
                             },
                             modifier = Modifier
@@ -217,9 +219,9 @@ class GeohashPickerActivity : ComponentActivity() {
                                 .padding(padding),
                             update = { webView ->
                                 webViewRef = webView
-                                webView.updateLayoutParams<ViewGroup.LayoutParams> {
-                                    width = ViewGroup.LayoutParams.MATCH_PARENT
-                                    height = ViewGroup.LayoutParams.MATCH_PARENT
+                                webView.updateLayoutParams<android.view.ViewGroup.LayoutParams> {
+                                    width = android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                    height = android.view.ViewGroup.LayoutParams.MATCH_PARENT
                                 }
                             },
                             onRelease = { webView ->
@@ -234,7 +236,7 @@ class GeohashPickerActivity : ComponentActivity() {
                             }
                         )
 
-                        // Bottom controls (Doge Gold)
+                        // Bottom controls - Black & Gold styling
                         Column(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
@@ -242,32 +244,36 @@ class GeohashPickerActivity : ComponentActivity() {
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Geohash label
+                            // Geohash label chip (black background, gold border/text)
                             Surface(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                color = Color.Black.copy(alpha = 0.92f),
                                 shape = RoundedCornerShape(12.dp),
-                                tonalElevation = 3.dp,
-                                shadowElevation = 6.dp
+                                tonalElevation = 0.dp,
+                                shadowElevation = 6.dp,
+                                modifier = Modifier
+                                    .border(
+                                        BorderStroke(1.2.dp, dogeGold.copy(alpha = 0.9f)),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
                             ) {
                                 Text(
-                                    text = if (currentGeohash.isNotEmpty()) "#${currentGeohash}" else "select location",
+                                    text = if (currentGeohash.isNotEmpty()) "#${currentGeohash}" else "#d0ge",
                                     fontSize = BASE_FONT_SIZE.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = dogeGold,
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                                 )
                             }
 
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                // Decrease precision
                                 Button(
                                     onClick = {
                                         precision = (precision - 1).coerceAtLeast(1)
                                         webViewRef?.evaluateJavascript("window.setPrecision($precision)", null)
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = dogeGold.copy(alpha = 0.12f),
+                                        containerColor = Color.Black.copy(alpha = 0.85f),
                                         contentColor = dogeGold
                                     )
                                 ) {
@@ -277,14 +283,13 @@ class GeohashPickerActivity : ComponentActivity() {
                                     )
                                 }
 
-                                // Increase precision
                                 Button(
                                     onClick = {
                                         precision = (precision + 1).coerceAtMost(12)
                                         webViewRef?.evaluateJavascript("window.setPrecision($precision)", null)
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = dogeGold.copy(alpha = 0.12f),
+                                        containerColor = Color.Black.copy(alpha = 0.85f),
                                         contentColor = dogeGold
                                     )
                                 ) {
@@ -294,19 +299,18 @@ class GeohashPickerActivity : ComponentActivity() {
                                     )
                                 }
 
-                                // Select
                                 Button(
                                     onClick = {
                                         webViewRef?.evaluateJavascript("window.getGeohash()") { value ->
-                                            val gh = value?.trim('"') ?: currentGeohash
+                                            val gh = (value?.trim('"') ?: currentGeohash).ifEmpty { "d0ge" }
                                             val result = Intent().apply { putExtra(EXTRA_RESULT_GEOHASH, gh) }
                                             setResult(Activity.RESULT_OK, result)
                                             finish()
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
-                                        contentColor = MaterialTheme.colorScheme.onSurface
+                                        containerColor = Color.Black.copy(alpha = 0.85f),
+                                        contentColor = dogeGold
                                     )
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {

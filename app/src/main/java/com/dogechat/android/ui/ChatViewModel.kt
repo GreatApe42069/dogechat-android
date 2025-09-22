@@ -18,6 +18,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Date
 import kotlin.random.Random
+import com.dogechat.android.geohash.Geohash
 
 /**
  * Refactored ChatViewModel - Main coordinator for dogechat functionality
@@ -174,6 +175,16 @@ class ChatViewModel(
         // Initialize new geohash architecture
         geohashViewModel.initialize()
 
+        // MAP HEAT WARM-UP: make warm start instant and avoid jank on opening the picker
+        runCatching {
+            HeatStreamBus.setTTL(300_000L) // 5-minute rolling window
+            warmMapWithCurrentData()      // push current counts + recent geo messages as pulses
+            viewModelScope.launch {
+                delay(1500)               // in case repos finished another batch after init
+                warmMapWithCurrentData()
+            }
+        }
+
         // Initialize favorites persistence service
         com.dogechat.android.favorites.FavoritesPersistenceService.initialize(getApplication())
 
@@ -312,7 +323,7 @@ class ChatViewModel(
             val unreadKeys = state.getUnreadPrivateMessagesValue()
             if (unreadKeys.isEmpty()) return
 
-            val me = state.getNicknameValue() ?: meshService.myPeerID
+            val myID = meshService.myPeerID
             val chats = state.getPrivateChatsValue()
 
             // Pick the latest incoming message among unread conversations
@@ -323,7 +334,7 @@ class ChatViewModel(
                 val list = chats[key]
                 if (!list.isNullOrEmpty()) {
                     // Prefer the latest incoming message (sender != me), fallback to last message
-                    val latestIncoming = list.lastOrNull { it.sender != me }
+                    val latestIncoming = list.lastOrNull { it.sender != myID }
                     val candidateTime = (latestIncoming ?: list.last()).timestamp.time
                     if (candidateTime > bestTime) {
                         bestTime = candidateTime
@@ -909,5 +920,42 @@ class ChatViewModel(
      */
     fun colorForNostrPubkey(pubkeyHex: String, isDark: Boolean): androidx.compose.ui.graphics.Color {
         return geohashViewModel.colorForNostrPubkey(pubkeyHex, isDark)
+    }
+
+    // --- Map warm-up helper: publish current counts + recent geo messages as pulses ---
+    private fun warmMapWithCurrentData() {
+        try {
+            // Push whatever counts we already have so labels render immediately
+            val counts = state.getGeohashParticipantCountsValue()
+            if (counts.isNotEmpty()) {
+                HeatStreamBus.publishCounts(counts)
+            }
+
+            // Convert recent channel messages in geo channels to pulses
+            val all = state.getChannelMessagesValue()
+            val pulses = mutableListOf<HeatStreamBus.HeatPoint>()
+            val now = System.currentTimeMillis()
+            val tauSec = 240.0 // 4 minutes time constant
+
+            all.forEach { (key, list) ->
+                if (!key.startsWith("geo:")) return@forEach
+                val gh = key.removePrefix("geo:")
+                val center = runCatching { Geohash.decodeToCenter(gh) }.getOrNull() ?: return@forEach
+                val recent = list.takeLast(40) // cap per geohash
+
+                for (msg in recent) {
+                    val ageSec = ((now - msg.timestamp.time).coerceAtLeast(0)).toDouble() / 1000.0
+                    val decay = kotlin.math.exp(-ageSec / tauSec)
+                    val sizeBoost = (kotlin.math.ln(1.0 + (msg.content.length).toDouble()) / kotlin.math.ln(400.0)).coerceIn(0.0, 1.0)
+                    val intensity = (0.25 + 0.5 * decay + 0.35 * sizeBoost).coerceIn(0.2, 1.0)
+                    pulses += HeatStreamBus.HeatPoint(center.first, center.second, intensity, msg.timestamp.time)
+                }
+            }
+            if (pulses.isNotEmpty()) {
+                HeatStreamBus.publishPoints(pulses)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "warmMapWithCurrentData failed: ${e.message}")
+        }
     }
 }
