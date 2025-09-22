@@ -269,7 +269,21 @@ class MainActivity : ComponentActivity() {
 
                 // Add the callback - this will be automatically removed when the activity is destroyed
                 onBackPressedDispatcher.addCallback(this, backCallback)
-                ChatScreen(viewModel = chatViewModel)
+                // Open wallet: either start an Activity or open a Compose destination.
+// For now we start an Activity named WalletActivity (create it or replace with your navigation code).
+ChatScreen(
+    viewModel = chatViewModel,
+    onWalletClick = { parsedToken: com.dogechat.android.parsing.ParsedDogeToken? ->
+        val intent = Intent(this, com.dogechat.android.wallet.WalletActivity::class.java)
+        if (parsedToken != null) {
+            intent.putExtra("token_amount_koinu", parsedToken.amountKoinu)
+            intent.putExtra("token_address", parsedToken.address)
+            intent.putExtra("token_memo", parsedToken.memo)
+            intent.putExtra("token_original", parsedToken.originalString)
+        }
+        startActivity(intent)
+    }
+)
             }
             
             OnboardingState.ERROR -> {
@@ -646,7 +660,19 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
-                // ADDED: if location is already enabled, lock now (no restart required)
+                // >>> Location WARM-UP INSERTED HERE (bitchat parity) <<<
+                // Make LocationChannelManager hot immediately after permissions are granted
+                runCatching {
+                    val lcm = LocationChannelManager.getInstance(this@MainActivity)
+                    lcm.enableLocationChannels()   // does not pop the permission dialog; just updates internal state
+                    lcm.refreshChannels()
+                    lcm.beginLiveRefresh()
+                }.onFailure { e ->
+                    Log.w("MainActivity", "LCM warmup failed: ${e.message}")
+                }
+                // >>> END WARM-UP <<<
+
+                // If system location is already enabled, lock now
                 if (locationStatusManager.checkLocationStatus() == LocationStatus.ENABLED) {
                     lockLocationNow()
                 }

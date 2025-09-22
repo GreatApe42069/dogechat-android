@@ -108,6 +108,7 @@ fun LocationChannelsSheet(
     val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D) // iOS green
     val dogeGold = ThemeColors.dogeGold
     val brandAccent = ThemeColors.BrandAccent
+    val mapTint = if (isDark) dogeGold else brandAccent
 
     // Robust system Location Services reconciliation:
     // - Check on open and on resume
@@ -517,7 +518,7 @@ fun LocationChannelsSheet(
                                     Icon(
                                         imageVector = Icons.Filled.Map,
                                         contentDescription = "Open map",
-                                        tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                                        tint = mapTint
                                     )
                                 }
 
