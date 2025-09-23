@@ -1,7 +1,7 @@
 package com.dogechat.android.ui
 
 import com.dogechat.android.model.DogechatMessage
-import com.dogechat.android.model.DogechatMessageType
+import com.dogechat.android.model.MessageType
 
 /**
  * Utilities for building human-friendly notification text/previews.
@@ -17,12 +17,11 @@ object NotificationTextUtils {
      */
     fun buildPrivateMessagePreview(message: DogechatMessage): String {
         return try {
-            when (message.type) {
-                DogechatMessageType.Image -> "📷 sent an image"
-                DogechatMessageType.Audio -> "🎤 sent a voice message"
-                DogechatMessageType.File -> {
-                    // Show just the filename (not the full path)
-                    val name = try { java.io.File(message.content).name } catch (_: Exception) { null }
+            when (message.messageType) {
+                MessageType.IMAGE -> "📷 sent an image"
+                MessageType.AUDIO -> "🎤 sent a voice message"
+                MessageType.FILE -> {
+                    val name = try { message.mediaFileName ?: java.io.File(message.content).name } catch (_: Exception) { message.mediaFileName }
                     if (!name.isNullOrBlank()) {
                         val lower = name.lowercase()
                         val icon = when {
@@ -38,10 +37,10 @@ object NotificationTextUtils {
                         "📎 sent a file"
                     }
                 }
-                else -> message.content
+                MessageType.VIDEO -> "🎬 sent a video"
+                MessageType.TEXT -> message.content
             }
         } catch (_: Exception) {
-            // Fallback to original content on any error
             message.content
         }
     }

@@ -148,10 +148,6 @@ class CombinedVisualTransformation(private val transformations: List<VisualTrans
     }
 }
 
-
-
-
-
 @Composable
 fun MessageInput(
     value: TextFieldValue,
@@ -160,6 +156,8 @@ fun MessageInput(
     selectedPrivatePeer: String?,
     currentChannel: String?,
     nickname: String,
+    onPickImage: () -> Unit,
+    onVoiceFinish: (filePath: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -167,10 +165,35 @@ fun MessageInput(
     val hasText = value.text.isNotBlank() // Check if there's text for send button state
     
     Row(
-        modifier = modifier.padding(horizontal = 12.dp, vertical = 8.dp), // Reduced padding
+        modifier = modifier.padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // Image picker button (only when no text, to save space)
+        if (value.text.isEmpty()) {
+            FilledTonalIconButton(
+                onClick = onPickImage,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Image,
+                    contentDescription = "Pick image"
+                )
+            }
+        } else {
+            // If typing, keep layout compact; users can clear to reveal image button
+            Spacer(modifier = Modifier.width(0.dp))
+        }
+
+        // Voice record button (always visible)
+        VoiceRecordButton(
+            modifier = Modifier.size(32.dp),
+            backgroundColor = Color(0xFFFFD700).copy(alpha = 0.75f),
+            onStart = {},
+            onAmplitude = { _, _ -> },
+            onFinish = onVoiceFinish
+        )
+
         // Text input with placeholder
         Box(
             modifier = Modifier.weight(1f)
@@ -185,7 +208,7 @@ fun MessageInput(
                 cursorBrush = SolidColor(colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { 
-                    if (hasText) onSend() // Only send if there's text
+                    if (hasText) onSend()
                 }),
                 visualTransformation = CombinedVisualTransformation(
                     listOf(SlashCommandVisualTransformation(), MentionVisualTransformation())
@@ -204,13 +227,11 @@ fun MessageInput(
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace
                     ),
-                    color = colorScheme.onSurface.copy(alpha = 0.5f), // Muted grey
+                    color = colorScheme.onSurface.copy(alpha = 0.5f),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.width(8.dp)) // Reduced spacing
         
         // Command quick access button
         if (value.text.isEmpty()) {
@@ -228,25 +249,22 @@ fun MessageInput(
         } else {
             // Send button with enabled/disabled state
             IconButton(
-                onClick = { if (hasText) onSend() }, // Only execute if there's text
-                enabled = hasText, // Enable only when there's text
+                onClick = { if (hasText) onSend() },
+                enabled = hasText,
                 modifier = Modifier.size(32.dp)
             ) {
-                // Update send button to match input field colors
                 Box(
                     modifier = Modifier
                         .size(30.dp)
                         .background(
                             color = if (!hasText) {
-                                // Disabled state - muted grey
                                 colorScheme.onSurface.copy(alpha = 0.3f)
                             } else if (selectedPrivatePeer != null || currentChannel != null) {
-                                // Dogecoin Gold for both private messages and channels when enabled
                                 Color(0xFFFFD700).copy(alpha = 0.75f)
                             } else if (colorScheme.background == Color.Black) {
-                                Color(0xFFFFFF00).copy(alpha = 0.75f) // Bright yellow for dark theme
+                                Color(0xFFFFFF00).copy(alpha = 0.75f)
                             } else {
-                                Color(0xFFE6B800).copy(alpha = 0.75f) // Dark Dogecoin Gold for light theme
+                                Color(0xFFE6B800).copy(alpha = 0.75f)
                             },
                             shape = CircleShape
                         ),
@@ -257,15 +275,13 @@ fun MessageInput(
                         contentDescription = stringResource(id = R.string.send_message),
                         modifier = Modifier.size(20.dp),
                         tint = if (!hasText) {
-                            // Disabled state - muted grey icon
                             colorScheme.onSurface.copy(alpha = 0.5f)
                         } else if (selectedPrivatePeer != null || currentChannel != null) {
-                            // Black arrow on orange for both private and channel modes
                             Color.Black
                         } else if (colorScheme.background == Color.Black) {
-                            Color.Black // Black arrow on bright yellow in dark theme
+                            Color.Black
                         } else {
-                            Color.White // White arrow on dark yellow in light theme
+                            Color.White
                         }
                     )
                 }
@@ -417,4 +433,3 @@ fun MentionSuggestionItem(
         )
     }
 }
-

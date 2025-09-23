@@ -22,18 +22,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.parsing.ParsedDogeToken
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
- * This is now a coordinator that orchestrates the following UI components:
- * - ChatHeader: App bar, navigation, peer counter
- * - MessageComponents: Message display and formatting
- * - InputComponents: Message input and command suggestions
- * - SidebarComponents: Navigation drawer with channels and people
- * - AboutSheet: App info and password prompts
- * - ChatUIUtils: Utility functions for formatting and colors
- * - Keeps the exact working main-branch UI (no regressions).
- * - Added wallet icon and integration hooks (DOGE receive/send using libdohj).
  */
 @Composable
 fun ChatScreen(
@@ -81,7 +76,7 @@ fun ChatScreen(
     // Get location channel info for timeline switching
     val selectedLocationChannel by viewModel.selectedLocationChannel.observeAsState()
 
-    // Determine what messages to show based on current context (unified timelines)
+    // Determine what messages to show
     val displayMessages = when {
         selectedPrivatePeer != null -> privateChats[selectedPrivatePeer] ?: emptyList()
         currentChannel != null -> channelMessages[currentChannel] ?: emptyList()
@@ -95,29 +90,39 @@ fun ChatScreen(
             }
         }
     }
-    // Use WindowInsets to handle keyboard properly
+
+    // Content chooser for images
+    val context = LocalContext.current
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.sendImageFromUri(uri)
+            // scroll down when sending
+            forceScrollToBottom = !forceScrollToBottom
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorScheme.background) // Extend background to fill entire screen including status bar
+            .background(colorScheme.background)
     ) {
         val headerHeight = 42.dp
 
-        // Main content area that responds to keyboard/window insets
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.ime) // This handles keyboard insets
-                .windowInsetsPadding(WindowInsets.navigationBars) // Add bottom padding when keyboard is not expanded
+                .windowInsetsPadding(WindowInsets.ime)
+                .windowInsetsPadding(WindowInsets.navigationBars)
         ) {
-            // Header spacer - creates exact space for the floating header (status bar + compact header)
             Spacer(
                 modifier = Modifier
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .height(headerHeight)
             )
 
-            // Messages area - takes up available space, will compress when keyboard appears
+            // Messages list
             MessagesList(
                 messages = displayMessages,
                 currentUserNickname = nickname,
@@ -126,16 +131,12 @@ fun ChatScreen(
                 forceScrollToBottom = forceScrollToBottom,
                 onScrolledUpChanged = { isUp -> isScrolledUp = isUp },
                 onNicknameClick = { fullSenderName ->
-                    // Single click - mention user in text input
                     val currentText = messageText.text
                     val (baseName, hashSuffix) = splitSuffix(fullSenderName)
-                    // Extract base nickname and hash suffix from full sender name
-                    val selectedLocationChannel = viewModel.selectedLocationChannel.value
-                    val mentionText = if (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location && hashSuffix.isNotEmpty()) {
-                        // In geohash chat - include the hash suffix from the full display name
+                    val selectedLocationChannelLocal = viewModel.selectedLocationChannel.value
+                    val mentionText = if (selectedLocationChannelLocal is com.dogechat.android.geohash.ChannelID.Location && hashSuffix.isNotEmpty()) {
                         "@$baseName$hashSuffix"
                     } else {
-                        // Regular chat - just the base nickname
                         "@$baseName"
                     }
 
@@ -151,8 +152,6 @@ fun ChatScreen(
                     )
                 },
                 onMessageLongPress = { message ->
-                    // Message long press - open user action sheet with message context
-                    // Extract base nickname from message sender (contains all necessary info)
                     val (baseName, _) = splitSuffix(message.sender)
                     selectedUserForSheet = baseName
                     selectedMessageForSheet = message
@@ -162,7 +161,7 @@ fun ChatScreen(
                 onDogeSend = { parsedToken -> onDogeSend(parsedToken) }
             )
 
-            // Input area - stays at bottom
+            // Input area
             ChatInputSection(
                 messageText = messageText,
                 onMessageTextChange = { newText: TextFieldValue ->
@@ -174,7 +173,7 @@ fun ChatScreen(
                     if (messageText.text.trim().isNotEmpty()) {
                         viewModel.sendMessage(messageText.text.trim())
                         messageText = TextFieldValue("")
-                        forceScrollToBottom = !forceScrollToBottom // Toggle to trigger scroll
+                        forceScrollToBottom = !forceScrollToBottom
                     }
                 },
                 showCommandSuggestions = showCommandSuggestions,
@@ -198,11 +197,13 @@ fun ChatScreen(
                 selectedPrivatePeer = selectedPrivatePeer,
                 currentChannel = currentChannel,
                 nickname = nickname,
-                colorScheme = colorScheme
+                colorScheme = colorScheme,
+                onPickImage = { imagePicker.launch("image/*") },
+                onVoiceFinish = { path -> viewModel.sendVoiceNote(path) }
             )
         }
 
-        // Floating header - positioned absolutely at top, ignores keyboard
+        // Floating header
         ChatFloatingHeader(
             headerHeight = headerHeight,
             selectedPrivatePeer = selectedPrivatePeer,
@@ -217,7 +218,7 @@ fun ChatScreen(
             onWalletClick = { onWalletClick(null) }
         )
 
-        // Divider under header - positioned after status bar + header height
+        // Divider under header
         HorizontalDivider(
             modifier = Modifier
                 .fillMaxWidth()
@@ -236,7 +237,6 @@ fun ChatScreen(
             ), label = "overlayAlpha"
         )
 
-        // Only render the background if it's visible
         if (alpha > 0f) {
             Box(
                 modifier = Modifier
@@ -323,7 +323,7 @@ fun ChatScreen(
         showUserSheet = showUserSheet,
         onUserSheetDismiss = {
             showUserSheet = false
-            selectedMessageForSheet = null // Reset message when dismissing
+            selectedMessageForSheet = null
         },
         selectedUserForSheet = selectedUserForSheet,
         selectedMessageForSheet = selectedMessageForSheet,
@@ -345,7 +345,9 @@ private fun ChatInputSection(
     selectedPrivatePeer: String?,
     currentChannel: String?,
     nickname: String,
-    colorScheme: ColorScheme
+    colorScheme: ColorScheme,
+    onPickImage: () -> Unit,
+    onVoiceFinish: (String) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -382,6 +384,8 @@ private fun ChatInputSection(
                 selectedPrivatePeer = selectedPrivatePeer,
                 currentChannel = currentChannel,
                 nickname = nickname,
+                onPickImage = onPickImage,
+                onVoiceFinish = onVoiceFinish,
                 modifier = Modifier.fillMaxWidth()
             )
         }
