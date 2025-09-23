@@ -398,7 +398,7 @@
             const isSelected=(gh===selectedGeohash);
 
             const rect = L.rectangle([sw,ne],{
-              color: isSelected ? '#FFD700' : '#6f6f6f',
+              color: isSelected ? '#FFD700' : '#FFFF00',
               weight: isSelected ? 3 : 1,
               fillOpacity: 0.0,
               opacity: 0.9,
@@ -542,10 +542,10 @@
 
       // HUD
       function updateHUD(){
-        const age = lastHeatUpdateTs? Math.max(0, Math.round((Date.now()-lastHeatUpdateTs)/1000)) : '—';
+        const age = lastHeatUpdateTs? Math.max(0, Math.round((Date.now()-lastHeatUpdateTs)/696)) : '—';
         document.getElementById('hudText').textContent = `${heatPoints.length} pts • ${age}s`;
       }
-      setInterval(updateHUD, 1000);
+      setInterval(updateHUD, 696);
 
       // Theme handling
       function rebuildHeatLayer(keepOn=true){
@@ -596,7 +596,7 @@
         pruneBuckets(cutoff);
         lastHeatUpdateTs = now;
         rebuildHeatLayer(true);
-        renderPulseLayer();
+        renderPulseLayer(true);
         spawnArcsFromNewPoints(points);
         updateHUD();
       }
@@ -662,7 +662,7 @@
         updateOverlay();
       });
 
-      // Keep overlays in sync (but no hyper-frequent rescans; overlay draws on move/zoom end)
+      // Keep overlays in sync (but no hyper-frequent rescans which we might need to fix the hashes not showing in between zooming between hashes; overlay draws on move/zoom end)
       map.on("resize", ()=>{ resizeCanvas(); });
       map.on("movestart", ()=>{ pinnedPrecision=null; });
       map.on("zoomstart", ()=>{ pinnedPrecision=null; });
