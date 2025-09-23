@@ -2,6 +2,7 @@ package com.dogechat.android.mesh
 
 import android.util.Log
 import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.DogechatFilePacket
 import com.dogechat.android.model.IdentityAnnouncement
 import com.dogechat.android.model.RoutedPacket
 import com.dogechat.android.protocol.DogechatPacket
