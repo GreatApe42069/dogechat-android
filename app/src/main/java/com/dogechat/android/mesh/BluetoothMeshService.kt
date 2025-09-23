@@ -3,7 +3,6 @@ package com.dogechat.android.mesh
 import android.content.Context
 import android.util.Log
 import com.dogechat.android.crypto.EncryptionService
-import com.dogechat.android.mesh
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.FileSharingManager
 import com.dogechat.android.model.DogechatFilePacket
@@ -613,7 +612,6 @@ class BluetoothMeshService(private val context: Context) {
                 recipientID = SpecialRecipients.BROADCAST,
                 timestamp = System.currentTimeMillis().toULong(),
                 payload = content.toByteArray(Charsets.UTF_8),
-                signature = null,
                 ttl = MAX_TTL
             )
 
@@ -670,7 +668,6 @@ class BluetoothMeshService(private val context: Context) {
                         recipientID = hexStringToByteArray(recipientPeerID),
                         timestamp = System.currentTimeMillis().toULong(),
                         payload = encrypted,
-                        signature = null,
                         ttl = MAX_TTL
                     )
                     
@@ -734,7 +731,6 @@ class BluetoothMeshService(private val context: Context) {
                     recipientID = hexStringToByteArray(recipientPeerID),
                     timestamp = System.currentTimeMillis().toULong(),
                     payload = encrypted,
-                    signature = null,
                     ttl = 7u // Same TTL as iOS messageTTL
                 )
                 
@@ -1074,16 +1070,18 @@ class BluetoothMeshService(private val context: Context) {
                 if (packet != null) {
                     val packetData = DogechatFilePacket.serialize(packet)
                     
-                    // Send via mesh network
+                    // Send via mesh network using full constructor (with timestamp)
                     val dogechatPacket = DogechatPacket(
-                        type = MessageType.FILE_PACKET,
-                        senderID = myPeerID.toByteArray(Charsets.UTF_8).take(8).toByteArray(),
-                        recipientID = recipientPeerID?.toByteArray(Charsets.UTF_8)?.take(8)?.toByteArray() ?: SpecialRecipients.BROADCAST,
+                        version = 1u,
+                        type = MessageType.FILE_PACKET.value,
+                        senderID = hexStringToByteArray(myPeerID),
+                        recipientID = recipientPeerID?.let { hexStringToByteArray(it) } ?: SpecialRecipients.BROADCAST,
+                        timestamp = System.currentTimeMillis().toULong(),
                         payload = packetData,
                         ttl = MAX_TTL
                     )
                     
-                    broadcastPacket(dogechatPacket)
+                    connectionManager.broadcastPacket(RoutedPacket(dogechatPacket))
                     
                     // Update progress
                     val progress = fileSharingManager.getTransferProgress(fileId)

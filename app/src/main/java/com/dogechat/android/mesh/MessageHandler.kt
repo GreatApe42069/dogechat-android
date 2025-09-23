@@ -128,6 +128,12 @@ class MessageHandler(private val myPeerID: String) {
                     // Simplified: Call delegate with messageID and peerID directly
                     delegate?.onReadReceiptReceived(messageID, peerID)
                 }
+
+                // If FILE_PACKET exists as a NoisePayloadType, ignore here;
+                // file transfers are handled at the packet layer (DogechatPacket type FILE_PACKET)
+                com.dogechat.android.model.NoisePayloadType.FILE_PACKET -> {
+                    Log.d(TAG, "Ignoring NoisePayloadType.FILE_PACKET in Noise path; handled at packet layer")
+                }
             }
             
         } catch (e: Exception) {
@@ -161,7 +167,6 @@ class MessageHandler(private val myPeerID: String) {
                 recipientID = hexStringToByteArray(senderPeerID),
                 timestamp = System.currentTimeMillis().toULong(),
                 payload = encryptedPayload,
-                signature = null,
                 ttl = 7u // Same TTL as iOS messageTTL
             )
             
@@ -280,7 +285,6 @@ class MessageHandler(private val myPeerID: String) {
                     recipientID = hexStringToByteArray(peerID),
                     timestamp = System.currentTimeMillis().toULong(),
                     payload = response,
-                    signature = null,
                     ttl = 7u // Same TTL as iOS
                 )
                 

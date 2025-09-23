@@ -21,8 +21,8 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
 
-        versionCode = 12
-        versionName = "0.9.6"
+        versionCode = 13
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -31,18 +31,16 @@ android {
     }
 
     dependenciesInfo {
-        // Disables dependency metadata when building APKs.
         includeInApk = false
-        // Disables dependency metadata when building Android App Bundles.
         includeInBundle = false
     }
 
     signingConfigs {
         create("release") {
             storeFile = file("dogechat-release-key.jks")
-            storePassword = "Your_Keystore_pass_goes_Here_"
+            storePassword = "Your_Keystore_pass_goes_Here"  // Replace with your actual keystore password
             keyAlias = "dogechat-key"
-            keyPassword = "Your_Key_Pass_goes_Here_"
+            keyPassword = "Your_Key_Pass_goes_Here"  // Replace with your actual key password
         }
     }
 
@@ -63,6 +61,7 @@ android {
     }
 
     compileOptions {
+        // AGP 8.7+ requires JDK 17 to run Gradle; bytecode can remain 1.8 here
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }

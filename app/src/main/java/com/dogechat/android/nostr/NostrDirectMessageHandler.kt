@@ -160,6 +160,10 @@ class NostrDirectMessageHandler(
                     meshDelegateHandler.didReceiveReadReceipt(messageId, convKey)
                 }
             }
+            // Ignore file-payload type if present in NoisePayloadType; file transfers are not transported via this path
+            com.dogechat.android.model.NoisePayloadType.FILE_PACKET -> {
+                // no-op
+            }
         }
     }
 

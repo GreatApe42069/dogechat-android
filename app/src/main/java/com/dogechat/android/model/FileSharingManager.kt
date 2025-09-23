@@ -26,8 +26,8 @@ class FileSharingManager(private val context: Context) {
     private val activeTransfers = ConcurrentHashMap<String, FileTransfer>()
     private val receivingFiles = ConcurrentHashMap<String, FileReceiver>()
     
-    private val _transferStatus = MutableStateFlow<Map<String, TransferStatus>>(emptyMap())
-    val transferStatus: StateFlow<Map<String, TransferStatus>> = _transferStatus.asStateFlow()
+    private val _transferStatus = MutableStateFlow<Map<String, TransferStatusInfo>>(emptyMap())
+    val transferStatus: StateFlow<Map<String, TransferStatusInfo>> = _transferStatus.asStateFlow()
     
     /**
      * Start sending a file

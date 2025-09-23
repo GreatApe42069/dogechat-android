@@ -1,7 +1,6 @@
 package com.dogechat.android.model
 
 import android.os.Parcelable
-import com.google.gson.GsonBuilder
 import kotlinx.parcelize.Parcelize
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -10,16 +9,12 @@ import java.util.*
 /**
  * Message type enumeration for different content types
  */
+@Parcelize
 enum class MessageType : Parcelable {
-    @Parcelize
     TEXT,
-    @Parcelize 
     IMAGE,
-    @Parcelize
     AUDIO,
-    @Parcelize
     VIDEO,
-    @Parcelize
     FILE
 }
 

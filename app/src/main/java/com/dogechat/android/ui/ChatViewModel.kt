@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.dogechat.android.mesh.BluetoothMeshDelegate
 import com.dogechat.android.mesh.BluetoothMeshService
 import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.DogechatFilePacket
 import com.dogechat.android.protocol.DogechatPacket
 
 
@@ -706,6 +707,19 @@ class ChatViewModel(
     
     override fun isFavorite(peerID: String): Boolean {
         return meshDelegateHandler.isFavorite(peerID)
+    }
+
+    // --- File transfer delegate methods (forward to handler) ---
+    override fun didReceiveFilePacket(packet: DogechatFilePacket) {
+        meshDelegateHandler.didReceiveFilePacket(packet)
+    }
+
+    override fun didUpdateFileTransferProgress(fileId: String, progress: Int) {
+        meshDelegateHandler.didUpdateFileTransferProgress(fileId, progress)
+    }
+
+    override fun didCompleteFileTransfer(fileId: String, success: Boolean) {
+        meshDelegateHandler.didCompleteFileTransfer(fileId, success)
     }
     
     // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager
