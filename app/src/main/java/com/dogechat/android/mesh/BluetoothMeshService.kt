@@ -3,7 +3,10 @@ package com.dogechat.android.mesh
 import android.content.Context
 import android.util.Log
 import com.dogechat.android.crypto.EncryptionService
+import com.dogechat.android.mesh
 import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.FileSharingManager
+import com.dogechat.android.model.DogechatFilePacket
 import com.dogechat.android.protocol.MessagePadding
 import com.dogechat.android.model.RoutedPacket
 import com.dogechat.android.model.IdentityAnnouncement
@@ -48,6 +51,8 @@ class BluetoothMeshService(private val context: Context) {
     private val fragmentManager = FragmentManager()
     private val securityManager = SecurityManager(encryptionService, myPeerID)
     private val storeForwardManager = StoreForwardManager()
+    private val transferProgressManager = TransferProgressManager()
+    private val fileSharingManager = FileSharingManager(context)
     private val messageHandler = MessageHandler(myPeerID)
     internal val connectionManager = BluetoothConnectionManager(context, myPeerID, fragmentManager) // Made internal for access
     private val packetProcessor = PacketProcessor(myPeerID)
@@ -472,6 +477,16 @@ class BluetoothMeshService(private val context: Context) {
                 val fromPeer = routed.peerID ?: return
                 val req = RequestSyncPacket.decode(routed.packet.payload) ?: return
                 gossipSyncManager.handleRequestSync(fromPeer, req)
+            }
+            
+            override fun handleFilePacket(routed: RoutedPacket) {
+                // Decode file packet and handle through file sharing manager
+                val packet = DogechatFilePacket.deserialize(routed.packet.payload)
+                if (packet != null) {
+                    processFilePacket(packet)
+                } else {
+                    Log.w(TAG, "Failed to decode file packet from ${routed.peerID}")
+                }
             }
         }
         
@@ -1027,6 +1042,109 @@ class BluetoothMeshService(private val context: Context) {
         }
     }
     
+    // MARK: - File Transfer Support
+    
+    /**
+     * Send a file to a specific peer or broadcast to channel
+     */
+    fun sendFile(file: java.io.File, recipientPeerID: String? = null, channel: String? = null): String? {
+        return try {
+            val fileId = fileSharingManager.startFileSend(file)
+            if (fileId != null) {
+                Log.i(TAG, "📁 Started file send: ${file.name} (ID: $fileId)")
+                sendNextFileChunk(fileId, recipientPeerID, channel)
+                fileId
+            } else {
+                Log.e(TAG, "❌ Failed to start file send for: ${file.name}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error sending file: ${e.message}")
+            null
+        }
+    }
+    
+    /**
+     * Send next chunk of file transfer
+     */
+    private fun sendNextFileChunk(fileId: String, recipientPeerID: String?, channel: String?) {
+        serviceScope.launch {
+            try {
+                val packet = fileSharingManager.getNextChunk(fileId)
+                if (packet != null) {
+                    val packetData = DogechatFilePacket.serialize(packet)
+                    
+                    // Send via mesh network
+                    val dogechatPacket = DogechatPacket(
+                        type = MessageType.FILE_PACKET,
+                        senderID = myPeerID.toByteArray(Charsets.UTF_8).take(8).toByteArray(),
+                        recipientID = recipientPeerID?.toByteArray(Charsets.UTF_8)?.take(8)?.toByteArray() ?: SpecialRecipients.BROADCAST,
+                        payload = packetData,
+                        ttl = MAX_TTL
+                    )
+                    
+                    broadcastPacket(dogechatPacket)
+                    
+                    // Update progress
+                    val progress = fileSharingManager.getTransferProgress(fileId)
+                    delegate?.didUpdateFileTransferProgress(fileId, progress)
+                    
+                    // Schedule next chunk
+                    delay(100) // Small delay between chunks
+                    sendNextFileChunk(fileId, recipientPeerID, channel)
+                } else {
+                    // Transfer complete
+                    delegate?.didCompleteFileTransfer(fileId, true)
+                    Log.i(TAG, "✅ File transfer completed: $fileId")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error sending file chunk: ${e.message}")
+                delegate?.didCompleteFileTransfer(fileId, false)
+            }
+        }
+    }
+    
+    /**
+     * Process received file packet
+     */
+    private fun processFilePacket(packet: DogechatFilePacket) {
+        try {
+            val success = fileSharingManager.handleReceivedChunk(packet)
+            if (success) {
+                delegate?.didReceiveFilePacket(packet)
+                
+                val progress = fileSharingManager.getTransferProgress(packet.fileId)
+                delegate?.didUpdateFileTransferProgress(packet.fileId, progress)
+                
+                Log.d(TAG, "📥 Received file chunk ${packet.chunkIndex}/${packet.totalChunks} for file: ${packet.fileName}")
+            } else {
+                Log.w(TAG, "❌ Failed to handle file packet for: ${packet.fileName}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling file packet: ${e.message}")
+        }
+    }
+    
+    /**
+     * Cancel file transfer
+     */
+    fun cancelFileTransfer(fileId: String) {
+        try {
+            fileSharingManager.cancelTransfer(fileId)
+            delegate?.didCompleteFileTransfer(fileId, false)
+            Log.i(TAG, "🚫 Cancelled file transfer: $fileId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error cancelling file transfer: ${e.message}")
+        }
+    }
+    
+    /**
+     * Get file transfer progress
+     */
+    fun getFileTransferProgress(fileId: String): Int {
+        return fileSharingManager.getTransferProgress(fileId)
+    }
+    
     // MARK: - Panic Mode Support
     
     /**
@@ -1041,6 +1159,7 @@ class BluetoothMeshService(private val context: Context) {
             securityManager.clearAllData()
             peerManager.clearAllPeers()
             peerManager.clearAllFingerprints()
+            // Note: fileSharingManager and transferProgressManager will be cleared when context is destroyed
             Log.d(TAG, "✅ Cleared all mesh service internal data")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error clearing mesh service internal data: ${e.message}")
@@ -1074,5 +1193,9 @@ interface BluetoothMeshDelegate {
     fun decryptChannelMessage(encryptedContent: ByteArray, channel: String): String?
     fun getNickname(): String?
     fun isFavorite(peerID: String): Boolean
+    // File transfer callbacks
+    fun didReceiveFilePacket(packet: DogechatFilePacket)
+    fun didUpdateFileTransferProgress(fileId: String, progress: Int)
+    fun didCompleteFileTransfer(fileId: String, success: Boolean)
     // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager
 }
