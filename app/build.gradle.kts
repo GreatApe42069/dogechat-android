@@ -116,6 +116,9 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    // For all filled/extended icons (AudioFile, AttachFile, Image, etc.)
+    implementation("androidx.compose.material:material-icons-extended")
+
     // ---- AndroidX Core / Lifecycle / Navigation ----
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

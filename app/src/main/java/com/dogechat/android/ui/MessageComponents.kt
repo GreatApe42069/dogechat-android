@@ -58,6 +58,7 @@ import java.util.Locale
  * - Keeps upstream Bitchat smart scroll and reverse layout logic
  * - Adds PoW animation gating hook (shouldAnimateMessage + MessageWithMatrixAnimation)
  * - Preserves Dogechat extras (onDogeReceive/onDogeSend) for future token actions
+ * - NEW: In-chat media rows for image/audio/video/file message types
  */
 
 @Composable
@@ -123,7 +124,6 @@ fun MessagesList(
         modifier = modifier,
         reverseLayout = true
     ) {
-        // Only one of items or itemsIndexed, not both, and not nested!
         itemsIndexed(messages.asReversed(), key = { _, item -> item.hashCode() }) { _, msg ->
             MessageItem(
                 message = msg,
@@ -162,27 +162,43 @@ fun MessageItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            // Create a custom layout that combines selectable text with clickable nickname areas
-            MessageTextWithClickableNicknames(
-                message = message,
-                currentUserNickname = currentUserNickname,
-                meshService = meshService,
-                colorScheme = colorScheme,
-                timeFormatter = timeFormatter,
-                onNicknameClick = onNicknameClick,
-                onMessageLongPress = onMessageLongPress,
-                modifier = Modifier.weight(1f)
-            )
+            // If this is a media message, render a MediaMessageRow; otherwise, render text
+            if (isMediaMessage(message)) {
+                MediaMessageRow(
+                    message = message,
+                    currentUserNickname = currentUserNickname,
+                    meshService = meshService,
+                    colorScheme = colorScheme,
+                    timeFormatter = timeFormatter,
+                    onMessageLongPress = onMessageLongPress,
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
+                // Create a custom layout that combines selectable text with clickable nickname areas
+                MessageTextWithClickableNicknames(
+                    message = message,
+                    currentUserNickname = currentUserNickname,
+                    meshService = meshService,
+                    colorScheme = colorScheme,
+                    timeFormatter = timeFormatter,
+                    onNicknameClick = onNicknameClick,
+                    onMessageLongPress = onMessageLongPress,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-            // Delivery status for private messages
-            if (message.isPrivate && message.sender == currentUserNickname) {
+            // Delivery status for private messages (sender-side)
+            if (message.isPrivate && (message.senderPeerID == meshService.myPeerID ||
+                        message.sender == currentUserNickname ||
+                        message.sender.startsWith("$currentUserNickname#"))
+            ) {
                 message.deliveryStatus?.let { status ->
                     DeliveryStatusIcon(status = status)
                 }
             }
         }
 
-        // Link previews removed; links are now highlighted inline and clickable within the message text
+        // Link previews removed; links are highlighted inline and clickable within the message text
     }
 }
 
@@ -198,11 +214,9 @@ private fun MessageTextWithClickableNicknames(
     onMessageLongPress: ((DogechatMessage) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
-    // Upstream parity: PoW mining animation hook. If mining is active for the message, render with animation.
     val animate = shouldAnimateMessage(message)
 
     if (animate) {
-        // Display message with a subtle "matrix" style animation effect while PoW is ongoing.
         MessageWithMatrixAnimation(
             message = message,
             currentUserNickname = currentUserNickname,
@@ -216,7 +230,6 @@ private fun MessageTextWithClickableNicknames(
         return
     }
 
-    // Normal (non-animated) message display
     val annotatedText = formatMessageAsAnnotatedString(
         message = message,
         currentUserNickname = currentUserNickname,
@@ -225,7 +238,6 @@ private fun MessageTextWithClickableNicknames(
         timeFormatter = timeFormatter
     )
 
-    // Check if this message was sent by self to avoid click interactions on own nickname
     val isSelf = message.senderPeerID == meshService.myPeerID ||
         message.sender == currentUserNickname ||
         message.sender.startsWith("$currentUserNickname#")
@@ -242,7 +254,6 @@ private fun MessageTextWithClickableNicknames(
                     val layout = textLayoutResult ?: return@detectTapGestures
                     val offset = layout.getOffsetForPosition(position)
 
-                    // Nickname click only when not self
                     if (!isSelf && onNicknameClick != null) {
                         val nicknameAnnotations = annotatedText.getStringAnnotations(
                             tag = "nickname_click",
@@ -257,7 +268,6 @@ private fun MessageTextWithClickableNicknames(
                         }
                     }
 
-                    // Geohash teleport (all messages)
                     val geohashAnnotations = annotatedText.getStringAnnotations(
                         tag = "geohash_click",
                         start = offset,
@@ -278,14 +288,11 @@ private fun MessageTextWithClickableNicknames(
                             val channel = com.dogechat.android.geohash.GeohashChannel(level, geohash.lowercase())
                             locationManager.setTeleported(true)
                             locationManager.select(com.dogechat.android.geohash.ChannelID.Location(channel))
-                        } catch (_: Exception) {
-                            // ignore teleport errors
-                        }
+                        } catch (_: Exception) { }
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         return@detectTapGestures
                     }
 
-                    // URL open (all messages)
                     val urlAnnotations = annotatedText.getStringAnnotations(
                         tag = "url_click",
                         start = offset,
@@ -300,9 +307,7 @@ private fun MessageTextWithClickableNicknames(
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(resolved))
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.startActivity(intent)
-                        } catch (_: Exception) {
-                            // ignore open url errors
-                        }
+                        } catch (_: Exception) { }
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         return@detectTapGestures
                     }
@@ -323,7 +328,6 @@ private fun MessageTextWithClickableNicknames(
 
 /**
  * Delivery status indicator similar to upstream.
- * Sent/Deliver/Read/Failed/Partial mapping follows Bitchat.
  */
 @Composable
 fun DeliveryStatusIcon(status: DeliveryStatus) {
@@ -338,7 +342,6 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
             )
         }
         is DeliveryStatus.Sent -> {
-            // Use a subtle hollow marker for Sent; single check is reserved for Delivered (iOS parity)
             Text(
                 text = "○",
                 fontSize = 10.sp,
@@ -346,7 +349,6 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
             )
         }
         is DeliveryStatus.Delivered -> {
-            // Single check for Delivered (matches iOS expectations)
             Text(
                 text = "✓",
                 fontSize = 10.sp,
@@ -357,7 +359,7 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
             Text(
                 text = "✓✓",
                 fontSize = 10.sp,
-                color = Color(0xFF007AFF), // Blue
+                color = Color(0xFF007AFF),
                 fontWeight = FontWeight.Bold
             )
         }
@@ -382,14 +384,7 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
    Upstream PoW Animation Hooks (Dogechat adaptation)
    ========================= */
 
-/**
- * Decides whether to animate a message during PoW mining.
- * NOTE: This returns false by default to avoid coupling to a specific mining state implementation.
- * Wire this into your PoW mining state if available, e.g.:
- *   return PoWMiningTracker.isMining(message.id)
- */
 private fun shouldAnimateMessage(message: DogechatMessage): Boolean {
-    // TODO: integrate with Dogechat's PoW mining tracker if/when exposed
+    // Integrate with PoW tracker if/when exposed
     return false
 }
-
