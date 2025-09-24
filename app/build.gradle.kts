@@ -1,12 +1,15 @@
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.parcelize)
-    alias(libs.plugins.kotlin.compose)
+    // Upgrade AGP and Kotlin to satisfy the new AndroidX deps
+    id("com.android.application") version "8.6.1"
+    id("org.jetbrains.kotlin.android") version "2.0.20"
+    id("org.jetbrains.kotlin.plugin.parcelize") version "2.0.20"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.20"
 
-    // Hilt via KAPT (stable) + keep KSP for other processors if needed
-    id("org.jetbrains.kotlin.kapt") version "2.0.0"
-    id("com.google.devtools.ksp") version "2.0.0-1.0.24"
+    // Keep annotation processors aligned with Kotlin 2.0.20
+    id("org.jetbrains.kotlin.kapt") version "2.0.20"
+    id("com.google.devtools.ksp") version "2.0.20-1.0.24"
+
+    // Same Hilt version you’re using
     id("com.google.dagger.hilt.android") version "2.51.1"
 }
 
@@ -61,7 +64,7 @@ android {
     }
 
     compileOptions {
-        // AGP 8.7+ requires JDK 17 to run Gradle; bytecode can remain 1.8 here
+        // AGP 8.6 runs on JDK 17; bytecode target 1.8 is fine for app code
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -133,7 +136,6 @@ dependencies {
 
     // ---- Hilt + Navigation ----
     implementation("com.google.dagger:hilt-android:2.51.1")
-    // Use KAPT for Hilt to avoid KSP NonExistentClass issues
     kapt("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
@@ -165,10 +167,8 @@ dependencies {
     implementation(libs.slf4j.simple)
 
     // ---- Dogecoin (libdohj snapshot jar + bitcoinj 0.16.1) ----
-    // Ensure this file exists: app/libs/libdohj-core-0.16-SNAPSHOT.jar
     implementation(files("libs/libdohj-core-0.16-SNAPSHOT.jar"))
 
-    // bitcoinj must match libdohj's target; exclude its older bcprov
     implementation("org.bitcoinj:bitcoinj-core:$bitcoinjVersion") {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
     }
@@ -181,7 +181,6 @@ dependencies {
     implementation(libs.okhttp)
 
     // ---- Tor stacks ----
-    // Arti (Rust-based Tor)
     implementation(libs.arti.mobile.ex)
 
     // ---- Location ----
@@ -203,7 +202,6 @@ dependencies {
     // coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 
-// KAPT configuration for Hilt
 kapt {
     correctErrorTypes = true
 }
