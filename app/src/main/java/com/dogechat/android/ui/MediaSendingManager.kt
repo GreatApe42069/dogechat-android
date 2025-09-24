@@ -70,6 +70,20 @@ class MediaSendingManager(
                 else -> MessageType.FILE
             }
 
+            // Copy file to temp directory so MediaMessageRow can find it for sender's view
+            val tempDir = com.dogechat.android.features.file.FileUtils.getTempFilesDir(meshService.getContext())
+            val fileName = file.name
+            val tempFile = File(tempDir, fileName)
+            
+            try {
+                if (!tempFile.exists()) {
+                    file.copyTo(tempFile, overwrite = false)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to copy file to temp directory: ${e.message}")
+                // Continue anyway, MediaMessageRow will handle missing file
+            }
+
             val fileId = if (toPeerIDOrNull != null) {
                 meshService.sendFile(file, recipientPeerID = toPeerIDOrNull, channel = null)
             } else {
@@ -99,7 +113,7 @@ class MediaSendingManager(
                 senderPeerID = meshService.myPeerID,
                 channel = channelOrNull,
                 messageType = messageType,
-                mediaFileName = file.name,            // kept in metadata, not in content
+                mediaFileName = fileName,            // Use just filename, not full path
                 mediaMimeType = mimeType,
                 mediaFileSize = file.length(),
                 mediaFileId = fileId
