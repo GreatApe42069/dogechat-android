@@ -46,6 +46,15 @@ class DogechatApplication : Application() {
             Log.w("DogechatApp", "HeatStreamBus warm-up failed: ${it.message}")
         }
 
+        // 8. Wallet Tor proxy check - ensure Tor proxy settings are ready for wallet use
+        runCatching {
+            // Warm up wallet Tor manager to ensure proxy configuration is ready
+            com.dogechat.android.wallet.net.WalletTorPreferenceManager.init(this)
+            Log.d("DogechatApp", "Wallet Tor preferences initialized")
+        }.onFailure {
+            Log.w("DogechatApp", "Wallet Tor preferences init failed: ${it.message}")
+        }
+
         // Hilt injection: @HiltAndroidApp sets up DI graph automatically
     }
 }
