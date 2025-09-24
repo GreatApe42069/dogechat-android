@@ -230,7 +230,7 @@ fun ChatHeaderContent(
     onTripleClick: () -> Unit,
     onShowAppInfo: () -> Unit,
     onLocationChannelsClick: () -> Unit,
-    onWalletClick: (() -> Unit)? = null // <--- Wallet callback added
+    onWalletClick: (() -> Unit)? = null // kept for API compatibility; icon removed
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
@@ -284,9 +284,8 @@ fun ChatHeaderContent(
                 onTripleTitleClick = onTripleClick,
                 onSidebarClick = onSidebarClick,
                 onLocationChannelsClick = onLocationChannelsClick,
-                onWalletClick = onWalletClick,
+                onWalletClick = onWalletClick, // ignored in MainHeader; icon removed
                 viewModel = viewModel
-                
             )
         }
     }
@@ -406,7 +405,7 @@ private fun PrivateChatHeader(
                     imageVector = Icons.Outlined.Public,
                     contentDescription = "Nostr reachable",
                     modifier = Modifier.size(14.dp),
-                    tint = Color(0xFF9B59B6) // Purple like iOS
+                    tint = Color(0xFFFFD700) // dogeGold
                 )
             } else {
                 NoiseSessionIcon(
@@ -507,7 +506,7 @@ private fun MainHeader(
     onTripleTitleClick: () -> Unit,
     onSidebarClick: () -> Unit,
     onLocationChannelsClick: () -> Unit,
-    onWalletClick: (() -> Unit)? = null,
+    onWalletClick: (() -> Unit)? = null, // kept for API compatibility; icon removed
     viewModel: ChatViewModel
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -551,87 +550,84 @@ private fun MainHeader(
             )
         }
         
-        // Right section with location channels button, peer counter, and wallet
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        // Right section: status/icons; wallet icon removed
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .widthIn(min = 0.dp)
         ) {
-            // Unread private messages badge (click to open most recent DM)
-            if (hasUnreadPrivateMessages.isNotEmpty()) {
-                Icon(
-                    imageVector = Icons.Filled.Email,
-                    contentDescription = "Unread private messages",
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clickable { viewModel.openLatestUnreadPrivateChat() },
-                    tint = Color(0xFFFF9500)
-                )
-            }
-
-            // Location channels button (matching iOS implementation) and bookmark grouped tightly
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 14.dp)) {
-                LocationChannelsButton(
-                    viewModel = viewModel,
-                    onClick = onLocationChannelsClick
-                )
-
-                // Bookmark toggle for current geohash (not shown for mesh)
-                val currentGeohash: String? = when (val sc = selectedLocationChannel) {
-                    is com.dogechat.android.geohash.ChannelID.Location -> sc.channel.geohash
-                    else -> null
-                }
-                if (currentGeohash != null) {
-                    val isBookmarked = bookmarks.contains(currentGeohash)
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 1.dp) // minimal gap between geohash and bookmark
-                            .size(20.dp)
-                            .clickable { bookmarksStore.toggle(currentGeohash) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                            contentDescription = "Toggle bookmark",
-                            tint = if (isBookmarked) Color(0xFF00C851) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-
-            // Tor status cable icon when Tor is enabled
-            TorStatusIcon(modifier = Modifier.size(14.dp))
-
-            // PoW status indicator
-            PoWStatusIndicator(
-                modifier = Modifier,
-                style = PoWIndicatorStyle.COMPACT
-            )
-
-            PeerCounter(
-                connectedPeers = connectedPeers.filter { it != viewModel.meshService.myPeerID },
-                joinedChannels = joinedChannels,
-                hasUnreadChannels = hasUnreadChannels,
-                hasUnreadPrivateMessages = hasUnreadPrivateMessages,
-                isConnected = isConnected,
-                selectedLocationChannel = selectedLocationChannel,
-                geohashPeople = geohashPeople,
-                onClick = onSidebarClick
-            )
-
-            // Wallet button belongs in the header (moved here)
-            onWalletClick?.let {
-                IconButton(
-                    onClick = it,
-                    modifier = Modifier.size(18.dp)
-                ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .horizontalScroll(rememberScrollState())
+            ) {
+                // Unread private messages badge (click to open most recent DM)
+                if (hasUnreadPrivateMessages.isNotEmpty()) {
                     Icon(
-                        imageVector = Icons.Filled.AccountBalanceWallet,
-                        contentDescription = "Wallet",
-                        tint = Color(0xFFFFD700) // Dogecoin gold
+                        imageVector = Icons.Filled.Email,
+                        contentDescription = "Unread private messages",
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { viewModel.openLatestUnreadPrivateChat() },
+                        tint = Color(0xFFFF9500)
                     )
                 }
+
+                // Location channels button (matching iOS implementation) and bookmark grouped tightly
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 14.dp)) {
+                    LocationChannelsButton(
+                        viewModel = viewModel,
+                        onClick = onLocationChannelsClick
+                    )
+
+                    // Bookmark toggle for current geohash (not shown for mesh)
+                    val currentGeohash: String? = when (val sc = selectedLocationChannel) {
+                        is com.dogechat.android.geohash.ChannelID.Location -> sc.channel.geohash
+                        else -> null
+                    }
+                    if (currentGeohash != null) {
+                        val isBookmarked = bookmarks.contains(currentGeohash)
+                        Box(
+                            modifier = Modifier
+                                .padding(start = 1.dp) // minimal gap between geohash and bookmark
+                                .size(20.dp)
+                                .clickable { bookmarksStore.toggle(currentGeohash) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = "Toggle bookmark",
+                                tint = if (isBookmarked) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Tor status cable icon when Tor is enabled
+                TorStatusIcon(modifier = Modifier.size(14.dp))
+
+                // PoW status indicator
+                PoWStatusIndicator(
+                    modifier = Modifier,
+                    style = PoWIndicatorStyle.COMPACT
+                )
+
+                PeerCounter(
+                    connectedPeers = connectedPeers.filter { it != viewModel.meshService.myPeerID },
+                    joinedChannels = joinedChannels,
+                    hasUnreadChannels = hasUnreadChannels,
+                    hasUnreadPrivateMessages = hasUnreadPrivateMessages,
+                    isConnected = isConnected,
+                    selectedLocationChannel = selectedLocationChannel,
+                    geohashPeople = geohashPeople,
+                    onClick = onSidebarClick
+                )
             }
+
+            // Wallet icon removed (already available in sidebar)
         }
     }
 }

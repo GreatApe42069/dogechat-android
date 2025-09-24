@@ -1,11 +1,22 @@
 package com.dogechat.android.model
 
 import android.os.Parcelable
-import com.google.gson.GsonBuilder
 import kotlinx.parcelize.Parcelize
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
+
+/**
+ * Message type enumeration for different content types
+ */
+@Parcelize
+enum class MessageType : Parcelable {
+    TEXT,
+    IMAGE,
+    AUDIO,
+    VIDEO,
+    FILE
+}
 
 /**
  * Delivery status for messages - exact same as iOS version
@@ -60,7 +71,14 @@ data class DogechatMessage(
     val encryptedContent: ByteArray? = null,
     val isEncrypted: Boolean = false,
     val deliveryStatus: DeliveryStatus? = null,
-    val powDifficulty: Int? = null
+    val powDifficulty: Int? = null,
+    // Media fields
+    val messageType: MessageType = MessageType.TEXT,
+    val mediaFileName: String? = null,
+    val mediaMimeType: String? = null,
+    val mediaFileSize: Long? = null,
+    val mediaFileId: String? = null,
+    val mediaThumbnail: ByteArray? = null
 ) : Parcelable {
 
     /**
@@ -89,6 +107,9 @@ data class DogechatMessage(
             if (isEncrypted) flags = flags or 0x80u
 
             buffer.put(flags.toByte())
+            
+            // Message type (1 byte)
+            buffer.put(messageType.ordinal.toByte())
 
             // Timestamp (in milliseconds, 8 bytes big-endian)
             val timestampMillis = timestamp.time
@@ -152,6 +173,37 @@ data class DogechatMessage(
                 buffer.put(channelBytes.take(255).toByteArray())
             }
 
+            // Media fields (only for non-text messages)
+            if (messageType != MessageType.TEXT) {
+                mediaFileName?.let { filename ->
+                    val filenameBytes = filename.toByteArray(Charsets.UTF_8)
+                    buffer.put(minOf(filenameBytes.size, 255).toByte())
+                    buffer.put(filenameBytes.take(255).toByteArray())
+                } ?: buffer.put(0.toByte())
+
+                mediaMimeType?.let { mimeType ->
+                    val mimeBytes = mimeType.toByteArray(Charsets.UTF_8)
+                    buffer.put(minOf(mimeBytes.size, 255).toByte())
+                    buffer.put(mimeBytes.take(255).toByteArray())
+                } ?: buffer.put(0.toByte())
+
+                mediaFileSize?.let { size ->
+                    buffer.putLong(size)
+                } ?: buffer.putLong(0L)
+
+                mediaFileId?.let { fileId ->
+                    val fileIdBytes = fileId.toByteArray(Charsets.UTF_8)
+                    buffer.put(minOf(fileIdBytes.size, 255).toByte())
+                    buffer.put(fileIdBytes.take(255).toByteArray())
+                } ?: buffer.put(0.toByte())
+
+                mediaThumbnail?.let { thumbnail ->
+                    val thumbSize = minOf(thumbnail.size, 65535)
+                    buffer.putShort(thumbSize.toShort())
+                    buffer.put(thumbnail.take(thumbSize).toByteArray())
+                } ?: buffer.putShort(0.toShort())
+            }
+
             val result = ByteArray(buffer.position())
             buffer.rewind()
             buffer.get(result)
@@ -168,7 +220,7 @@ data class DogechatMessage(
          */
         fun fromBinaryPayload(data: ByteArray): DogechatMessage? {
             try {
-                if (data.size < 13) return null
+                if (data.size < 14) return null // Updated minimum size for message type
 
                 val buffer = ByteBuffer.wrap(data).apply { order(ByteOrder.BIG_ENDIAN) }
 
@@ -182,6 +234,14 @@ data class DogechatMessage(
                 val hasMentions = (flags and 0x20u) != 0u.toUByte()
                 val hasChannel = (flags and 0x40u) != 0u.toUByte()
                 val isEncrypted = (flags and 0x80u) != 0u.toUByte()
+
+                // Message type
+                val messageTypeOrdinal = buffer.get().toInt() and 0xFF
+                val messageType = try {
+                    MessageType.values()[messageTypeOrdinal]
+                } catch (e: Exception) {
+                    MessageType.TEXT
+                }
 
                 // Timestamp
                 val timestampMillis = buffer.getLong()
@@ -275,6 +335,59 @@ data class DogechatMessage(
                     } else null
                 } else null
 
+                // Media fields (only for non-text messages)
+                var mediaFileName: String? = null
+                var mediaMimeType: String? = null
+                var mediaFileSize: Long? = null
+                var mediaFileId: String? = null
+                var mediaThumbnail: ByteArray? = null
+
+                if (messageType != MessageType.TEXT && buffer.hasRemaining()) {
+                    // Media filename
+                    val filenameLength = buffer.get().toInt() and 0xFF
+                    if (filenameLength > 0 && buffer.remaining() >= filenameLength) {
+                        val filenameBytes = ByteArray(filenameLength)
+                        buffer.get(filenameBytes)
+                        mediaFileName = String(filenameBytes, Charsets.UTF_8)
+                    }
+
+                    // Media MIME type
+                    if (buffer.hasRemaining()) {
+                        val mimeLength = buffer.get().toInt() and 0xFF
+                        if (mimeLength > 0 && buffer.remaining() >= mimeLength) {
+                            val mimeBytes = ByteArray(mimeLength)
+                            buffer.get(mimeBytes)
+                            mediaMimeType = String(mimeBytes, Charsets.UTF_8)
+                        }
+                    }
+
+                    // Media file size
+                    if (buffer.remaining() >= 8) {
+                        val size = buffer.getLong()
+                        if (size > 0) mediaFileSize = size
+                    }
+
+                    // Media file ID
+                    if (buffer.hasRemaining()) {
+                        val fileIdLength = buffer.get().toInt() and 0xFF
+                        if (fileIdLength > 0 && buffer.remaining() >= fileIdLength) {
+                            val fileIdBytes = ByteArray(fileIdLength)
+                            buffer.get(fileIdBytes)
+                            mediaFileId = String(fileIdBytes, Charsets.UTF_8)
+                        }
+                    }
+
+                    // Media thumbnail
+                    if (buffer.remaining() >= 2) {
+                        val thumbnailLength = buffer.getShort().toInt() and 0xFFFF
+                        if (thumbnailLength > 0 && buffer.remaining() >= thumbnailLength) {
+                            val thumbnailBytes = ByteArray(thumbnailLength)
+                            buffer.get(thumbnailBytes)
+                            mediaThumbnail = thumbnailBytes
+                        }
+                    }
+                }
+
                 return DogechatMessage(
                     id = id,
                     sender = sender,
@@ -288,7 +401,13 @@ data class DogechatMessage(
                     mentions = mentions,
                     channel = channel,
                     encryptedContent = encryptedContent,
-                    isEncrypted = isEncrypted
+                    isEncrypted = isEncrypted,
+                    messageType = messageType,
+                    mediaFileName = mediaFileName,
+                    mediaMimeType = mediaMimeType,
+                    mediaFileSize = mediaFileSize,
+                    mediaFileId = mediaFileId,
+                    mediaThumbnail = mediaThumbnail
                 )
 
             } catch (e: Exception) {
@@ -320,6 +439,15 @@ data class DogechatMessage(
         } else if (other.encryptedContent != null) return false
         if (isEncrypted != other.isEncrypted) return false
         if (deliveryStatus != other.deliveryStatus) return false
+        if (messageType != other.messageType) return false
+        if (mediaFileName != other.mediaFileName) return false
+        if (mediaMimeType != other.mediaMimeType) return false
+        if (mediaFileSize != other.mediaFileSize) return false
+        if (mediaFileId != other.mediaFileId) return false
+        if (mediaThumbnail != null) {
+            if (other.mediaThumbnail == null) return false
+            if (!mediaThumbnail.contentEquals(other.mediaThumbnail)) return false
+        } else if (other.mediaThumbnail != null) return false
 
         return true
     }
@@ -339,6 +467,12 @@ data class DogechatMessage(
         result = 31 * result + (encryptedContent?.contentHashCode() ?: 0)
         result = 31 * result + isEncrypted.hashCode()
         result = 31 * result + (deliveryStatus?.hashCode() ?: 0)
+        result = 31 * result + messageType.hashCode()
+        result = 31 * result + (mediaFileName?.hashCode() ?: 0)
+        result = 31 * result + (mediaMimeType?.hashCode() ?: 0)
+        result = 31 * result + (mediaFileSize?.hashCode() ?: 0)
+        result = 31 * result + (mediaFileId?.hashCode() ?: 0)
+        result = 31 * result + (mediaThumbnail?.contentHashCode() ?: 0)
         return result
     }
 }

@@ -94,7 +94,7 @@ class NostrTransport(
                     Log.e(TAG, "NostrTransport: no peerID stored for recipient npub; cannot embed PM. npub=${recipientNostrPubkey.take(16)}...")
                     return@launch
                 }
-                val embedded = NostrEmbeddedDogeChat.encodePMForNostr(
+                val embedded = NostrEmbeddedDogechat.encodePMForNostr(
                     content = content,
                     messageID = messageID,
                     recipientPeerID = recipientPeerIDForEmbed,
@@ -180,7 +180,7 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val ack = NostrEmbeddedDogeChat.encodeAckForNostr(
+                val ack = NostrEmbeddedDogechat.encodeAckForNostr(
                     type = NoisePayloadType.READ_RECEIPT,
                     messageID = item.receipt.originalMessageID,
                     recipientPeerID = item.peerID,
@@ -257,7 +257,7 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val embedded = NostrEmbeddedDogeChat.encodePMForNostr(
+                val embedded = NostrEmbeddedDogechat.encodePMForNostr(
                     content = content,
                     messageID = UUID.randomUUID().toString(),
                     recipientPeerID = to,
@@ -315,7 +315,7 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val ack = NostrEmbeddedDogeChat.encodeAckForNostr(
+                val ack = NostrEmbeddedDogechat.encodeAckForNostr(
                     type = NoisePayloadType.DELIVERED,
                     messageID = messageID,
                     recipientPeerID = to,
@@ -355,7 +355,7 @@ class NostrTransport(
             try {
                 Log.d(TAG, "GeoDM: send DELIVERED -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}...")
                 
-                val embedded = NostrEmbeddedDogeChat.encodeAckForNostrNoRecipient(
+                val embedded = NostrEmbeddedDogechat.encodeAckForNostrNoRecipient(
                     type = NoisePayloadType.DELIVERED,
                     messageID = messageID,
                     senderPeerID = senderPeerID
@@ -390,7 +390,7 @@ class NostrTransport(
             try {
                 Log.d(TAG, "GeoDM: send READ -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}...")
                 
-                val embedded = NostrEmbeddedDogeChat.encodeAckForNostrNoRecipient(
+                val embedded = NostrEmbeddedDogechat.encodeAckForNostrNoRecipient(
                     type = NoisePayloadType.READ_RECEIPT,
                     messageID = messageID,
                     senderPeerID = senderPeerID
@@ -453,7 +453,7 @@ class NostrTransport(
                 )
 
                 // Build embedded DogeChat packet without recipient peer ID
-                val embedded = NostrEmbeddedDogeChat.encodePMForNostrNoRecipient(
+                val embedded = NostrEmbeddedDogechat.encodePMForNostrNoRecipient(
                     content = content,
                     messageID = messageID,
                     senderPeerID = senderPeerID

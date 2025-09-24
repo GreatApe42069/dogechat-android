@@ -16,7 +16,8 @@ enum class MessageType(val value: UByte) {
     NOISE_HANDSHAKE(0x10u),  // Noise handshake
     NOISE_ENCRYPTED(0x11u),  // Noise encrypted transport message
     FRAGMENT(0x20u), // Fragmentation for large packets
-    REQUEST_SYNC(0x21u); // GCS-based sync request
+    REQUEST_SYNC(0x21u), // GCS-based sync request
+    FILE_PACKET(0x30u); // File transfer packet
 
     companion object {
         fun fromValue(value: UByte): MessageType? {

@@ -1,9 +1,9 @@
 # =========================
-# PowerShell script: List all public methods from dogecoinj-core JAR
+# PowerShell script: List all public methods from libdohj-core JAR
 # =========================
 
-# --- Step 1: Set the path to your JAR ---
-$dogeJar = "C:\Program Files\dogechat-android\app\libs\dogecoinj-core-0.18-doge.jar"
+# --- Step 1: Set the path to your JARs ---
+$libDohjJar = "C:\Program Files\dogechat-android\app\libs\libdohj-core-0.16-SNAPSHOT.jar"
 
 if (-not (Test-Path $dogeJar)) {
     Write-Error "Jar not found at: $dogeJar`nUpdate the path at the top of this script if your file is elsewhere."
@@ -20,60 +20,52 @@ try {
     }
 } catch { }
 
-# Build the classpath string (Windows uses semicolons)
-$runtimeJars = @($dogeJar)
-if ($protobufJar -and (Test-Path $protobufJar.FullName)) {
-    $runtimeJars += $protobufJar.FullName
-}
+# Replace this with full Gradle runtime classpath if needed
+# Example: include bitcoinj-core and other dependencies
+$runtimeJars = @(
+    $libDohjJar,
+    "C:\Users\<USER>\.gradle\caches\modules-2\files-2.1\org.bitcoinj\bitcoinj-core\0.16.1\<HASH>\bitcoinj-core-0.16.1.jar",
+    "C:\Program Files\dogechat-android\app\libs\protobuf-javalite-3.18.0.jar"
+)
+
+# Build the classpath string
+
 $classpath = [string]::Join(";", $runtimeJars)
 
-# --- Step 2: Get all classes from the jar (exclude META-INF and module-info) ---
-$classes = & jar tf "$dogeJar" 2>$null |
-    Where-Object { $_ -like "*.class" -and $_ -notlike "META-INF/*" -and $_ -ne "module-info.class" } |
+# --- Step 2: Get all classes from libdohj-core ---
+$classes = jar tf $libDohjJar |
+    Where-Object { $_ -like "*.class" } |
     ForEach-Object { $_ -replace "/", "." -replace "\.class$", "" }
-
-if (-not $classes -or $classes.Count -eq 0) {
-    Write-Error "No classes found in $dogeJar"
-    exit 1
-}
 
 # --- Step 3: Iterate through classes and extract public methods ---
 $results = @()
-$processed = 0
-$total = $classes.Count
-
 foreach ($c in $classes) {
-    $processed++
-    if (($processed % 250) -eq 0) {
-        Write-Host ("Processed {0}/{1} classes..." -f $processed, $total)
-    }
 
     try {
-        $javapOutput = & javap -public -classpath "$classpath" "$c" 2>$null
-        if (-not $javapOutput) { continue }
+        $methods = javap -public -classpath $classpath $c 2>$null
+        foreach ($m in $methods) {
+            # Skip lines that aren't methods (filter out "class" and "{" lines)
+            if ($m -match "\(.*\)") {
+                # Clean method line and split into return type + method name
+                $clean = $m.Trim() -replace ";", ""
 
-        foreach ($line in $javapOutput) {
-            # Keep only method signatures (lines with parentheses), skip class/field/brace lines
-            if ($line -match "\(.*\)" -and $line -notmatch "^\s*(class|interface|enum)\b" -and $line.Trim() -ne "{" -and $line.Trim() -ne "}") {
-                $clean = $line.Trim() -replace ";$", ""
                 $results += [PSCustomObject]@{
-                    Class           = $c
+                    Class = $c
                     MethodSignature = $clean
                 }
             }
         }
     } catch {
-        Write-Warning "Failed to parse $c"
+        Write-Host "Failed to parse $c"
     }
 }
 
 # --- Step 4: Output results ---
 # To console
-$results | Sort-Object Class, MethodSignature | Format-Table -AutoSize
+$results | Format-Table -AutoSize
 
-# Save to CSV (same filename as before for continuity)
-$outCsv = Join-Path (Get-Location) "libdohj_methods.csv"
-$results | Sort-Object Class, MethodSignature | Export-Csv -Path $outCsv -NoTypeInformation
+# Optionally, save to CSV
+$results | Export-Csv -Path "libdohj_methods.csv" -NoTypeInformation
 
-Write-Host "`nDone! Methods saved to $outCsv"
-Write-Host "Classes processed: $processed, Methods found: $($results.Count)"
+
+Write-Host "`nDone! Methods saved to libdohj_methods.csv"

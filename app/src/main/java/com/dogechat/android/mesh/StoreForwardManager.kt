@@ -56,7 +56,9 @@ class StoreForwardManager {
         if (packet.type == MessageType.NOISE_HANDSHAKE.value ||
             packet.type == MessageType.NOISE_ENCRYPTED.value ||
             packet.type == MessageType.ANNOUNCE.value ||
-            packet.type == MessageType.LEAVE.value) {
+            packet.type == MessageType.LEAVE.value ||
+            packet.type == MessageType.FRAGMENT.value ||
+            packet.type == MessageType.FILE_PACKET.value) {
             Log.d(TAG, "Skipping cache for message type: ${packet.type}")
             return
         }

@@ -4,6 +4,7 @@ import android.util.Log
 import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.model.RoutedPacket
+import com.dogechat.android.model.DogechatFilePacket
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.actor
@@ -16,7 +17,8 @@ import kotlinx.coroutines.channels.actor
  * from the same peer simultaneously, causing session management conflicts.
  */
 class PacketProcessor(private val myPeerID: String) {
-    private val debugManager by lazy { try { com.dogechat.android.ui.debug.DebugSettingsManager.getInstance() } catch (e: Exception) { null } }    
+    private val debugManager by lazy { try { com.dogechat.android.ui.debug.DebugSettingsManager.getInstance() } catch (e: Exception) { null } }
+    
     companion object {
         private const val TAG = "PacketProcessor"
     }
@@ -50,10 +52,10 @@ class PacketProcessor(private val myPeerID: String) {
             for (packet in channel) {
                 Log.d(TAG, "📦 Processing packet type ${packet.packet.type} from ${formatPeerForLog(peerID)} (serialized)")
                 handleReceivedPacket(packet)
-            Log.d(TAG, "🎭 Packet actor for ${formatPeerForLog(peerID)} terminated")
+                Log.d(TAG, "Completed packet type ${packet.packet.type} from ${formatPeerForLog(peerID)}")
             }
         } finally {
-            Log.d(TAG, "ðŸŽ­ Packet actor for ${formatPeerForLog(peerID)} terminated")
+            Log.d(TAG, "🎭 Packet actor for ${formatPeerForLog(peerID)} terminated")
         }
     }
     
@@ -129,9 +131,7 @@ class PacketProcessor(private val myPeerID: String) {
 
         var validPacket = true
         val messageType = MessageType.fromValue(packet.type)
-
         Log.d(TAG, "Processing packet type ${messageType} from ${formatPeerForLog(peerID)}")
-
         // Verbose logging to debug manager (and chat via ChatViewModel observer)
         try {
             val mt = messageType?.name ?: packet.type.toString()
@@ -139,7 +139,8 @@ class PacketProcessor(private val myPeerID: String) {
             val nick = delegate?.getPeerNickname(peerID)
             debugManager?.logIncomingPacket(peerID, nick, mt, routeDevice)
         } catch (_: Exception) { }
-
+        
+        
         // Handle public packet types (no address check needed)
         when (messageType) {
             MessageType.ANNOUNCE -> handleAnnounce(routed)
@@ -147,6 +148,7 @@ class PacketProcessor(private val myPeerID: String) {
             MessageType.LEAVE -> handleLeave(routed)
             MessageType.FRAGMENT -> handleFragment(routed)
             MessageType.REQUEST_SYNC -> handleRequestSync(routed)
+            MessageType.FILE_PACKET -> handleFilePacket(routed)
             else -> {
                 // Handle private packet types (address check required)
                 if (packetRelayManager.isPacketAddressedToMe(packet)) {
@@ -242,7 +244,16 @@ class PacketProcessor(private val myPeerID: String) {
         Log.d(TAG, "Processing REQUEST_SYNC from ${formatPeerForLog(peerID)}")
         delegate?.handleRequestSync(routed)
     }
- 
+    
+    /**
+     * Handle file packet
+     */
+    private suspend fun handleFilePacket(routed: RoutedPacket) {
+        val peerID = routed.peerID ?: "unknown"
+        Log.d(TAG, "Processing FILE_PACKET from ${formatPeerForLog(peerID)}")
+        delegate?.handleFilePacket(routed)
+    }
+    
     /**
      * Handle delivery acknowledgment
      */
@@ -299,15 +310,15 @@ class PacketProcessor(private val myPeerID: String) {
 interface PacketProcessorDelegate {
     // Security validation
     fun validatePacketSecurity(packet: DogechatPacket, peerID: String): Boolean
-
+    
     // Peer management
     fun updatePeerLastSeen(peerID: String)
     fun getPeerNickname(peerID: String): String?
-
+    
     // Network information
     fun getNetworkSize(): Int
     fun getBroadcastRecipient(): ByteArray
-
+    
     // Message type handlers
     fun handleNoiseHandshake(routed: RoutedPacket): Boolean
     fun handleNoiseEncrypted(routed: RoutedPacket)
@@ -316,7 +327,8 @@ interface PacketProcessorDelegate {
     fun handleLeave(routed: RoutedPacket)
     fun handleFragment(packet: DogechatPacket): DogechatPacket?
     fun handleRequestSync(routed: RoutedPacket)
-
+    fun handleFilePacket(routed: RoutedPacket)
+    
     // Communication
     fun sendAnnouncementToPeer(peerID: String)
     fun sendCachedMessages(peerID: String)

@@ -7,13 +7,19 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.MessageType
 import com.dogechat.android.mesh.BluetoothMeshService
 import androidx.compose.material3.ColorScheme
-import com.dogechat.android.ui.theme.ThemeColors
 import com.dogechat.android.ui.theme.BASE_FONT_SIZE
+import com.dogechat.android.features.file.FileUtils
 import java.text.SimpleDateFormat
 import java.util.*
+
 
 /**
  * Utility functions for ChatScreen UI components
@@ -118,11 +124,18 @@ fun formatMessageAsAnnotatedString(
         appendIOSFormattedContent(builder, message.content, message.mentions, currentUserNickname, baseColor, isSelf, isDark)
         
         // iOS-style timestamp at the END (smaller, grey)
+        // Timestamp (and optional PoW badge)
         builder.pushStyle(SpanStyle(
             color = Color.Gray.copy(alpha = 0.7f),
             fontSize = (BASE_FONT_SIZE - 4).sp
         ))
         builder.append(" [${timeFormatter.format(message.timestamp)}]")
+        // If message has valid PoW difficulty, append bits immediately after timestamp with minimal spacing
+        message.powDifficulty?.let { bits ->
+            if (bits > 0) {
+                builder.append(" ⛨${bits}b")
+            }
+        }
         builder.pop()
         
     } else {
@@ -451,5 +464,58 @@ private fun appendIOSFormattedContent(
             builder.append(remainingText)
         }
         builder.pop()
+    }
+}
+
+/**
+ * Get icon for message type
+ */
+fun getMessageTypeIcon(messageType: MessageType): ImageVector {
+    return when (messageType) {
+        MessageType.TEXT -> Icons.Filled.Message
+        MessageType.IMAGE -> Icons.Filled.Image
+        MessageType.AUDIO -> Icons.Filled.AudioFile
+        MessageType.VIDEO -> Icons.Filled.VideoFile
+        MessageType.FILE -> Icons.Filled.AttachFile
+    }
+}
+
+/**
+ * Get display text for media message
+ */
+fun getMediaDisplayText(message: DogechatMessage): String {
+    return when (message.messageType) {
+        MessageType.IMAGE -> "📷 Image: ${message.mediaFileName ?: "image"}"
+        MessageType.AUDIO -> "🎵 Audio: ${message.mediaFileName ?: "audio"}"
+        MessageType.VIDEO -> "🎬 Video: ${message.mediaFileName ?: "video"}"
+        MessageType.FILE -> "📎 File: ${message.mediaFileName ?: "file"}"
+        MessageType.TEXT -> message.content
+    }
+}
+
+/**
+ * Format file size for display
+ */
+fun formatFileSize(bytes: Long): String {
+    return FileUtils.formatFileSize(bytes)
+}
+
+/**
+ * Check if message has media content
+ */
+fun isMediaMessage(message: DogechatMessage): Boolean {
+    return message.messageType != MessageType.TEXT
+}
+
+/**
+ * Get media type color
+ */
+fun getMediaTypeColor(messageType: MessageType, colorScheme: ColorScheme): Color {
+    return when (messageType) {
+        MessageType.IMAGE -> Color(0xFF4CAF50) // Green
+        MessageType.AUDIO -> Color(0xFF2196F3) // Blue
+        MessageType.VIDEO -> Color(0xFF9C27B0) // Purple
+        MessageType.FILE -> Color(0xFFFF9800) // Orange
+        MessageType.TEXT -> colorScheme.onSurface
     }
 }

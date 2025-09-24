@@ -101,7 +101,7 @@ private fun BluetoothDisabledContent(
                     text = "Đogechat needs Bluetooth to:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
-                        color = colorScheme.onSurface
+                        color = Color(0xFFFFFF00)
                     ),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -111,7 +111,7 @@ private fun BluetoothDisabledContent(
                     text = "• Điscover Nearby Shibes\n" +
                             "• Create Much Mesh Network Connections\n" +
                             "• Such Send and Receive messages\n" +
-                            "• Very Work without internet or servers",
+                            "• Very Work without internet, servers, or sim cards",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -267,7 +267,7 @@ private fun BluetoothLoadingIndicator() {
             modifier = Modifier
                 .fillMaxSize()
                 .rotate(rotationAngle),
-            color = Color(0xFF2196F3), // Bluetooth blue
+            color = Color(0xFFFFD700), // Gold
             strokeWidth = 3.dp
         )
     }

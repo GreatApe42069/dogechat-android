@@ -4,7 +4,9 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.viewModelScope
+import com.dogechat.android.geohash.Geohash
 import com.dogechat.android.nostr.GeohashMessageHandler
 import com.dogechat.android.nostr.GeohashRepository
 import com.dogechat.android.nostr.NostrDirectMessageHandler
@@ -17,6 +19,82 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Date
+import java.util.Collections
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.ln
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.exp
+
+/**
+ * HeatStreamBus
+ * - Global, lightweight publish/subscribe bus for the map.
+ * - ViewModel publishes counts and converts them to heat points.
+ * - GeohashPickerActivity subscribes and pushes into WebView (warm start + 500ms batches).
+ */
+object HeatStreamBus {
+
+    data class HeatPoint(val lat: Double, val lng: Double, val intensity: Double, val ts: Long)
+
+    interface Listener {
+        fun onCounts(counts: Map<String, Int>)
+        fun onPoints(points: List<HeatPoint>)
+    }
+
+    private val listeners = CopyOnWriteArrayList<Listener>()
+    private val pointsBuffer = Collections.synchronizedList(mutableListOf<HeatPoint>())
+    private val countsSnapshot = ConcurrentHashMap<String, Int>()
+    @Volatile private var ttlMs: Long = 300_000L // default 5 min
+
+    fun setTTL(ms: Long) {
+        ttlMs = ms
+        prune()
+    }
+
+    fun addListener(listener: Listener) {
+        listeners.add(listener)
+    }
+
+    fun removeListener(listener: Listener) {
+        listeners.remove(listener)
+    }
+
+    fun clearAllListeners() {
+        listeners.clear()
+    }
+
+    fun getWarmPointsSnapshot(): List<HeatPoint> {
+        val cutoff = System.currentTimeMillis() - ttlMs
+        return synchronized(pointsBuffer) { pointsBuffer.filter { it.ts >= cutoff } }
+    }
+
+    fun getCountsSnapshot(): Map<String, Int> = HashMap(countsSnapshot)
+
+    fun publishCounts(counts: Map<String, Int>) {
+        countsSnapshot.clear()
+        countsSnapshot.putAll(counts)
+        val snapshot = getCountsSnapshot()
+        for (l in listeners) runCatching { l.onCounts(snapshot) }
+    }
+
+    fun publishPoints(points: List<HeatPoint>) {
+        if (points.isEmpty()) return
+        synchronized(pointsBuffer) { pointsBuffer.addAll(points) }
+        prune()
+        for (l in listeners) runCatching { l.onPoints(points) }
+    }
+
+    private fun prune() {
+        val cutoff = System.currentTimeMillis() - ttlMs
+        synchronized(pointsBuffer) {
+            val it = pointsBuffer.iterator()
+            while (it.hasNext()) {
+                if (it.next().ts < cutoff) it.remove()
+            }
+        }
+    }
+}
 
 class GeohashViewModel(
     application: Application,
@@ -59,16 +137,18 @@ class GeohashViewModel(
     val geohashParticipantCounts: LiveData<Map<String, Int>> = state.geohashParticipantCounts
     val selectedLocationChannel: LiveData<com.dogechat.android.geohash.ChannelID?> = state.selectedLocationChannel
 
+    // Bridge observer (publish counts -> labels; counts -> heat points)
+    private var countsObserver: Observer<Map<String, Int>>? = null
+
     fun initialize() {
         subscriptionManager.connect()
         val identity = NostrIdentityBridge.getCurrentNostrIdentity(getApplication())
         if (identity != null) {
-            // Use global chat-messages only for full account DMs (mesh context). For geohash DMs, subscribe per-geohash below.
             subscriptionManager.subscribeGiftWraps(
                 pubkey = identity.publicKeyHex,
                 sinceMs = System.currentTimeMillis() - 172800000L,
                 id = "chat-messages",
-                handler = { event -> dmHandler.onGiftWrap(event, "", identity) } // geohash="" means global account DM (not geohash identity)
+                handler = { event -> dmHandler.onGiftWrap(event, "", identity) }
             )
         }
         try {
@@ -85,6 +165,34 @@ class GeohashViewModel(
             state.setSelectedLocationChannel(com.dogechat.android.geohash.ChannelID.Mesh)
             state.setIsTeleported(false)
         }
+
+        // Reactively publish counts for label totals and convert to heat points (aggregate layer)
+        if (countsObserver == null) {
+            countsObserver = Observer<Map<String, Int>> { counts ->
+                runCatching {
+                    // 1) Publish counts for labels "gh (N)"
+                    HeatStreamBus.publishCounts(counts)
+
+                    // 2) Convert counts into soft heat at geohash centers (aggregate density)
+                    val now = System.currentTimeMillis()
+                    val pts = counts.mapNotNull { (gh, c) ->
+                        runCatching {
+                            val (lat, lon) = Geohash.decodeToCenter(gh)
+                            val intensity = (0.2 + ln(1.0 + c) / ln(50.0)).coerceIn(0.2, 1.0)
+                            HeatStreamBus.HeatPoint(lat, lon, intensity, now)
+                        }.getOrNull()
+                    }
+                    HeatStreamBus.publishPoints(pts)
+                }
+            }
+            geohashParticipantCounts.observeForever(countsObserver!!)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        countsObserver?.let { geohashParticipantCounts.removeObserver(it) }
+        countsObserver = null
     }
 
     fun panicReset() {
@@ -94,7 +202,7 @@ class GeohashViewModel(
         currentDmSubId = null
         geoTimer?.cancel()
         geoTimer = null
-        try { NostrIdentityBridge.clearAllAssociations(getApplication()) } catch (_: Exception) {}
+        runCatching { NostrIdentityBridge.clearAllAssociations(getApplication()) }
         initialize()
     }
 
@@ -125,7 +233,6 @@ class GeohashViewModel(
                     val relayManager = NostrRelayManager.getInstance(getApplication())
                     relayManager.sendEventToGeohash(event, channel.geohash, includeDefaults = false, nRelays = 5)
                 } finally {
-                    // Ensure we stop the per-message mining animation regardless of success/failure
                     if (startedMining) {
                         com.dogechat.android.ui.PoWMiningTracker.stopMiningMessage(tempId)
                     }
@@ -140,13 +247,18 @@ class GeohashViewModel(
         if (geohashes.isEmpty()) return
         Log.d(TAG, "🌍 Beginning geohash sampling for ${geohashes.size} geohashes")
         viewModelScope.launch {
-            geohashes.forEach { geohash ->
+            geohashes.forEach { gh ->
                 subscriptionManager.subscribeGeohash(
-                    geohash = geohash,
+                    geohash = gh,
                     sinceMs = System.currentTimeMillis() - 86400000L,
                     limit = 200,
-                    id = "sampling-$geohash",
-                    handler = { event -> geohashMessageHandler.onEvent(event, geohash) }
+                    id = "sampling-$gh",
+                    handler = { event ->
+                        // Keep original behavior
+                        geohashMessageHandler.onEvent(event, gh)
+                        // Also publish a message-based pulse for this event
+                        publishPulseForEvent(gh, event)
+                    }
                 )
             }
         }
@@ -159,7 +271,6 @@ class GeohashViewModel(
     fun startGeohashDM(pubkeyHex: String, onStartPrivateChat: (String) -> Unit) {
         val convKey = "nostr_${pubkeyHex.take(16)}"
         repo.putNostrKeyMapping(convKey, pubkeyHex)
-        // Record the conversation's geohash using the currently selected location channel (if any)
         val current = state.selectedLocationChannel.value
         val gh = (current as? com.dogechat.android.geohash.ChannelID.Location)?.channel?.geohash
         if (!gh.isNullOrEmpty()) {
@@ -176,7 +287,6 @@ class GeohashViewModel(
         val pubkey = repo.findPubkeyByNickname(targetNickname)
         if (pubkey != null) {
             dataManager.addGeohashBlockedUser(pubkey)
-            // Refresh people list and counts to remove blocked entry immediately
             repo.refreshGeohashPeople()
             repo.updateReactiveParticipantCounts()
             val sysMsg = com.dogechat.android.model.DogechatMessage(
@@ -226,17 +336,17 @@ class GeohashViewModel(
                 repo.setCurrentGeohash(channel.channel.geohash)
                 notificationManager.setCurrentGeohash(channel.channel.geohash)
                 notificationManager.clearNotificationsForGeohash(channel.channel.geohash)
-                try { messageManager.clearChannelUnreadCount("geo:${channel.channel.geohash}") } catch (_: Exception) { }
+                runCatching { messageManager.clearChannelUnreadCount("geo:${channel.channel.geohash}") }
 
-                try {
+                runCatching {
                     val identity = NostrIdentityBridge.deriveIdentity(channel.channel.geohash, getApplication())
                     repo.updateParticipant(channel.channel.geohash, identity.publicKeyHex, Date())
                     val teleported = state.isTeleported.value ?: false
                     if (teleported) repo.markTeleported(identity.publicKeyHex)
-                } catch (e: Exception) { Log.w(TAG, "Failed identity setup: ${e.message}") }
+                }.onFailure { Log.w(TAG, "Failed identity setup: ${it.message}") }
 
                 startGeoParticipantsTimer()
-                
+
                 viewModelScope.launch {
                     val geohash = channel.channel.geohash
                     val subId = "geohash-$geohash"; currentGeohashSubId = subId
@@ -245,7 +355,12 @@ class GeohashViewModel(
                         sinceMs = System.currentTimeMillis() - 3600000L,
                         limit = 200,
                         id = subId,
-                        handler = { event -> geohashMessageHandler.onEvent(event, geohash) }
+                        handler = { event ->
+                            // Original handler
+                            geohashMessageHandler.onEvent(event, geohash)
+                            // Message-based pulse
+                            publishPulseForEvent(geohash, event)
+                        }
                     )
                     val dmIdentity = NostrIdentityBridge.deriveIdentity(geohash, getApplication())
                     val dmSubId = "geo-dm-$geohash"; currentDmSubId = dmSubId
@@ -255,7 +370,6 @@ class GeohashViewModel(
                         id = dmSubId,
                         handler = { event -> dmHandler.onGiftWrap(event, geohash, dmIdentity) }
                     )
-                    // Also register alias in global registry for routing convenience
                     com.dogechat.android.nostr.GeohashAliasRegistry.put("nostr_${dmIdentity.publicKeyHex.take(16)}", dmIdentity.publicKeyHex)
                 }
             }
@@ -274,5 +388,85 @@ class GeohashViewModel(
                 repo.refreshGeohashPeople()
             }
         }
+    }
+
+    // -------- Message-based pulse generation (via reflection) --------
+
+    private fun publishPulseForEvent(geohash: String, event: Any) {
+        try {
+            val (lat, lon) = Geohash.decodeToCenter(geohash)
+            val intensity = intensityFromEvent(event)
+            val ts = System.currentTimeMillis()
+            val hp = HeatStreamBus.HeatPoint(lat, lon, intensity, ts)
+            HeatStreamBus.publishPoints(listOf(hp))
+        } catch (e: Exception) {
+            Log.d(TAG, "pulse skip: ${e.message}")
+        }
+    }
+
+    private fun intensityFromEvent(event: Any): Double {
+        val nowSec = System.currentTimeMillis() / 1000.0
+        val createdSec = readLongReflect(event, "created_at", "createdAt")?.toDouble() ?: nowSec
+        val ageSec = max(0.0, nowSec - createdSec)
+
+        // Exponential decay with ~4 min time constant (faster pulses)
+        val tau = 240.0
+        val decay = exp(-ageSec / tau)
+
+        val contentLen = readStringReflect(event, "content", "getContent")?.length ?: 0
+        val sizeBoost = min(1.0, ln(1.0 + contentLen.toDouble()) / ln(400.0)) // 0..1
+
+        // Base + time freshness + content boost
+        val base = 0.25
+        val intensity = (base + 0.5 * decay + 0.35 * sizeBoost).coerceIn(0.2, 1.0)
+        return intensity
+    }
+
+    private fun readLongReflect(target: Any, vararg names: String): Long? {
+        // Fields
+        for (n in names) {
+            try {
+                val f = target.javaClass.getDeclaredField(n)
+                f.isAccessible = true
+                val v = f.get(target)
+                if (v is Number) return v.toLong()
+            } catch (_: Throwable) {}
+        }
+        // Getters
+        for (n in names) {
+            val getterNames = arrayOf(n, "get${n.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }}")
+            for (gn in getterNames) {
+                try {
+                    val m = target.javaClass.getMethod(gn)
+                    val v = m.invoke(target)
+                    if (v is Number) return v.toLong()
+                } catch (_: Throwable) {}
+            }
+        }
+        return null
+    }
+
+    private fun readStringReflect(target: Any, vararg names: String): String? {
+        // Fields
+        for (n in names) {
+            try {
+                val f = target.javaClass.getDeclaredField(n)
+                f.isAccessible = true
+                val v = f.get(target)
+                if (v is String) return v
+            } catch (_: Throwable) {}
+        }
+        // Getters
+        for (n in names) {
+            val getterNames = arrayOf(n, "get${n.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }}")
+            for (gn in getterNames) {
+                try {
+                    val m = target.javaClass.getMethod(gn)
+                    val v = m.invoke(target)
+                    if (v is String) return v
+                } catch (_: Throwable) {}
+            }
+        }
+        return null
     }
 }

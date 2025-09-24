@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.dogechat.android.crypto.EncryptionService
 import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.FileSharingManager
+import com.dogechat.android.model.DogechatFilePacket
 import com.dogechat.android.protocol.MessagePadding
 import com.dogechat.android.model.RoutedPacket
 import com.dogechat.android.model.IdentityAnnouncement
@@ -15,8 +17,8 @@ import com.dogechat.android.sync.GossipSyncManager
 import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.*
 import java.util.*
-import kotlin.math.sign
 import kotlin.random.Random
+import com.dogechat.android.model.MessageType as UiMessageType
 
 /**
  * Bluetooth mesh service - REFACTORED to use component-based architecture
@@ -48,6 +50,8 @@ class BluetoothMeshService(private val context: Context) {
     private val fragmentManager = FragmentManager()
     private val securityManager = SecurityManager(encryptionService, myPeerID)
     private val storeForwardManager = StoreForwardManager()
+    private val transferProgressManager = TransferProgressManager()
+    private val fileSharingManager = FileSharingManager(context)
     private val messageHandler = MessageHandler(myPeerID)
     internal val connectionManager = BluetoothConnectionManager(context, myPeerID, fragmentManager) // Made internal for access
     private val packetProcessor = PacketProcessor(myPeerID)
@@ -55,6 +59,15 @@ class BluetoothMeshService(private val context: Context) {
     
     // Service state management
     private var isActive = false
+    
+    // Track file transfer contexts for proper message routing
+    private val fileTransferContexts = mutableMapOf<String, FileTransferContext>()
+    
+    data class FileTransferContext(
+        val channel: String?,
+        val recipientPeerID: String?,
+        val senderPeerID: String
+    )
     
     // Delegate for message callbacks (maintains same interface)
     var delegate: BluetoothMeshDelegate? = null
@@ -416,13 +429,7 @@ class BluetoothMeshService(private val context: Context) {
                             // Mark this peer as directly connected for UI
                             try {
                                 peerManager.getPeerInfo(pid)?.let {
-                                    // Set direct connection flag
-                                    // (This will also trigger a peer list update)
                                     peerManager.setDirectConnection(pid, true)
-                                    // Also push reactive directness state to UI (best-effort)
-                                    try {
-                                        // Note: UI observes via didUpdatePeerList, but we can also update ChatState on a timer
-                                    } catch (_: Exception) { }
                                 }
                             } catch (_: Exception) { }
 
@@ -473,6 +480,16 @@ class BluetoothMeshService(private val context: Context) {
                 val req = RequestSyncPacket.decode(routed.packet.payload) ?: return
                 gossipSyncManager.handleRequestSync(fromPeer, req)
             }
+            
+            override fun handleFilePacket(routed: RoutedPacket) {
+                // Decode file packet and handle through file sharing manager with routing context
+                val packet = DogechatFilePacket.deserialize(routed.packet.payload)
+                if (packet != null) {
+                    processIncomingFilePacket(routed, packet)
+                } else {
+                    Log.w(TAG, "Failed to decode file packet from ${routed.peerID}")
+                }
+            }
         }
         
         // BluetoothConnectionManager delegates
@@ -501,12 +518,10 @@ class BluetoothMeshService(private val context: Context) {
                 val addr = device.address
                 // Remove mapping and, if that was the last direct path for the peer, clear direct flag
                 val peer = connectionManager.addressPeerMap[addr]
-                // ConnectionTracker has already removed the address mapping; be defensive either way
                 connectionManager.addressPeerMap.remove(addr)
                 if (peer != null) {
                     val stillMapped = connectionManager.addressPeerMap.values.any { it == peer }
                     if (!stillMapped) {
-                        // Peer might still be reachable indirectly; mark as not-direct
                         try { peerManager.setDirectConnection(peer, false) } catch (_: Exception) { }
                     }
                     // Verbose debug: device disconnected
@@ -524,6 +539,86 @@ class BluetoothMeshService(private val context: Context) {
                     peerManager.updatePeerRSSI(peerID, rssi)
                 }
             }
+        }
+    }
+
+    /**
+     * Handle incoming file packet with routing context, update UI when complete
+     */
+    private fun processIncomingFilePacket(routed: RoutedPacket, packet: DogechatFilePacket) {
+        try {
+            val success = fileSharingManager.handleReceivedChunk(packet)
+            if (!success) {
+                Log.w(TAG, "❌ Failed to handle file packet for: ${packet.fileName}")
+                return
+            }
+
+            // Notify per-chunk (optional)
+            delegate?.didReceiveFilePacket(packet)
+
+            // Progress update
+            val progress = fileSharingManager.getTransferProgress(packet.fileId)
+            delegate?.didUpdateFileTransferProgress(packet.fileId, progress)
+
+            // If complete, emit a proper DogechatMessage to the appropriate timeline
+            if (progress >= 100) {
+                // Best-effort completion notify
+                delegate?.didCompleteFileTransfer(packet.fileId, true)
+
+                val senderPeer = routed.peerID
+                val senderNick = senderPeer?.let { peerManager.getPeerNickname(it) } ?: (senderPeer ?: "unknown")
+                val isBroadcast = routed.packet.recipientID == null || routed.packet.recipientID.contentEquals(SpecialRecipients.BROADCAST)
+                val isPrivateForUs = !isBroadcast && routed.packet.recipientID?.toHexString().equals(myPeerID, ignoreCase = true)
+                
+                // Get stored context for this file transfer (if we sent it)
+                val transferContext = fileTransferContexts[packet.fileId]
+                val channelForMessage = transferContext?.channel
+                
+                // TODO: For received files, we can't determine the original channel because 
+                // FILE_PACKET doesn't include channel information. This is a protocol limitation.
+                // For now, received files go to mesh timeline unless they're private messages.
+                
+                // Clean up transfer context
+                fileTransferContexts.remove(packet.fileId)
+
+                val uiType = when {
+                    packet.mimeType.lowercase().startsWith("image/") -> UiMessageType.IMAGE
+                    packet.mimeType.lowercase().startsWith("audio/") -> UiMessageType.AUDIO
+                    packet.mimeType.lowercase().startsWith("video/") -> UiMessageType.VIDEO
+                    else -> UiMessageType.FILE
+                }
+
+                val displayText = when (uiType) {
+                    UiMessageType.IMAGE -> "📷 Image: ${packet.fileName}"
+                    UiMessageType.AUDIO -> "🎤 Voice message: ${packet.fileName}"
+                    UiMessageType.VIDEO -> "🎬 Video: ${packet.fileName}"
+                    UiMessageType.FILE -> "📎 File: ${packet.fileName}"
+                    UiMessageType.TEXT -> packet.fileName
+                }
+
+                val msg = DogechatMessage(
+                    sender = senderNick ?: "unknown",
+                    content = displayText,
+                    timestamp = Date(),
+                    isRelay = false,
+                    isPrivate = isPrivateForUs,
+                    recipientNickname = if (isPrivateForUs) delegate?.getNickname() else null,
+                    senderPeerID = senderPeer,
+                    channel = channelForMessage, // Use stored channel context for proper routing
+                    messageType = uiType,
+                    mediaFileName = packet.fileName,
+                    mediaMimeType = packet.mimeType,
+                    mediaFileSize = packet.totalSize,
+                    mediaFileId = packet.fileId
+                )
+
+                delegate?.didReceiveMessage(msg)
+                Log.d(TAG, "📥 Completed file receive from ${senderPeer?.take(8)}: ${packet.fileName} (${packet.mimeType}, ${packet.totalSize} bytes)")
+            } else {
+                Log.d(TAG, "📥 Received file chunk ${packet.chunkIndex + 1}/${packet.totalChunks} for ${packet.fileName}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error handling incoming file packet: ${e.message}")
         }
     }
     
@@ -598,7 +693,6 @@ class BluetoothMeshService(private val context: Context) {
                 recipientID = SpecialRecipients.BROADCAST,
                 timestamp = System.currentTimeMillis().toULong(),
                 payload = content.toByteArray(Charsets.UTF_8),
-                signature = null,
                 ttl = MAX_TTL
             )
 
@@ -655,7 +749,6 @@ class BluetoothMeshService(private val context: Context) {
                         recipientID = hexStringToByteArray(recipientPeerID),
                         timestamp = System.currentTimeMillis().toULong(),
                         payload = encrypted,
-                        signature = null,
                         ttl = MAX_TTL
                     )
                     
@@ -664,10 +757,6 @@ class BluetoothMeshService(private val context: Context) {
                     connectionManager.broadcastPacket(RoutedPacket(signedPacket))
                     Log.d(TAG, "📤 Sent encrypted private message to $recipientPeerID (${encrypted.size} bytes)")
                     
-                    // FIXED: Don't send didReceiveMessage for our own sent messages
-                    // This was causing self-notifications - iOS doesn't do this
-                    // The UI handles showing sent messages through its own message sending logic
-                    
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to encrypt private message for $recipientPeerID: ${e.message}")
                 }
@@ -675,9 +764,6 @@ class BluetoothMeshService(private val context: Context) {
                 // Fire and forget - initiate handshake but don't queue exactly like iOS
                 Log.d(TAG, "🤝 No session with $recipientPeerID, initiating handshake")
                 messageHandler.delegate?.initiateNoiseHandshake(recipientPeerID)
-                
-                // FIXED: Don't send didReceiveMessage for our own sent messages
-                // The UI will handle showing the message in the chat interface
             }
         }
     }
@@ -719,7 +805,6 @@ class BluetoothMeshService(private val context: Context) {
                     recipientID = hexStringToByteArray(recipientPeerID),
                     timestamp = System.currentTimeMillis().toULong(),
                     payload = encrypted,
-                    signature = null,
                     ttl = 7u // Same TTL as iOS messageTTL
                 )
                 
@@ -927,8 +1012,6 @@ class BluetoothMeshService(private val context: Context) {
      * Get all peers with established encrypted sessions
      */
     fun getEncryptedPeers(): List<String> {
-        // SIMPLIFIED: Return empty list for now since we don't have direct access to sessionManager
-        // This method is not critical for the session retention fix
         return emptyList()
     }
     
@@ -1027,6 +1110,105 @@ class BluetoothMeshService(private val context: Context) {
         }
     }
     
+    // MARK: - File Transfer Support
+    
+    /**
+     * Get application context for file operations
+     */
+    fun getContext(): Context = context
+    
+    /**
+     * Send a file to a specific peer or broadcast to channel
+     */
+    fun sendFile(file: java.io.File, recipientPeerID: String? = null, channel: String? = null): String? {
+        return try {
+            val fileId = fileSharingManager.startFileSend(file)
+            if (fileId != null) {
+                // Store the context for this file transfer
+                fileTransferContexts[fileId] = FileTransferContext(
+                    channel = channel,
+                    recipientPeerID = recipientPeerID,
+                    senderPeerID = myPeerID
+                )
+                
+                Log.i(TAG, "📁 Started file send: ${file.name} (ID: $fileId)")
+                sendNextFileChunk(fileId, recipientPeerID, channel)
+                fileId
+            } else {
+                Log.e(TAG, "❌ Failed to start file send for: ${file.name}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error sending file: ${e.message}")
+            null
+        }
+    }
+    
+    /**
+     * Send next chunk of file transfer
+     */
+    private fun sendNextFileChunk(fileId: String, recipientPeerID: String?, channel: String?) {
+        serviceScope.launch {
+            try {
+                val packet = fileSharingManager.getNextChunk(fileId)
+                if (packet != null) {
+                    val packetData = DogechatFilePacket.serialize(packet)
+                    
+                    // Send via mesh network using full constructor (with timestamp)
+                    val dogechatPacket = DogechatPacket(
+                        version = 1u,
+                        type = MessageType.FILE_PACKET.value,
+                        senderID = hexStringToByteArray(myPeerID),
+                        recipientID = recipientPeerID?.let { hexStringToByteArray(it) } ?: SpecialRecipients.BROADCAST,
+                        timestamp = System.currentTimeMillis().toULong(),
+                        payload = packetData,
+                        ttl = MAX_TTL
+                    )
+                    
+                    connectionManager.broadcastPacket(RoutedPacket(dogechatPacket))
+                    
+                    // Update progress
+                    val progress = fileSharingManager.getTransferProgress(fileId)
+                    delegate?.didUpdateFileTransferProgress(fileId, progress)
+                    
+                    // Schedule next chunk
+                    delay(100) // Small delay between chunks
+                    sendNextFileChunk(fileId, recipientPeerID, channel)
+                } else {
+                    // Transfer complete
+                    fileTransferContexts.remove(fileId) // Clean up context
+                    delegate?.didCompleteFileTransfer(fileId, true)
+                    Log.i(TAG, "✅ File transfer completed: $fileId")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error sending file chunk: ${e.message}")
+                fileTransferContexts.remove(fileId) // Clean up context on error
+                delegate?.didCompleteFileTransfer(fileId, false)
+            }
+        }
+    }
+    
+    /**
+     * Cancel file transfer
+     */
+    fun cancelFileTransfer(fileId: String) {
+        try {
+            fileSharingManager.cancelTransfer(fileId)
+            fileTransferContexts.remove(fileId) // Clean up context
+            delegate?.didCompleteFileTransfer(fileId, false)
+            Log.i(TAG, "🚫 Cancelled file transfer: $fileId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error cancelling file transfer: ${e.message}")
+        }
+    }
+    
+    /**
+     * Get file transfer progress
+     */
+    fun getFileTransferProgress(fileId: String): Int {
+        return fileSharingManager.getTransferProgress(fileId)
+    }
+    
     // MARK: - Panic Mode Support
     
     /**
@@ -1074,5 +1256,9 @@ interface BluetoothMeshDelegate {
     fun decryptChannelMessage(encryptedContent: ByteArray, channel: String): String?
     fun getNickname(): String?
     fun isFavorite(peerID: String): Boolean
+    // File transfer callbacks
+    fun didReceiveFilePacket(packet: DogechatFilePacket)
+    fun didUpdateFileTransferProgress(fileId: String, progress: Int)
+    fun didCompleteFileTransfer(fileId: String, success: Boolean)
     // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager
 }

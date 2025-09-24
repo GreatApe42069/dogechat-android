@@ -1,13 +1,14 @@
 package com.dogechat.android.ui
 
 import android.content.Intent
+import android.location.LocationManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
@@ -25,18 +26,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import kotlinx.coroutines.launch
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.dogechat.android.geohash.ChannelID
+import kotlinx.coroutines.launch
 import com.dogechat.android.geohash.GeohashChannel
 import com.dogechat.android.geohash.GeohashChannelLevel
 import com.dogechat.android.geohash.LocationChannelManager
 import com.dogechat.android.geohash.GeohashBookmarksStore
 import com.dogechat.android.ui.theme.BASE_FONT_SIZE
+import com.dogechat.android.ui.theme.ThemeColors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /**
  * Location Channels Sheet for selecting geohash-based location channels
@@ -51,9 +59,10 @@ fun LocationChannelsSheet(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val locationManager = LocationChannelManager.getInstance(context)
     val bookmarksStore = remember { GeohashBookmarksStore.getInstance(context) }
-    
+
     // Observe location manager state
     val permissionState by locationManager.permissionState.observeAsState()
     val availableChannels by locationManager.availableChannels.observeAsState(emptyList())
@@ -67,18 +76,18 @@ fun LocationChannelsSheet(
 
     // Observe reactive participant counts
     val geohashParticipantCounts by viewModel.geohashParticipantCounts.observeAsState(emptyMap())
-    
+
     // UI state
     var customGeohash by remember { mutableStateOf("") }
     var customError by remember { mutableStateOf<String?>(null) }
     var isInputFocused by remember { mutableStateOf(false) }
-    
+
     // Bottom sheet state
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
     val coroutineScope = rememberCoroutineScope()
-    
+
     // Scroll state for LazyColumn  with animated top bar
     val listState = rememberLazyListState()
     val isScrolled by remember {
@@ -91,6 +100,80 @@ fun LocationChannelsSheet(
         label = "topBarAlpha"
     )
 
+    // iOS system colors (matches iOS exactly) + app brand colors
+    val colorScheme = MaterialTheme.colorScheme
+    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
+    val standardYellow = if (isDark) Color(0xFFFFFF00) else ThemeColors.dogeGold
+    val standardBlue = Color(0xFF007AFF) // iOS blue
+    val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D) // iOS green
+    val dogeGold = ThemeColors.dogeGold
+    val brandAccent = ThemeColors.BrandAccent
+    val mapTint = if (isDark) dogeGold else brandAccent
+
+    // Robust system Location Services reconciliation:
+    fun isSystemLocationEnabled(): Boolean = try {
+        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as LocationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            lm.isLocationEnabled
+        } else {
+            lm.isProviderEnabled(LocationManager.GPS_PROVIDER) || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        }
+    } catch (_: Exception) { false }
+
+    // Check right away on open
+    LaunchedEffect(isPresented) {
+        if (isPresented) {
+            val systemEnabled = isSystemLocationEnabled()
+            if (systemEnabled && !locationServicesEnabled) {
+                locationManager.enableLocationServices()
+                if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED) {
+                    locationManager.refreshChannels()
+                }
+            } else if (!systemEnabled && locationServicesEnabled) {
+                locationManager.disableLocationServices()
+            }
+        }
+    }
+
+    // Check again when app resumes
+    DisposableEffect(lifecycleOwner, isPresented) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (isPresented && event == Lifecycle.Event.ON_RESUME) {
+                val systemEnabled = isSystemLocationEnabled()
+                if (systemEnabled && !locationServicesEnabled) {
+                    locationManager.enableLocationServices()
+                    if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED) {
+                        locationManager.refreshChannels()
+                    }
+                } else if (!systemEnabled && locationServicesEnabled) {
+                    locationManager.disableLocationServices()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Lightweight polling while sheet is visible
+    LaunchedEffect(isPresented, permissionState) {
+        if (isPresented) {
+            while (isActive) {
+                val systemEnabled = isSystemLocationEnabled()
+                if (systemEnabled && !locationServicesEnabled) {
+                    locationManager.enableLocationServices()
+                    if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED) {
+                        locationManager.refreshChannels()
+                    }
+                } else if (!systemEnabled && locationServicesEnabled) {
+                    locationManager.disableLocationServices()
+                }
+                delay(1500)
+            }
+        }
+    }
+
     val mapPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -102,13 +185,7 @@ fun LocationChannelsSheet(
             }
         }
     }
-    
-    // iOS system colors (matches iOS exactly)
-    val colorScheme = MaterialTheme.colorScheme
-    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
-    val standardYellow = if (isDark) Color(0xFFFFFF00) else Color(0xFF248A3D) // standard Yellow
-    val standardBlue = Color(0xFF007AFF) // iOS blue
-    
+
     if (isPresented) {
         ModalBottomSheet(
             modifier = modifier.statusBarsPadding(),
@@ -137,14 +214,24 @@ fun LocationChannelsSheet(
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground
+                                color = dogeGold // Gold
                             )
 
                             Text(
-                                text = "Much chat with Shibes near you using Many Geohash channels. Only a coarse Geohash is shared, never exact gps. ⚠️ Do NOT screenshot or share this screen to protect your privacy.",
+                                text = "Much chat with Shibes near you using Many Geohash channels. Only a coarse Geohash is shared, never exact gps.",
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                            )
+
+                            // Spaced, highlighted privacy notice (gold) under the above lines
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "🕵️ Do NOT screenshot or share this screen to protect your privacy",
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = dogeGold
                             )
                         }
                     }
@@ -180,7 +267,7 @@ fun LocationChannelsSheet(
                                     LocationChannelManager.PermissionState.RESTRICTED -> {
                                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(
-                                                text = "Location Permission So Denied. Very enable in settings to use Many location channels",
+                                                text = "⚠️ Location Permission So Đenied. Very enable in settings to use Many location channels",
                                                 fontSize = 11.sp,
                                                 fontFamily = FontFamily.Monospace,
                                                 color = Color.Red.copy(alpha = 0.8f)
@@ -267,7 +354,7 @@ fun LocationChannelsSheet(
                                         Icon(
                                             imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                             contentDescription = if (isBookmarked) "Unbookmark" else "Bookmark",
-                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                            tint = dogeGold,
                                         )
                                     }
                                 },
@@ -302,7 +389,7 @@ fun LocationChannelsSheet(
                                 text = "bookmarked",
                                 style = MaterialTheme.typography.labelLarge,
                                 fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                color = dogeGold,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 24.dp)
@@ -330,7 +417,7 @@ fun LocationChannelsSheet(
                                         Icon(
                                             imageVector = Icons.Filled.Bookmark,
                                             contentDescription = "Remove bookmark",
-                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                            tint = dogeGold,
                                         )
                                     }
                                 },
@@ -421,23 +508,23 @@ fun LocationChannelsSheet(
                                 )
 
                                 val normalized = customGeohash.trim().lowercase().replace("#", "")
-                                
+
                                 // Map picker button
                                 IconButton(onClick = {
-                                    val initial = when {
-                                        normalized.isNotBlank() -> normalized
-                                        selectedChannel is ChannelID.Location -> (selectedChannel as ChannelID.Location).channel.geohash
-                                        else -> ""
-                                    }
+                                    // IMPORTANT: Only pass initial when user explicitly entered a geohash.
+                                    // Otherwise GeohashPicker defaults to #d0ge (prevents jumping to real location).
+                                    val initial = if (normalized.isNotBlank()) normalized else ""
                                     val intent = Intent(context, GeohashPickerActivity::class.java).apply {
-                                        putExtra(GeohashPickerActivity.EXTRA_INITIAL_GEOHASH, initial)
+                                        if (initial.isNotBlank()) {
+                                            putExtra(GeohashPickerActivity.EXTRA_INITIAL_GEOHASH, initial)
+                                        }
                                     }
                                     mapPickerLauncher.launch(intent)
                                 }) {
                                     Icon(
                                         imageVector = Icons.Filled.Map,
                                         contentDescription = "Open map",
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                        tint = mapTint
                                     )
                                 }
 
@@ -477,7 +564,7 @@ fun LocationChannelsSheet(
                                             imageVector = Icons.Filled.PinDrop,
                                             contentDescription = "Teleport",
                                             modifier = Modifier.size(14.dp),
-                                            tint = MaterialTheme.colorScheme.onSurface
+                                            tint = dogeGold
                                         )
                                     }
                                 }
@@ -511,8 +598,15 @@ fun LocationChannelsSheet(
                             Button(
                                 onClick = {
                                     if (locationServicesEnabled) {
-                                        locationManager.disableLocationServices()
+                                        // Open system Location settings so user can disable location services
+                                        runCatching {
+                                            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(intent)
+                                        }
                                     } else {
+                                        // Enable app-side location usage and then system will be reconciled by observers
                                         locationManager.enableLocationServices()
                                     }
                                 },
@@ -532,7 +626,7 @@ fun LocationChannelsSheet(
                             ) {
                                 Text(
                                     text = if (locationServicesEnabled) {
-                                        "such disable location services"
+                                        "Such disable location services"
                                     } else {
                                         "Much enable location services"
                                     },
@@ -561,7 +655,7 @@ fun LocationChannelsSheet(
                         Text(
                             text = "Close",
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = dogeGold
                         )
                     }
                 }
@@ -670,11 +764,11 @@ private fun ChannelRow(
                     Icon(
                         imageVector = Icons.Filled.Check,
                         contentDescription = "Selected",
-                        tint = Color(0xFF32D74B), // iOS green for checkmark
+                        tint = ThemeColors.BrandAccent, // app bright yellow
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                
+
                 if (trailingContent != null) {
                     trailingContent()
                 }

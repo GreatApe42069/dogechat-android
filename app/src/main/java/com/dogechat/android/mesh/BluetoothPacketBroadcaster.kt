@@ -40,7 +40,7 @@ import kotlinx.coroutines.channels.actor
 class BluetoothPacketBroadcaster(
     private val connectionScope: CoroutineScope,
     private val connectionTracker: BluetoothConnectionTracker,
-    private val fragmentManager: FragmentManager?
+    private val fragmentManager: FragmentManager?   // CHANGED
 ) {
     
     companion object {
