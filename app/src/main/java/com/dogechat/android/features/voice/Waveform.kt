@@ -1,165 +1,174 @@
 package com.dogechat.android.features.voice
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
-import kotlin.math.*
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
+import kotlin.math.ln
+import kotlin.math.max
+import kotlin.math.min
 
-/**
- * Waveform component for audio playback visualization with seek functionality
- */
-@Composable
-fun Waveform(
-    waveformData: List<Float>,
-    progress: Float = 0f,
-    isPlaying: Boolean = false,
-    onSeek: ((Float) -> Unit)? = null,
-    modifier: Modifier = Modifier,
-    playedColor: Color = MaterialTheme.colorScheme.primary,
-    unplayedColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-    barWidth: Float = 2f,
-    barSpacing: Float = 1f,
-    maxBarHeight: Float = 30f
-) {
-    var animatedProgress by remember { mutableStateOf(0f) }
-    
-    // Animate progress changes
-    val progressAnimation = animateFloatAsState(
-        targetValue = progress,
-        animationSpec = if (isPlaying) {
-            tween(durationMillis = 100, easing = LinearEasing)
-        } else {
-            spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-        },
-        label = "progress"
-    )
-    
-    LaunchedEffect(progressAnimation.value) {
-        animatedProgress = progressAnimation.value
+object VoiceWaveformCache {
+    private val map = ConcurrentHashMap<String, FloatArray>()
+    fun put(path: String, samples: FloatArray) { map[path] = samples }
+    fun get(path: String): FloatArray? = map[path]
+}
+
+fun normalizeAmplitudeSample(amp: Int): Float {
+    val a = max(0, amp)
+    val norm = ln(1.0 + a.toDouble()) / ln(1.0 + 32768.0)
+    return norm.toFloat().coerceIn(0f, 1f)
+}
+
+fun resampleWave(values: FloatArray, target: Int): FloatArray {
+    if (values.isEmpty() || target <= 0) return FloatArray(target) { 0f }
+    if (values.size == target) return values
+    val out = FloatArray(target)
+    val step = (values.size - 1).toFloat() / (target - 1).toFloat()
+    var x = 0f
+    for (i in 0 until target) {
+        val idx = x.toInt()
+        val frac = x - idx
+        val a = values[idx]
+        val b = values[min(values.size - 1, idx + 1)]
+        out[i] = (a + (b - a) * frac).coerceIn(0f, 1f)
+        x += step
     }
-    
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .clipToBounds()
-            .then(
-                if (onSeek != null) {
-                    Modifier.pointerInput(Unit) {
-                        detectTapGestures { offset ->
-                            val seekProgress = (offset.x / size.width).coerceIn(0f, 1f)
-                            onSeek(seekProgress)
+    return out
+}
+
+object AudioWaveformExtractor {
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    fun extractAsync(path: String, sampleCount: Int = 120, onComplete: (FloatArray?) -> Unit) {
+        scope.launch {
+            onComplete(runCatching { extract(path, sampleCount) }.getOrNull())
+        }
+    }
+
+    private fun extract(path: String, sampleCount: Int): FloatArray? {
+        val extractor = MediaExtractor()
+        extractor.setDataSource(path)
+        val trackIndex = (0 until extractor.trackCount).firstOrNull { idx ->
+            val fmt = extractor.getTrackFormat(idx)
+            val mime = fmt.getString(MediaFormat.KEY_MIME) ?: ""
+            mime.startsWith("audio/")
+        } ?: return null
+        extractor.selectTrack(trackIndex)
+        val format = extractor.getTrackFormat(trackIndex)
+        val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
+        val codec = MediaCodec.createDecoderByType(mime)
+        codec.configure(format, null, null, 0)
+        codec.start()
+
+        val durationUs = if (format.containsKey(MediaFormat.KEY_DURATION)) format.getLong(MediaFormat.KEY_DURATION) else 0L
+        val desiredBins = sampleCount.coerceAtLeast(32)
+        val bins = FloatArray(desiredBins) { 0f }
+        val counts = IntArray(desiredBins) { 0 }
+
+        val inBuffers = codec.inputBuffers
+        val outInfo = MediaCodec.BufferInfo()
+
+        var sawEOS = false
+        while (!sawEOS) {
+            // Queue input
+            val inIndex = codec.dequeueInputBuffer(10_000)
+            if (inIndex >= 0) {
+                val buffer = codec.getInputBuffer(inIndex) ?: inBuffers[inIndex]
+                val sampleSize = extractor.readSampleData(buffer, 0)
+                if (sampleSize < 0) {
+                    codec.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                } else {
+                    val presentationTimeUs = extractor.sampleTime
+                    codec.queueInputBuffer(inIndex, 0, sampleSize, presentationTimeUs, 0)
+                    extractor.advance()
+                }
+            }
+
+            // Dequeue output
+            var outIndex = codec.dequeueOutputBuffer(outInfo, 10_000)
+            while (outIndex >= 0) {
+                val outBuf = codec.getOutputBuffer(outIndex)
+                if (outBuf != null && outInfo.size > 0) {
+                    outBuf.order(ByteOrder.LITTLE_ENDIAN)
+                    val shortCount = outInfo.size / 2
+                    val shorts = ShortArray(shortCount)
+                    outBuf.asShortBuffer().get(shorts)
+
+                    // Map this buffer to bins using timestamp range
+                    val startUs = outInfo.presentationTimeUs
+                    val endUs = startUs + bufferDurationUs(format, outInfo.size)
+                    val startBin = binForTime(startUs, durationUs, desiredBins)
+                    val endBin = binForTime(endUs, durationUs, desiredBins).coerceAtMost(desiredBins - 1)
+
+                    var idx = 0
+                    for (bin in startBin..endBin) {
+                        // aggregate portion of buffer to this bin
+                        val window = shorts.size / max(1, (endBin - startBin + 1))
+                        val begin = idx
+                        val finish = min(shorts.size, idx + window)
+                        var acc = 0.0
+                        var cnt = 0
+                        for (i in begin until finish) {
+                            acc += abs(shorts[i].toInt())
+                            cnt += 1
                         }
+                        val avg = if (cnt > 0) (acc / cnt) else 0.0
+                        val norm = (avg / 32768.0).coerceIn(0.0, 1.0).toFloat()
+                        bins[bin] = max(bins[bin], norm)
+                        counts[bin] += 1
+                        idx += window
                     }
-                } else Modifier
-            )
-    ) {
-        val canvasWidth = size.width
-        val canvasHeight = size.height
-        val centerY = canvasHeight / 2f
-        
-        if (waveformData.isEmpty()) {
-            // Draw placeholder bars when no data
-            val barCount = (canvasWidth / (barWidth + barSpacing)).toInt()
-            repeat(barCount) { index ->
-                val x = index * (barWidth + barSpacing) + barWidth / 2f
-                val height = maxBarHeight * 0.2f
-                
-                drawLine(
-                    color = unplayedColor,
-                    start = Offset(x, centerY - height / 2f),
-                    end = Offset(x, centerY + height / 2f),
-                    strokeWidth = barWidth,
-                    cap = StrokeCap.Round
-                )
+                }
+                codec.releaseOutputBuffer(outIndex, false)
+                outIndex = codec.dequeueOutputBuffer(outInfo, 0)
             }
-            return@Canvas
-        }
-        
-        // Calculate bar dimensions
-        val barCount = waveformData.size
-        val totalBarWidth = barCount * barWidth + (barCount - 1) * barSpacing
-        val scale = canvasWidth / totalBarWidth
-        val scaledBarWidth = barWidth * scale
-        val scaledBarSpacing = barSpacing * scale
-        
-        // Draw waveform bars
-        waveformData.forEachIndexed { index, amplitude ->
-            val x = index * (scaledBarWidth + scaledBarSpacing) + scaledBarWidth / 2f
-            val normalizedAmplitude = amplitude.coerceIn(0f, 1f)
-            val barHeight = normalizedAmplitude * maxBarHeight
-            
-            // Determine color based on progress
-            val barProgress = index.toFloat() / (barCount - 1)
-            val color = if (barProgress <= animatedProgress) playedColor else unplayedColor
-            
-            // Add slight animation to played bars
-            val animatedHeight = if (barProgress <= animatedProgress && isPlaying) {
-                barHeight + sin((System.currentTimeMillis() / 100f + index * 0.2f)) * 1f
-            } else {
-                barHeight
+
+            if (outInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                sawEOS = true
             }
-            
-            drawLine(
-                color = color,
-                start = Offset(x, centerY - animatedHeight / 2f),
-                end = Offset(x, centerY + animatedHeight / 2f),
-                strokeWidth = scaledBarWidth,
-                cap = StrokeCap.Round
-            )
         }
-        
-        // Draw progress indicator line
-        if (onSeek != null && animatedProgress > 0f) {
-            val progressX = canvasWidth * animatedProgress
-            drawLine(
-                color = playedColor,
-                start = Offset(progressX, 0f),
-                end = Offset(progressX, canvasHeight),
-                strokeWidth = 2f,
-                alpha = 0.7f
-            )
+
+        codec.stop()
+        codec.release()
+        extractor.release()
+
+        // Smooth + normalize
+        var maxVal = 0f
+        for (i in bins.indices) {
+            if (counts[i] == 0) continue
+            maxVal = max(maxVal, bins[i])
+        }
+        if (maxVal <= 0f) maxVal = 1f
+        for (i in bins.indices) {
+            bins[i] = (bins[i] / maxVal).coerceIn(0f, 1f)
+        }
+
+        return bins
+    }
+
+    private fun bufferDurationUs(format: MediaFormat, bytes: Int): Long {
+        return try {
+            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            val samples = bytes / 2 / max(1, channels)
+            (samples * 1_000_000L) / max(1, sampleRate)
+        } catch (e: Exception) {
+            0L
         }
     }
-}
 
-/**
- * Generate sample waveform data from audio amplitude values
- */
-fun generateWaveformData(amplitudes: List<Int>, sampleCount: Int = 50): List<Float> {
-    if (amplitudes.isEmpty()) return emptyList()
-    
-    val chunkSize = amplitudes.size / sampleCount
-    if (chunkSize <= 0) return amplitudes.map { it / 32767f }
-    
-    return (0 until sampleCount).map { index ->
-        val start = index * chunkSize
-        val end = minOf(start + chunkSize, amplitudes.size)
-        val chunk = amplitudes.subList(start, end)
-        
-        // Calculate RMS (Root Mean Square) for better representation
-        val rms = sqrt(chunk.map { it * it }.average()).toFloat()
-        (rms / 32767f).coerceIn(0f, 1f)
+    private fun binForTime(presentationUs: Long, durationUs: Long, bins: Int): Int {
+        if (durationUs <= 0L) return 0
+        val frac = presentationUs.toDouble() / durationUs.toDouble()
+        return (frac * bins).toInt().coerceIn(0, bins - 1)
     }
 }
-
-/**
- * Generate random waveform data for testing/placeholder
- */
-fun generateRandomWaveform(sampleCount: Int = 50): List<Float> {
-    return (0 until sampleCount).map { 
-        (sin(it * 0.3) + cos(it * 0.7) + random()).toFloat().absoluteValue.coerceIn(0f, 1f) 
-    }
-}
-
-private fun random(): Double = Math.random() * 0.5 - 0.25

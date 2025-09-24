@@ -4,176 +4,137 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * File packet structure for dogechat media transfers using TLV (Type-Length-Value) format
+ * DogechatFilePacket: TLV-encoded file transfer payload for BLE mesh.
+ * TLVs:
+ *  - 0x01: filename (UTF-8)
+ *  - 0x02: file size (8 bytes, UInt64)
+ *  - 0x03: mime type (UTF-8)
+ *  - 0x04: content (bytes) — may appear multiple times for large files
+ *
+ * Length field for TLV is 2 bytes (UInt16, big-endian) for all TLVs.
+ * For large files, CONTENT is chunked into multiple TLVs of up to 65535 bytes each.
+ *
+ * Note: The outer DogechatPacket uses version 2 (4-byte payload length), so this
+ * TLV payload can exceed 64 KiB even though each TLV value is limited to 65535 bytes.
+ * Transport-level fragmentation then splits the final packet for BLE MTU.
  */
 data class DogechatFilePacket(
-    val fileId: String,
     val fileName: String,
+    val fileSize: Long,
     val mimeType: String,
-    val totalSize: Long,
-    val chunkIndex: Int,
-    val totalChunks: Int,
-    val chunkData: ByteArray
+    val content: ByteArray
 ) {
-    
-    companion object {
-        // TLV Types (2 bytes each)
-        private const val TLV_FILE_ID = 0x0001.toShort()
-        private const val TLV_FILE_NAME = 0x0002.toShort()
-        private const val TLV_MIME_TYPE = 0x0003.toShort()
-        private const val TLV_FILE_SIZE = 0x0004.toShort()
-        private const val TLV_CHUNK_INDEX = 0x0005.toShort()
-        private const val TLV_TOTAL_CHUNKS = 0x0006.toShort()
-        private const val TLV_CHUNK_DATA = 0x0007.toShort()
-        
-        /**
-         * Serialize file packet to byte array using TLV format
-         */
-        fun serialize(packet: DogechatFilePacket): ByteArray {
-            val buffer = ByteBuffer.allocate(8192) // Start with reasonable size
-            buffer.order(ByteOrder.BIG_ENDIAN)
-            
-            // File ID
-            writeTLV(buffer, TLV_FILE_ID, packet.fileId.toByteArray(Charsets.UTF_8))
-            
-            // File Name
-            writeTLV(buffer, TLV_FILE_NAME, packet.fileName.toByteArray(Charsets.UTF_8))
-            
-            // MIME Type
-            writeTLV(buffer, TLV_MIME_TYPE, packet.mimeType.toByteArray(Charsets.UTF_8))
-            
-            // File Size (8 bytes)
-            val sizeBytes = ByteBuffer.allocate(8).order(ByteOrder.BIG_ENDIAN).putLong(packet.totalSize).array()
-            writeTLV(buffer, TLV_FILE_SIZE, sizeBytes)
-            
-            // Chunk Index (4 bytes)
-            val chunkIndexBytes = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(packet.chunkIndex).array()
-            writeTLV(buffer, TLV_CHUNK_INDEX, chunkIndexBytes)
-            
-            // Total Chunks (4 bytes)
-            val totalChunksBytes = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(packet.totalChunks).array()
-            writeTLV(buffer, TLV_TOTAL_CHUNKS, totalChunksBytes)
-            
-            // Chunk Data
-            writeTLV(buffer, TLV_CHUNK_DATA, packet.chunkData)
-            
-            // Return only the used portion of the buffer
-            val result = ByteArray(buffer.position())
-            buffer.rewind()
-            buffer.get(result)
+    private enum class TLVType(val v: UByte) {
+        FILE_NAME(0x01u), FILE_SIZE(0x02u), MIME_TYPE(0x03u), CONTENT(0x04u);
+        companion object { fun from(value: UByte) = values().find { it.v == value } }
+    }
+
+    fun encode(): ByteArray? {
+        try {
+            android.util.Log.d("DogechatFilePacket", "🔄 Encoding: name=$fileName, size=$fileSize, mime=$mimeType")
+        val nameBytes = fileName.toByteArray(Charsets.UTF_8)
+        val mimeBytes = mimeType.toByteArray(Charsets.UTF_8)
+        // Validate bounds for 2-byte TLV lengths (per-TLV). CONTENT may exceed 65535 and will be chunked.
+        if (nameBytes.size > 0xFFFF || mimeBytes.size > 0xFFFF) {
+                android.util.Log.e("DogechatFilePacket", "❌ TLV field too large: name=${nameBytes.size}, mime=${mimeBytes.size} (max: 65535)")
+                return null
+            }
+            if (content.size > 0xFFFF) {
+                android.util.Log.d("DogechatFilePacket", "📦 Content exceeds 65535 bytes (${content.size}); will be split into multiple CONTENT TLVs")
+            } else {
+                android.util.Log.d("DogechatFilePacket", "📏 TLV sizes OK: name=${nameBytes.size}, mime=${mimeBytes.size}, content=${content.size}")
+            }
+        val sizeFieldLen = 4 // UInt32 for FILE_SIZE (changed from 8 bytes)
+        val contentLenFieldLen = 4 // UInt32 for CONTENT TLV as requested
+
+        // Compute capacity: header TLVs + single CONTENT TLV with 4-byte length
+        val contentTLVBytes = 1 + contentLenFieldLen + content.size
+        val capacity = (1 + 2 + nameBytes.size) + (1 + 2 + sizeFieldLen) + (1 + 2 + mimeBytes.size) + contentTLVBytes
+        val buf = ByteBuffer.allocate(capacity).order(ByteOrder.BIG_ENDIAN)
+
+        // FILE_NAME
+        buf.put(TLVType.FILE_NAME.v.toByte())
+        buf.putShort(nameBytes.size.toShort())
+        buf.put(nameBytes)
+
+        // FILE_SIZE (4 bytes)
+        buf.put(TLVType.FILE_SIZE.v.toByte())
+        buf.putShort(sizeFieldLen.toShort())
+        buf.putInt(fileSize.toInt())
+
+        // MIME_TYPE
+        buf.put(TLVType.MIME_TYPE.v.toByte())
+        buf.putShort(mimeBytes.size.toShort())
+        buf.put(mimeBytes)
+
+        // CONTENT (single TLV with 4-byte length)
+        buf.put(TLVType.CONTENT.v.toByte())
+        buf.putInt(content.size)
+        buf.put(content)
+
+        val result = buf.array()
+            android.util.Log.d("DogechatFilePacket", "✅ Encoded successfully: ${result.size} bytes total")
             return result
+        } catch (e: Exception) {
+            android.util.Log.e("DogechatFilePacket", "❌ Encoding failed: ${e.message}", e)
+            return null
         }
-        
-        /**
-         * Deserialize byte array to file packet using TLV format
-         */
-        fun deserialize(data: ByteArray): DogechatFilePacket? {
-            return try {
-                val buffer = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
-                
-                var fileId: String? = null
-                var fileName: String? = null
-                var mimeType: String? = null
-                var totalSize: Long = 0
-                var chunkIndex: Int = 0
-                var totalChunks: Int = 0
-                var chunkData: ByteArray? = null
-                
-                while (buffer.hasRemaining()) {
-                    if (buffer.remaining() < 4) break // Need at least type and length
-                    
-                    val type = buffer.short
-                    val length = buffer.short.toInt() and 0xFFFF
-                    
-                    if (buffer.remaining() < length) break // Not enough data for value
-                    
-                    val value = ByteArray(length)
-                    buffer.get(value)
-                    
-                    when (type) {
-                        TLV_FILE_ID -> fileId = String(value, Charsets.UTF_8)
-                        TLV_FILE_NAME -> fileName = String(value, Charsets.UTF_8)
-                        TLV_MIME_TYPE -> mimeType = String(value, Charsets.UTF_8)
-                        TLV_FILE_SIZE -> {
-                            if (value.size == 8) {
-                                totalSize = ByteBuffer.wrap(value).order(ByteOrder.BIG_ENDIAN).long
+    }
+
+    companion object {
+        fun decode(data: ByteArray): DogechatFilePacket? {
+            android.util.Log.d("DogechatFilePacket", "🔄 Decoding ${data.size} bytes")
+            try {
+                var off = 0
+                var name: String? = null
+                var size: Long? = null
+                var mime: String? = null
+                var contentBytes: ByteArray? = null
+                while (off + 3 <= data.size) { // minimum TLV header size (type + 2 bytes length)
+                    val t = TLVType.from(data[off].toUByte()) ?: return null
+                    off += 1
+                    // CONTENT uses 4-byte length; others use 2-byte length
+                    val len: Int
+                    if (t == TLVType.CONTENT) {
+                        if (off + 4 > data.size) return null
+                        len = ((data[off].toInt() and 0xFF) shl 24) or ((data[off + 1].toInt() and 0xFF) shl 16) or ((data[off + 2].toInt() and 0xFF) shl 8) or (data[off + 3].toInt() and 0xFF)
+                        off += 4
+                    } else {
+                        if (off + 2 > data.size) return null
+                        len = ((data[off].toInt() and 0xFF) shl 8) or (data[off + 1].toInt() and 0xFF)
+                        off += 2
+                    }
+                    if (len < 0 || off + len > data.size) return null
+                    val value = data.copyOfRange(off, off + len)
+                    off += len
+                    when (t) {
+                        TLVType.FILE_NAME -> name = String(value, Charsets.UTF_8)
+                        TLVType.FILE_SIZE -> {
+                            if (len != 4) return null
+                            val bb = ByteBuffer.wrap(value).order(ByteOrder.BIG_ENDIAN)
+                            size = bb.int.toLong()
+                        }
+                        TLVType.MIME_TYPE -> mime = String(value, Charsets.UTF_8)
+                        TLVType.CONTENT -> {
+                            // Expect a single CONTENT TLV
+                            if (contentBytes == null) contentBytes = value else {
+                                // If multiple CONTENT TLVs appear, concatenate for tolerance
+                                contentBytes = (contentBytes!! + value)
                             }
                         }
-                        TLV_CHUNK_INDEX -> {
-                            if (value.size == 4) {
-                                chunkIndex = ByteBuffer.wrap(value).order(ByteOrder.BIG_ENDIAN).int
-                            }
-                        }
-                        TLV_TOTAL_CHUNKS -> {
-                            if (value.size == 4) {
-                                totalChunks = ByteBuffer.wrap(value).order(ByteOrder.BIG_ENDIAN).int
-                            }
-                        }
-                        TLV_CHUNK_DATA -> chunkData = value
                     }
                 }
-                
-                // Validate required fields
-                if (fileId != null && fileName != null && mimeType != null && chunkData != null) {
-                    DogechatFilePacket(fileId, fileName, mimeType, totalSize, chunkIndex, totalChunks, chunkData)
-                } else {
-                    null
-                }
+                val n = name ?: return null
+                val c = contentBytes ?: return null
+                val s = size ?: c.size.toLong()
+                val m = mime ?: "application/octet-stream"
+                val result = DogechatFilePacket(n, s, m, c)
+                android.util.Log.d("DogechatFilePacket", "✅ Decoded: name=$n, size=$s, mime=$m, content=${c.size} bytes")
+                return result
             } catch (e: Exception) {
-                null
+                android.util.Log.e("DogechatFilePacket", "❌ Decoding failed: ${e.message}", e)
+                return null
             }
         }
-        
-        /**
-         * Write TLV (Type-Length-Value) entry to buffer
-         */
-        private fun writeTLV(buffer: ByteBuffer, type: Short, value: ByteArray) {
-            buffer.putShort(type)
-            buffer.putShort(value.size.toShort())
-            buffer.put(value)
-        }
-        
-        /**
-         * Calculate optimal chunk size based on MTU and overhead
-         */
-        fun calculateChunkSize(mtu: Int = 500): Int {
-            // Reserve space for TLV headers and metadata (approximately 100 bytes)
-            return (mtu - 100).coerceAtLeast(100)
-        }
-        
-        /**
-         * Calculate total chunks needed for file size
-         */
-        fun calculateTotalChunks(fileSize: Long, chunkSize: Int): Int {
-            return ((fileSize + chunkSize - 1) / chunkSize).toInt()
-        }
-    }
-    
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        
-        other as DogechatFilePacket
-        
-        if (fileId != other.fileId) return false
-        if (fileName != other.fileName) return false
-        if (mimeType != other.mimeType) return false
-        if (totalSize != other.totalSize) return false
-        if (chunkIndex != other.chunkIndex) return false
-        if (totalChunks != other.totalChunks) return false
-        if (!chunkData.contentEquals(other.chunkData)) return false
-        
-        return true
-    }
-    
-    override fun hashCode(): Int {
-        var result = fileId.hashCode()
-        result = 31 * result + fileName.hashCode()
-        result = 31 * result + mimeType.hashCode()
-        result = 31 * result + totalSize.hashCode()
-        result = 31 * result + chunkIndex
-        result = 31 * result + totalChunks
-        result = 31 * result + chunkData.contentHashCode()
-        return result
     }
 }

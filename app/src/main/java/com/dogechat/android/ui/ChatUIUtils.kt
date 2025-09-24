@@ -9,17 +9,13 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.dogechat.android.model.DogechatMessage
-import com.dogechat.android.model.MessageType
 import com.dogechat.android.mesh.BluetoothMeshService
 import androidx.compose.material3.ColorScheme
 import com.dogechat.android.ui.theme.BASE_FONT_SIZE
-import com.dogechat.android.features.file.FileUtils
 import java.text.SimpleDateFormat
 import java.util.*
-
 
 /**
  * Utility functions for ChatScreen UI components
@@ -61,7 +57,7 @@ fun formatMessageAsAnnotatedString(
     if (message.sender != "system") {
         // Get base color for this peer (iOS-style color assignment)
         val baseColor = if (isSelf) {
-            Color(0xFFFFFF00) // Yellow for self (doge yellow)
+            Color(0xFFFF9500) // Orange for self (iOS orange)
         } else {
             getPeerColor(message, isDark)
         }
@@ -157,6 +153,105 @@ fun formatMessageAsAnnotatedString(
         builder.pop()
     }
     
+    return builder.toAnnotatedString()
+}
+
+/**
+ * Build only the nickname + timestamp header line for a message, matching styles of normal messages.
+ */
+fun formatMessageHeaderAnnotatedString(
+    message: DogechatMessage,
+    currentUserNickname: String,
+    meshService: BluetoothMeshService,
+    colorScheme: ColorScheme,
+    timeFormatter: SimpleDateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+): AnnotatedString {
+    val builder = AnnotatedString.Builder()
+    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
+
+    val isSelf = message.senderPeerID == meshService.myPeerID ||
+            message.sender == currentUserNickname ||
+            message.sender.startsWith("$currentUserNickname#")
+
+    if (message.sender != "system") {
+        val baseColor = if (isSelf) Color(0xFFFF9500) else getPeerColor(message, isDark)
+        val (baseName, suffix) = splitSuffix(message.sender)
+
+        // "<@"
+        builder.pushStyle(SpanStyle(
+            color = baseColor,
+            fontSize = BASE_FONT_SIZE.sp,
+            fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
+        ))
+        builder.append("<@")
+        builder.pop()
+
+        // Base name (clickable when not self)
+        builder.pushStyle(SpanStyle(
+            color = baseColor,
+            fontSize = BASE_FONT_SIZE.sp,
+            fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
+        ))
+        val nicknameStart = builder.length
+        builder.append(truncateNickname(baseName))
+        val nicknameEnd = builder.length
+        if (!isSelf) {
+            builder.addStringAnnotation(
+                tag = "nickname_click",
+                annotation = (message.originalSender ?: message.sender),
+                start = nicknameStart,
+                end = nicknameEnd
+            )
+        }
+        builder.pop()
+
+        // Hashtag suffix
+        if (suffix.isNotEmpty()) {
+            builder.pushStyle(SpanStyle(
+                color = baseColor.copy(alpha = 0.6f),
+                fontSize = BASE_FONT_SIZE.sp,
+                fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
+            ))
+            builder.append(suffix)
+            builder.pop()
+        }
+
+        // Sender suffix ">"
+        builder.pushStyle(SpanStyle(
+            color = baseColor,
+            fontSize = BASE_FONT_SIZE.sp,
+            fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
+        ))
+        builder.append(">")
+        builder.pop()
+
+        // Timestamp and optional PoW bits, matching normal message appearance
+        builder.pushStyle(SpanStyle(
+            color = Color.Gray.copy(alpha = 0.7f),
+            fontSize = (BASE_FONT_SIZE - 4).sp
+        ))
+        builder.append("  [${timeFormatter.format(message.timestamp)}]")
+        message.powDifficulty?.let { bits ->
+            if (bits > 0) builder.append(" ⛨${bits}b")
+        }
+        builder.pop()
+    } else {
+        // System message header (should rarely apply to voice)
+        builder.pushStyle(SpanStyle(
+            color = Color.Gray,
+            fontSize = (BASE_FONT_SIZE - 2).sp,
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+        ))
+        builder.append("* ${message.content} *")
+        builder.pop()
+        builder.pushStyle(SpanStyle(
+            color = Color.Gray.copy(alpha = 0.5f),
+            fontSize = (BASE_FONT_SIZE - 4).sp
+        ))
+        builder.append(" [${timeFormatter.format(message.timestamp)}]")
+        builder.pop()
+    }
+
     return builder.toAnnotatedString()
 }
 
@@ -464,58 +559,5 @@ private fun appendIOSFormattedContent(
             builder.append(remainingText)
         }
         builder.pop()
-    }
-}
-
-/**
- * Get icon for message type
- */
-fun getMessageTypeIcon(messageType: MessageType): ImageVector {
-    return when (messageType) {
-        MessageType.TEXT -> Icons.Filled.Message
-        MessageType.IMAGE -> Icons.Filled.Image
-        MessageType.AUDIO -> Icons.Filled.AudioFile
-        MessageType.VIDEO -> Icons.Filled.VideoFile
-        MessageType.FILE -> Icons.Filled.AttachFile
-    }
-}
-
-/**
- * Get display text for media message
- */
-fun getMediaDisplayText(message: DogechatMessage): String {
-    return when (message.messageType) {
-        MessageType.IMAGE -> "📷 Image: ${message.mediaFileName ?: "image"}"
-        MessageType.AUDIO -> "🎵 Audio: ${message.mediaFileName ?: "audio"}"
-        MessageType.VIDEO -> "🎬 Video: ${message.mediaFileName ?: "video"}"
-        MessageType.FILE -> "📎 File: ${message.mediaFileName ?: "file"}"
-        MessageType.TEXT -> message.content
-    }
-}
-
-/**
- * Format file size for display
- */
-fun formatFileSize(bytes: Long): String {
-    return FileUtils.formatFileSize(bytes)
-}
-
-/**
- * Check if message has media content
- */
-fun isMediaMessage(message: DogechatMessage): Boolean {
-    return message.messageType != MessageType.TEXT
-}
-
-/**
- * Get media type color
- */
-fun getMediaTypeColor(messageType: MessageType, colorScheme: ColorScheme): Color {
-    return when (messageType) {
-        MessageType.IMAGE -> Color(0xFF4CAF50) // Green
-        MessageType.AUDIO -> Color(0xFF2196F3) // Blue
-        MessageType.VIDEO -> Color(0xFF9C27B0) // Purple
-        MessageType.FILE -> Color(0xFFFF9800) // Orange
-        MessageType.TEXT -> colorScheme.onSurface
     }
 }

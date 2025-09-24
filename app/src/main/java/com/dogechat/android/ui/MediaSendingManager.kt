@@ -2,16 +2,15 @@ package com.dogechat.android.ui
 
 import android.util.Log
 import com.dogechat.android.mesh.BluetoothMeshService
+import com.dogechat.android.model.DogechatFilePacket
 import com.dogechat.android.model.DogechatMessage
-import com.dogechat.android.model.MessageType
-import java.io.File
+import com.dogechat.android.model.DogechatMessageType
 import java.util.Date
 import java.security.MessageDigest
 
 /**
  * Handles media file sending operations (voice notes, images, generic files)
- * Updated to integrate with BluetoothMeshService.sendFile (chunked via FileSharingManager).
- * Progress is reported via BluetoothMeshDelegate callbacks.
+ * Separated from ChatViewModel for better separation of concerns
  */
 class MediaSendingManager(
     private val state: ChatState,
@@ -21,161 +20,305 @@ class MediaSendingManager(
 ) {
     companion object {
         private const val TAG = "MediaSendingManager"
-        private const val MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB local guard
+        private const val MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB limit
     }
 
-    // Track in-flight transfer: fileId (from meshService) -> messageId
+    // Track in-flight transfer progress: transferId -> messageId and reverse
     private val transferMessageMap = mutableMapOf<String, String>()
     private val messageTransferMap = mutableMapOf<String, String>()
 
+    /**
+     * Send a voice note (audio file)
+     */
     fun sendVoiceNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
-        sendFileInternal(toPeerIDOrNull, channelOrNull, filePath, defaultMime = "audio/m4a", kind = MessageType.AUDIO)
-    }
-
-    fun sendImageNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
-        sendFileInternal(toPeerIDOrNull, channelOrNull, filePath, defaultMime = "image/jpeg", kind = MessageType.IMAGE)
-    }
-
-    fun sendFileNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
-        // mime guessed later
-        sendFileInternal(toPeerIDOrNull, channelOrNull, filePath, defaultMime = "application/octet-stream", kind = null)
-    }
-
-    private fun sendFileInternal(
-        toPeerIDOrNull: String?,
-        channelOrNull: String?,
-        filePath: String,
-        defaultMime: String,
-        kind: MessageType?
-    ) {
         try {
-            val file = File(filePath)
+            val file = java.io.File(filePath)
             if (!file.exists()) {
                 Log.e(TAG, "❌ File does not exist: $filePath")
                 return
             }
+            Log.d(TAG, "📁 File exists: size=${file.length()} bytes, name=${file.name}")
+            
             if (file.length() > MAX_FILE_SIZE) {
                 Log.e(TAG, "❌ File too large: ${file.length()} bytes (max: $MAX_FILE_SIZE)")
                 return
             }
 
-            val mimeType = runCatching {
-                com.dogechat.android.features.file.FileUtils.getMimeTypeFromExtension(file.name)
-            }.getOrElse { defaultMime }
-
-            val messageType = kind ?: when {
-                mimeType.lowercase().startsWith("image/") -> MessageType.IMAGE
-                mimeType.lowercase().startsWith("audio/") -> MessageType.AUDIO
-                mimeType.lowercase().startsWith("video/") -> MessageType.VIDEO
-                else -> MessageType.FILE
-            }
-
-            // Copy file to temp directory so MediaMessageRow can find it for sender's view
-            val tempDir = com.dogechat.android.features.file.FileUtils.getTempFilesDir(meshService.getContext())
-            val fileName = file.name
-            val tempFile = File(tempDir, fileName)
-            
-            try {
-                if (!tempFile.exists()) {
-                    file.copyTo(tempFile, overwrite = false)
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to copy file to temp directory: ${e.message}")
-                // Continue anyway, MediaMessageRow will handle missing file
-            }
-
-            val fileId = if (toPeerIDOrNull != null) {
-                meshService.sendFile(file, recipientPeerID = toPeerIDOrNull, channel = null)
-            } else {
-                meshService.sendFile(file, recipientPeerID = null, channel = channelOrNull)
-            }
-
-            if (fileId == null) {
-                Log.e(TAG, "❌ Failed to start file send (meshService returned null fileId)")
-                return
-            }
-
-            val previewText = when (messageType) {
-                MessageType.IMAGE -> "📷 sent an image"
-                MessageType.AUDIO -> "🎤 sent a voice message"
-                MessageType.VIDEO -> "🎬 sent a video"
-                MessageType.FILE -> "📎 sent a file"
-                MessageType.TEXT -> "sent a message"
-            }
-
-            val msg = DogechatMessage(
-                sender = state.getNicknameValue() ?: meshService.myPeerID,
-                content = previewText,
-                timestamp = Date(),
-                isRelay = false,
-                isPrivate = toPeerIDOrNull != null,
-                recipientNickname = toPeerIDOrNull?.let { meshService.getPeerNicknames()[it] },
-                senderPeerID = meshService.myPeerID,
-                channel = channelOrNull,
-                messageType = messageType,
-                mediaFileName = fileName,            // Use just filename, not full path
-                mediaMimeType = mimeType,
-                mediaFileSize = file.length(),
-                mediaFileId = fileId
+            val filePacket = DogechatFilePacket(
+                fileName = file.name,
+                fileSize = file.length(),
+                mimeType = "audio/mp4",
+                content = file.readBytes()
             )
 
             if (toPeerIDOrNull != null) {
-                messageManager.addPrivateMessage(toPeerIDOrNull, msg)
-            } else if (!channelOrNull.isNullOrBlank()) {
-                channelManager.addChannelMessage(channelOrNull, msg, meshService.myPeerID)
+                sendPrivateFile(toPeerIDOrNull, filePacket, filePath, DogechatMessageType.Audio)
             } else {
-                messageManager.addMessage(msg)
+                sendPublicFile(channelOrNull, filePacket, filePath, DogechatMessageType.Audio)
             }
-
-            // seed progress
-            messageManager.updateMessageDeliveryStatus(
-                msg.id,
-                com.dogechat.android.model.DeliveryStatus.PartiallyDelivered(0, 100)
-            )
-
-            synchronized(transferMessageMap) {
-                transferMessageMap[fileId] = msg.id
-                messageTransferMap[msg.id] = fileId
-            }
-
-            Log.d(TAG, "📤 Started ${messageType.name.lowercase()} send (id=$fileId) to " +
-                    (toPeerIDOrNull ?: channelOrNull ?: "mesh"))
-
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Media send failed: ${e.message}", e)
+            Log.e(TAG, "Failed to send voice note: ${e.message}")
         }
     }
 
+    /**
+     * Send an image file
+     */
+    fun sendImageNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
+        try {
+            Log.d(TAG, "🔄 Starting image send: $filePath")
+            val file = java.io.File(filePath)
+            if (!file.exists()) {
+                Log.e(TAG, "❌ File does not exist: $filePath")
+                return
+            }
+            Log.d(TAG, "📁 File exists: size=${file.length()} bytes, name=${file.name}")
+            
+            if (file.length() > MAX_FILE_SIZE) {
+                Log.e(TAG, "❌ File too large: ${file.length()} bytes (max: $MAX_FILE_SIZE)")
+                return
+            }
+
+            val filePacket = DogechatFilePacket(
+                fileName = file.name,
+                fileSize = file.length(),
+                mimeType = "image/jpeg",
+                content = file.readBytes()
+            )
+
+            if (toPeerIDOrNull != null) {
+                sendPrivateFile(toPeerIDOrNull, filePacket, filePath, DogechatMessageType.Image)
+            } else {
+                sendPublicFile(channelOrNull, filePacket, filePath, DogechatMessageType.Image)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ CRITICAL: Image send failed completely", e)
+            Log.e(TAG, "❌ Image path: $filePath")
+            Log.e(TAG, "❌ Error details: ${e.message}")
+            Log.e(TAG, "❌ Error type: ${e.javaClass.simpleName}")
+        }
+    }
+
+    /**
+     * Send a generic file
+     */
+    fun sendFileNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
+        try {
+            Log.d(TAG, "🔄 Starting file send: $filePath")
+            val file = java.io.File(filePath)
+            if (!file.exists()) {
+                Log.e(TAG, "❌ File does not exist: $filePath")
+                return
+            }
+            Log.d(TAG, "📁 File exists: size=${file.length()} bytes, name=${file.name}")
+            
+            if (file.length() > MAX_FILE_SIZE) {
+                Log.e(TAG, "❌ File too large: ${file.length()} bytes (max: $MAX_FILE_SIZE)")
+                return
+            }
+
+            // Use the real MIME type based on extension; fallback to octet-stream
+            val mimeType = try { 
+                com.dogechat.android.features.file.FileUtils.getMimeTypeFromExtension(file.name) 
+            } catch (_: Exception) { 
+                "application/octet-stream" 
+            }
+            Log.d(TAG, "🏷️ MIME type: $mimeType")
+
+            // Try to preserve the original file name if our copier prefixed it earlier
+            val originalName = run {
+                val name = file.name
+                val base = name.substringBeforeLast('.')
+                val ext = name.substringAfterLast('.', "").let { if (it.isNotBlank()) ".${it}" else "" }
+                val stripped = Regex("^send_\\d+_(.+)$").matchEntire(base)?.groupValues?.getOrNull(1) ?: base
+                stripped + ext
+            }
+            Log.d(TAG, "📝 Original filename: $originalName")
+
+            val filePacket = DogechatFilePacket(
+                fileName = originalName,
+                fileSize = file.length(),
+                mimeType = mimeType,
+                content = file.readBytes()
+            )
+            Log.d(TAG, "📦 Created file packet successfully")
+
+            val messageType = when {
+                mimeType.lowercase().startsWith("image/") -> DogechatMessageType.Image
+                mimeType.lowercase().startsWith("audio/") -> DogechatMessageType.Audio
+                else -> DogechatMessageType.File
+            }
+
+            if (toPeerIDOrNull != null) {
+                sendPrivateFile(toPeerIDOrNull, filePacket, filePath, messageType)
+            } else {
+                sendPublicFile(channelOrNull, filePacket, filePath, messageType)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ CRITICAL: File send failed completely", e)
+            Log.e(TAG, "❌ File path: $filePath")
+            Log.e(TAG, "❌ Error details: ${e.message}")
+            Log.e(TAG, "❌ Error type: ${e.javaClass.simpleName}")
+        }
+    }
+
+    /**
+     * Send a file privately (encrypted)
+     */
+    private fun sendPrivateFile(
+        toPeerID: String,
+        filePacket: DogechatFilePacket,
+        filePath: String,
+        messageType: DogechatMessageType
+    ) {
+        val payload = filePacket.encode()
+        if (payload == null) {
+            Log.e(TAG, "❌ Failed to encode file packet for private send")
+            return
+        }
+        Log.d(TAG, "🔒 Encoded private packet: ${payload.size} bytes")
+
+        val transferId = sha256Hex(payload)
+        val contentHash = sha256Hex(filePacket.content)
+
+        Log.d(TAG, "📤 FILE_TRANSFER send (private): name='${filePacket.fileName}', size=${filePacket.fileSize}, mime='${filePacket.mimeType}', sha256=$contentHash, to=${toPeerID.take(8)} transferId=${transferId.take(16)}…")
+
+        val msg = DogechatMessage(
+            id = java.util.UUID.randomUUID().toString().uppercase(), // Generate unique ID for each message
+            sender = state.getNicknameValue() ?: "me",
+            content = filePath,
+            type = messageType,
+            timestamp = Date(),
+            isRelay = false,
+            isPrivate = true,
+            recipientNickname = try { meshService.getPeerNicknames()[toPeerID] } catch (_: Exception) { null },
+            senderPeerID = meshService.myPeerID
+        )
+        
+        messageManager.addPrivateMessage(toPeerID, msg)
+        
+        synchronized(transferMessageMap) {
+            transferMessageMap[transferId] = msg.id
+            messageTransferMap[msg.id] = transferId
+        }
+        
+        // Seed progress so delivery icons render for media
+        messageManager.updateMessageDeliveryStatus(
+            msg.id,
+            com.dogechat.android.model.DeliveryStatus.PartiallyDelivered(0, 100)
+        )
+        
+        Log.d(TAG, "📤 Calling meshService.sendFilePrivate to $toPeerID")
+        meshService.sendFilePrivate(toPeerID, filePacket)
+        Log.d(TAG, "✅ File send completed successfully")
+    }
+
+    /**
+     * Send a file publicly (broadcast or channel)
+     */
+    private fun sendPublicFile(
+        channelOrNull: String?,
+        filePacket: DogechatFilePacket,
+        filePath: String,
+        messageType: DogechatMessageType
+    ) {
+        val payload = filePacket.encode()
+        if (payload == null) {
+            Log.e(TAG, "❌ Failed to encode file packet for broadcast send")
+            return
+        }
+        Log.d(TAG, "🔓 Encoded broadcast packet: ${payload.size} bytes")
+        
+        val transferId = sha256Hex(payload)
+        val contentHash = sha256Hex(filePacket.content)
+        
+        Log.d(TAG, "📤 FILE_TRANSFER send (broadcast): name='${filePacket.fileName}', size=${filePacket.fileSize}, mime='${filePacket.mimeType}', sha256=$contentHash, transferId=${transferId.take(16)}…")
+
+        val message = DogechatMessage(
+            id = java.util.UUID.randomUUID().toString().uppercase(), // Generate unique ID for each message
+            sender = state.getNicknameValue() ?: meshService.myPeerID,
+            content = filePath,
+            type = messageType,
+            timestamp = Date(),
+            isRelay = false,
+            senderPeerID = meshService.myPeerID,
+            channel = channelOrNull
+        )
+        
+        if (!channelOrNull.isNullOrBlank()) {
+            channelManager.addChannelMessage(channelOrNull, message, meshService.myPeerID)
+        } else {
+            messageManager.addMessage(message)
+        }
+        
+        synchronized(transferMessageMap) {
+            transferMessageMap[transferId] = message.id
+            messageTransferMap[message.id] = transferId
+        }
+        
+        // Seed progress so animations start immediately
+        messageManager.updateMessageDeliveryStatus(
+            message.id,
+            com.dogechat.android.model.DeliveryStatus.PartiallyDelivered(0, 100)
+        )
+        
+        Log.d(TAG, "📤 Calling meshService.sendFileBroadcast")
+        meshService.sendFileBroadcast(filePacket)
+        Log.d(TAG, "✅ File broadcast completed successfully")
+    }
+
+    /**
+     * Cancel a media transfer by message ID
+     */
     fun cancelMediaSend(messageId: String) {
         val transferId = synchronized(transferMessageMap) { messageTransferMap[messageId] }
         if (transferId != null) {
-            runCatching { meshService.cancelFileTransfer(transferId) }
-            synchronized(transferMessageMap) {
-                transferMessageMap.remove(transferId)
-                messageTransferMap.remove(messageId)
+            val cancelled = meshService.cancelFileTransfer(transferId)
+            if (cancelled) {
+                // Remove the message from chat upon explicit cancel
+                messageManager.removeMessageById(messageId)
+                synchronized(transferMessageMap) {
+                    transferMessageMap.remove(transferId)
+                    messageTransferMap.remove(messageId)
+                }
             }
         }
     }
 
-    fun updateProgressByFileId(fileId: String, sentPercent: Int) {
-        val msgId = synchronized(transferMessageMap) { transferMessageMap[fileId] } ?: return
-        messageManager.updateMessageDeliveryStatus(
-            msgId,
-            com.dogechat.android.model.DeliveryStatus.PartiallyDelivered(sentPercent, 100)
-        )
-        if (sentPercent >= 100) {
-            messageManager.updateMessageDeliveryStatus(
-                msgId,
-                com.dogechat.android.model.DeliveryStatus.Delivered(to = "mesh", at = Date())
-            )
-            synchronized(transferMessageMap) {
-                val removedMsgId = transferMessageMap.remove(fileId)
-                if (removedMsgId != null) messageTransferMap.remove(removedMsgId)
+    /**
+     * Update progress for a transfer
+     */
+    fun updateTransferProgress(transferId: String, messageId: String) {
+        synchronized(transferMessageMap) {
+            transferMessageMap[transferId] = messageId
+            messageTransferMap[messageId] = transferId
+        }
+    }
+
+    /**
+     * Handle transfer progress events
+     */
+    fun handleTransferProgressEvent(evt: com.dogechat.android.mesh.TransferProgressEvent) {
+        val msgId = synchronized(transferMessageMap) { transferMessageMap[evt.transferId] }
+        if (msgId != null) {
+            if (evt.completed) {
+                messageManager.updateMessageDeliveryStatus(
+                    msgId,
+                    com.dogechat.android.model.DeliveryStatus.Delivered(to = "mesh", at = java.util.Date())
+                )
+                synchronized(transferMessageMap) {
+                    val msgIdRemoved = transferMessageMap.remove(evt.transferId)
+                    if (msgIdRemoved != null) messageTransferMap.remove(msgIdRemoved)
+                }
+            } else {
+                messageManager.updateMessageDeliveryStatus(
+                    msgId,
+                    com.dogechat.android.model.DeliveryStatus.PartiallyDelivered(evt.sent, evt.total)
+                )
             }
         }
     }
 
-    @Suppress("unused")
     private fun sha256Hex(bytes: ByteArray): String = try {
         val md = MessageDigest.getInstance("SHA-256")
         md.update(bytes)

@@ -31,10 +31,11 @@ fun ByteArray.toHexString(): String {
 fun UByteArray.toHexString(): String = this.asByteArray().toHexString()
 
 /**
- * Nullable-safe hex conversion.
- * Returns empty string if the array is null.
+ * Extension function to convert a ByteArray to a hexadecimal string.
  */
-fun ByteArray?.toHexStringOrEmpty(): String = this?.toHexString() ?: ""
+fun ByteArray.toHexString(): String {
+    return this.joinToString("") { "%02x".format(it) }
+}
 
 /**
  * Converts a hexadecimal string to ByteArray.

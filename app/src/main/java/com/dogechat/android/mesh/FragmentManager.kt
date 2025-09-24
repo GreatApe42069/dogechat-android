@@ -48,10 +48,23 @@ class FragmentManager {
      * Matches iOS sendFragmentedPacket() implementation exactly
      */
     fun createFragments(packet: DogechatPacket): List<DogechatPacket> {
-        val encoded = packet.toBinaryData() ?: return emptyList()
+        try {
+            Log.d(TAG, "🔀 Creating fragments for packet type ${packet.type}, payload: ${packet.payload.size} bytes")
+        val encoded = packet.toBinaryData()
+            if (encoded == null) {
+                Log.e(TAG, "❌ Failed to encode packet to binary data")
+                return emptyList()
+            }
+            Log.d(TAG, "📦 Encoded to ${encoded.size} bytes")
         
         // Fragment the unpadded frame; each fragment will be encoded (and padded) independently - iOS fix
-        val fullData = MessagePadding.unpad(encoded)
+        val fullData = try {
+                MessagePadding.unpad(encoded)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to unpad data: ${e.message}", e)
+                return emptyList()
+            }
+            Log.d(TAG, "📏 Unpadded to ${fullData.size} bytes")
         
         // iOS logic: if data.count > 512 && packet.type != MessageType.fragment.rawValue
         if (fullData.size <= FRAGMENT_SIZE_THRESHOLD) {
@@ -98,7 +111,13 @@ class FragmentManager {
             fragments.add(fragmentPacket)
         }
         
-        return fragments
+        Log.d(TAG, "✅ Created ${fragments.size} fragments successfully")
+            return fragments
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Fragment creation failed: ${e.message}", e)
+            Log.e(TAG, "❌ Packet type: ${packet.type}, payload: ${packet.payload.size} bytes")
+            return emptyList()
+        }
     }
     
     /**

@@ -1,7 +1,6 @@
 package com.dogechat.android.ui
 
 import android.app.Application
-import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.AndroidViewModel
@@ -9,9 +8,13 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.viewModelScope
 import com.dogechat.android.mesh.BluetoothMeshDelegate
 import com.dogechat.android.mesh.BluetoothMeshService
-import com.dogechat.android.model.DogechatFilePacket
 import com.dogechat.android.model.DogechatMessage
-import com.dogechat.android.util.NotificationIntervalManager
+import com.bitchat.android.model.DogechatMessageType
+import com.dogechat.android.model.DogechatPacket
+
+
+import kotlinx.coroutines.launch
+import com.bitchat.android.util.NotificationIntervalManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -32,21 +35,30 @@ class ChatViewModel(
         private const val TAG = "ChatViewModel"
     }
 
-    // State management
+    fun sendVoiceNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
+        mediaSendingManager.sendVoiceNote(toPeerIDOrNull, channelOrNull, filePath)
+    }
+
+    fun sendFileNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
+        mediaSendingManager.sendFileNote(toPeerIDOrNull, channelOrNull, filePath)
+    }
+
+    fun sendImageNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
+        mediaSendingManager.sendImageNote(toPeerIDOrNull, channelOrNull, filePath)
+    }
+
+    // MARK: - State management
     private val state = ChatState()
     
-    // Specialized managers
+
+    // Transfer progress tracking
+    private val transferMessageMap = mutableMapOf<String, String>()
+    private val messageTransferMap = mutableMapOf<String, String>()
+
+     // Specialized managers
     private val dataManager = DataManager(application.applicationContext)
     private val messageManager = MessageManager(state)
     private val channelManager = ChannelManager(state, messageManager, dataManager, viewModelScope)
-
-    // Media sending manager (handles image/audio/file sends via meshService FileSharingManager)
-    private val mediaSendingManager = MediaSendingManager(
-        state = state,
-        messageManager = messageManager,
-        channelManager = channelManager,
-        meshService = meshService
-    )
     
     // Create Noise session delegate for clean dependency injection
     private val noiseSessionDelegate = object : NoiseSessionDelegate {
@@ -62,6 +74,9 @@ class ChatViewModel(
       NotificationManagerCompat.from(application.applicationContext),
       NotificationIntervalManager()
     )
+
+    // Media file sending manager
+    private val mediaSendingManager = MediaSendingManager(state, messageManager, channelManager, meshService)
     
     // Delegate handler for mesh callbacks
     private val meshDelegateHandler = MeshDelegateHandler(
@@ -125,7 +140,28 @@ class ChatViewModel(
     init {
         // Note: Mesh service delegate is now set by MainActivity
         loadAndInitialize()
+        // Subscribe to BLE transfer progress and reflect in message deliveryStatus
+        viewModelScope.launch {
+            com.bitchat.android.mesh.TransferProgressManager.events.collect { evt ->
+                mediaSendingManager.handleTransferProgressEvent(evt)
+            }
+        }
     }
+
+    fun cancelMediaSend(messageId: String) {
+        val transferId = synchronized(transferMessageMap) { messageTransferMap[messageId] }
+        if (transferId != null) {
+            val cancelled = meshService.cancelFileTransfer(transferId)
+            if (cancelled) {
+                // Remove the message from chat upon explicit cancel
+                messageManager.removeMessageById(messageId)
+                synchronized(transferMessageMap) {
+                    transferMessageMap.remove(transferId)
+                    messageTransferMap.remove(messageId)
+                }
+            }
+        }
+     }
     
     private fun loadAndInitialize() {
         // Load nickname
@@ -486,33 +522,6 @@ class ChatViewModel(
         }
     }
 
-    // MARK: - Media Sending (images / voice)
-
-    fun sendVoiceNote(filePath: String) {
-        val toPeer = state.getSelectedPrivateChatPeerValue()
-        val channel = state.getCurrentChannelValue()
-        mediaSendingManager.sendVoiceNote(toPeer, channel, filePath)
-    }
-
-    fun sendImageFromUri(uri: Uri) {
-        try {
-            val ctx = getApplication<Application>()
-            val name = com.dogechat.android.features.file.FileUtils.getFileNameFromUri(ctx, uri)
-                ?: "image_${System.currentTimeMillis()}.jpg"
-            val tempDir = com.dogechat.android.features.file.FileUtils.getTempFilesDir(ctx)
-            val dest = java.io.File(tempDir, "send_${System.currentTimeMillis()}_$name")
-            if (com.dogechat.android.features.file.FileUtils.copyFileFromUri(ctx, uri, dest)) {
-                val toPeer = state.getSelectedPrivateChatPeerValue()
-                val channel = state.getCurrentChannelValue()
-                mediaSendingManager.sendImageNote(toPeer, channel, dest.absolutePath)
-            } else {
-                Log.w(TAG, "Failed to copy image from URI to temp")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "sendImageFromUri failed: ${e.message}")
-        }
-    }
-
     // MARK: - Utility Functions
     
     fun getPeerIDForNickname(nickname: String): String? {
@@ -736,24 +745,6 @@ class ChatViewModel(
     
     override fun isFavorite(peerID: String): Boolean {
         return meshDelegateHandler.isFavorite(peerID)
-    }
-
-    // --- File transfer delegate methods (forward to handler and update message progress) ---
-    override fun didReceiveFilePacket(packet: DogechatFilePacket) {
-        meshDelegateHandler.didReceiveFilePacket(packet)
-    }
-
-    override fun didUpdateFileTransferProgress(fileId: String, progress: Int) {
-        meshDelegateHandler.didUpdateFileTransferProgress(fileId, progress)
-        // Reflect into message delivery status if we have a pending message mapped to this fileId
-        mediaSendingManager.updateProgressByFileId(fileId, progress)
-    }
-
-    override fun didCompleteFileTransfer(fileId: String, success: Boolean) {
-        meshDelegateHandler.didCompleteFileTransfer(fileId, success)
-        if (success) {
-            mediaSendingManager.updateProgressByFileId(fileId, 100)
-        }
     }
     
     // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager

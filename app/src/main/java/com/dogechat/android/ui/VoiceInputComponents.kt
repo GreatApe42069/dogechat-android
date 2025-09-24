@@ -66,28 +66,30 @@ fun VoiceRecordButton(
                                 return@detectTapGestures
                             }
                             val rec = VoiceRecorder(context)
-                            val file = rec.startRecording()
+                            val f = rec.start()
                             recorder = rec
-                            isRecording = file != null
-                            recordedFilePath = file?.absolutePath
+                            isRecording = f != null
+                            recordedFilePath = f?.absolutePath
                             recordingStart = System.currentTimeMillis()
                             if (isRecording) {
                                 latestOnStart.value()
+                                // Haptic "knock" when recording starts
                                 try { haptic.performHapticFeedback(HapticFeedbackType.LongPress) } catch (_: Exception) {}
                                 // Start amplitude polling loop
                                 ampJob?.cancel()
                                 ampJob = scope.launch {
                                     while (isActive && isRecording) {
-                                        val amp = recorder?.getCurrentAmplitude() ?: 0
+                                        val amp = recorder?.pollAmplitude() ?: 0
                                         val elapsedMs = (System.currentTimeMillis() - recordingStart).coerceAtLeast(0L)
                                         latestOnAmplitude.value(amp, elapsedMs)
                                         // Auto-stop after 10 seconds
                                         if (elapsedMs >= 10_000 && isRecording) {
-                                            val outFile = recorder?.stopRecording()
+                                            val file = recorder?.stop()
                                             isRecording = false
                                             recorder = null
-                                            val path = outFile?.absolutePath
+                                            val path = file?.absolutePath
                                             if (!path.isNullOrBlank()) {
+                                                // Haptic "knock" on auto stop
                                                 try { haptic.performHapticFeedback(HapticFeedbackType.LongPress) } catch (_: Exception) {}
                                                 latestOnFinish.value(path)
                                             }
@@ -102,16 +104,17 @@ fun VoiceRecordButton(
                             awaitRelease()
                         } finally {
                             if (isRecording) {
-                                // Extend recording slightly after release to avoid clipping
+                                // Extend recording for 500ms after release to avoid clipping
                                 delay(500)
                             }
                             if (isRecording) {
-                                val outFile = recorder?.stopRecording()
+                                val file = recorder?.stop()
                                 isRecording = false
                                 recorder = null
-                                val path = (outFile?.absolutePath ?: recordedFilePath)
+                                val path = (file?.absolutePath ?: recordedFilePath)
                                 recordedFilePath = null
                                 if (!path.isNullOrBlank()) {
+                                    // Haptic "knock" when recording stops
                                     try { haptic.performHapticFeedback(HapticFeedbackType.LongPress) } catch (_: Exception) {}
                                     latestOnFinish.value(path)
                                 }

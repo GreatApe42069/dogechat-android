@@ -1,67 +1,29 @@
 package com.dogechat.android.mesh
 
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.launch
 
-/**
- * Manages file transfer progress tracking for dogechat media transfers
- */
-class TransferProgressManager {
-    
-    private val _transferProgress = MutableStateFlow<Map<String, TransferProgress>>(emptyMap())
-    val transferProgress: StateFlow<Map<String, TransferProgress>> = _transferProgress.asStateFlow()
-    
-    private val progressMap = ConcurrentHashMap<String, TransferProgress>()
-    
-    /**
-     * Update transfer progress for a file
-     */
-    fun updateProgress(fileId: String, bytesTransferred: Long, totalBytes: Long, isComplete: Boolean = false) {
-        val progress = TransferProgress(
-            fileId = fileId,
-            bytesTransferred = bytesTransferred,
-            totalBytes = totalBytes,
-            percentage = if (totalBytes > 0) (bytesTransferred.toFloat() / totalBytes * 100f) else 0f,
-            isComplete = isComplete,
-            timestamp = System.currentTimeMillis()
-        )
-        
-        progressMap[fileId] = progress
-        _transferProgress.value = progressMap.toMap()
+data class TransferProgressEvent(
+    val transferId: String,
+    val sent: Int,
+    val total: Int,
+    val completed: Boolean
+)
+
+object TransferProgressManager {
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val _events = MutableSharedFlow<TransferProgressEvent>(replay = 0, extraBufferCapacity = 32)
+    val events: SharedFlow<TransferProgressEvent> = _events
+
+    fun start(id: String, total: Int) { emit(id, 0, total, false) }
+    fun progress(id: String, sent: Int, total: Int) { emit(id, sent, total, sent >= total) }
+    fun complete(id: String, total: Int) { emit(id, total, total, true) }
+
+    private fun emit(id: String, sent: Int, total: Int, done: Boolean) {
+        scope.launch { _events.emit(TransferProgressEvent(id, sent, total, done)) }
     }
-    
-    /**
-     * Mark transfer as complete
-     */
-    fun completeTransfer(fileId: String) {
-        progressMap[fileId]?.let { currentProgress ->
-            updateProgress(fileId, currentProgress.totalBytes, currentProgress.totalBytes, true)
-        }
-    }
-    
-    /**
-     * Remove transfer progress
-     */
-    fun removeProgress(fileId: String) {
-        progressMap.remove(fileId)
-        _transferProgress.value = progressMap.toMap()
-    }
-    
-    /**
-     * Get progress for specific file
-     */
-    fun getProgress(fileId: String): TransferProgress? {
-        return progressMap[fileId]
-    }
-    
-    data class TransferProgress(
-        val fileId: String,
-        val bytesTransferred: Long,
-        val totalBytes: Long,
-        val percentage: Float,
-        val isComplete: Boolean,
-        val timestamp: Long
-    )
 }

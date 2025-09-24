@@ -1,64 +1,54 @@
 ﻿package com.dogechat.android.ui
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+ 
+
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import com.dogechat.android.mesh.BluetoothMeshService
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import android.content.Intent
+import android.net.Uri
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.DeliveryStatus
-import com.dogechat.android.parsing.ParsedDogeToken
+import com.dogechat.android.mesh.BluetoothMeshService
 import java.text.SimpleDateFormat
-import java.util.Locale
+import java.util.*
+import com.dogechat.android.ui.media.VoiceNotePlayer
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import com.dogechat.android.ui.media.FileMessageItem
+import com.dogechat.android.model.DogechatMessageType
+
+// VoiceNotePlayer moved to com.dogechat.android.ui.media.VoiceNotePlayer
 
 /**
  * Message display components for ChatScreen
  * Extracted from ChatScreen.kt for better organization
- *
- * Dogechat variant:
- * - Keeps upstream Bitchat smart scroll and reverse layout logic
- * - Adds PoW animation gating hook (shouldAnimateMessage + MessageWithMatrixAnimation)
- * - Preserves Dogechat extras (onDogeReceive/onDogeSend) for future token actions
- * - NEW: In-chat media rows for image/audio/video/file message types
  */
 
 @Composable
@@ -71,24 +61,24 @@ fun MessagesList(
     onScrolledUpChanged: ((Boolean) -> Unit)? = null,
     onNicknameClick: ((String) -> Unit)? = null,
     onMessageLongPress: ((DogechatMessage) -> Unit)? = null,
-    onDogeReceive: (ParsedDogeToken) -> Unit = {},
-    onDogeSend: (ParsedDogeToken) -> Unit = {}
+    onCancelTransfer: ((DogechatMessage) -> Unit)? = null,
+    onImageClick: ((String, List<String>, Int) -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
-
-    // Track if this is the first time messages are being loaded for initial auto-scroll
+    
+    // Track if this is the first time messages are being loaded
     var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
-
+    
     // Smart scroll: auto-scroll to bottom for initial load, then only when user is at or near the bottom
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             val layoutInfo = listState.layoutInfo
             val firstVisibleIndex = layoutInfo.visibleItemsInfo.firstOrNull()?.index ?: -1
-
+            
             // With reverseLayout=true and reversed data, index 0 is the latest message at the bottom
             val isFirstLoad = !hasScrolledToInitialPosition
             val isNearLatest = firstVisibleIndex <= 2
-
+            
             if (isFirstLoad || isNearLatest) {
                 listState.animateScrollToItem(0)
                 if (isFirstLoad) {
@@ -97,7 +87,7 @@ fun MessagesList(
             }
         }
     }
-
+    
     // Track whether user has scrolled away from the latest messages
     val isAtLatest by remember {
         derivedStateOf {
@@ -108,7 +98,7 @@ fun MessagesList(
     LaunchedEffect(isAtLatest) {
         onScrolledUpChanged?.invoke(!isAtLatest)
     }
-
+    
     // Force scroll to bottom when requested (e.g., when user sends a message)
     LaunchedEffect(forceScrollToBottom) {
         if (messages.isNotEmpty()) {
@@ -116,7 +106,7 @@ fun MessagesList(
             listState.animateScrollToItem(0)
         }
     }
-
+    
     LazyColumn(
         state = listState,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -124,17 +114,20 @@ fun MessagesList(
         modifier = modifier,
         reverseLayout = true
     ) {
-        itemsIndexed(messages.asReversed(), key = { _, item -> item.hashCode() }) { _, msg ->
-            MessageItem(
-                message = msg,
-                currentUserNickname = currentUserNickname,
-                meshService = meshService,
-                onNicknameClick = onNicknameClick,
-                onMessageLongPress = onMessageLongPress,
-                onDogeReceive = onDogeReceive,
-                onDogeSend = onDogeSend
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+        items(
+            items = messages.asReversed(),
+            key = { it.id }
+        ) { message ->
+                MessageItem(
+                    message = message,
+                    messages = messages,
+                    currentUserNickname = currentUserNickname,
+                    meshService = meshService,
+                    onNicknameClick = onNicknameClick,
+                    onMessageLongPress = onMessageLongPress,
+                    onCancelTransfer = onCancelTransfer,
+                    onImageClick = onImageClick
+                )
         }
     }
 }
@@ -145,79 +138,99 @@ fun MessageItem(
     message: DogechatMessage,
     currentUserNickname: String,
     meshService: BluetoothMeshService,
+    messages: List<DogechatMessage> = emptyList(),
     onNicknameClick: ((String) -> Unit)? = null,
     onMessageLongPress: ((DogechatMessage) -> Unit)? = null,
-    onDogeReceive: (ParsedDogeToken) -> Unit = {},
-    onDogeSend: (ParsedDogeToken) -> Unit = {}
+    onCancelTransfer: ((DogechatMessage) -> Unit)? = null,
+    onImageClick: ((String, List<String>, Int) -> Unit)? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val timeFormatter = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
-
+    
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            // If this is a media message, render a MediaMessageRow; otherwise, render text
-            if (isMediaMessage(message)) {
-                MediaMessageRow(
-                    message = message,
-                    currentUserNickname = currentUserNickname,
-                    meshService = meshService,
-                    colorScheme = colorScheme,
-                    timeFormatter = timeFormatter,
-                    onMessageLongPress = onMessageLongPress,
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.Top
+            ) {
+                // Provide a small end padding for own private messages so overlay doesn't cover text
+                val endPad = if (message.isPrivate && message.sender == currentUserNickname) 16.dp else 0.dp
                 // Create a custom layout that combines selectable text with clickable nickname areas
                 MessageTextWithClickableNicknames(
                     message = message,
+                    messages = messages,
                     currentUserNickname = currentUserNickname,
                     meshService = meshService,
                     colorScheme = colorScheme,
                     timeFormatter = timeFormatter,
                     onNicknameClick = onNicknameClick,
                     onMessageLongPress = onMessageLongPress,
-                    modifier = Modifier.weight(1f)
+                    onCancelTransfer = onCancelTransfer,
+                    onImageClick = onImageClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = endPad)
                 )
             }
 
-            // Delivery status for private messages (sender-side)
-            if (message.isPrivate && (message.senderPeerID == meshService.myPeerID ||
-                        message.sender == currentUserNickname ||
-                        message.sender.startsWith("$currentUserNickname#"))
-            ) {
+            // Delivery status for private messages (overlay, non-displacing)
+            if (message.isPrivate && message.sender == currentUserNickname) {
                 message.deliveryStatus?.let { status ->
-                    DeliveryStatusIcon(status = status)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 2.dp)
+                    ) {
+                        DeliveryStatusIcon(status = status)
+                    }
                 }
             }
         }
-
-        // Link previews removed; links are highlighted inline and clickable within the message text
+        
+        // Link previews removed; links are now highlighted inline and clickable within the message text
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MessageTextWithClickableNicknames(
-    message: DogechatMessage,
-    currentUserNickname: String,
-    meshService: BluetoothMeshService,
-    colorScheme: ColorScheme,
-    timeFormatter: SimpleDateFormat,
-    onNicknameClick: ((String) -> Unit)?,
-    onMessageLongPress: ((DogechatMessage) -> Unit)?,
-    modifier: Modifier = Modifier
-) {
-    val animate = shouldAnimateMessage(message)
+    private fun MessageTextWithClickableNicknames(
+        message: DogechatMessage,
+        messages: List<DogechatMessage>,
+        currentUserNickname: String,
+        meshService: BluetoothMeshService,
+        colorScheme: ColorScheme,
+        timeFormatter: SimpleDateFormat,
+        onNicknameClick: ((String) -> Unit)?,
+        onMessageLongPress: ((DogechatMessage) -> Unit)?,
+        onCancelTransfer: ((DogechatMessage) -> Unit)?,
+        onImageClick: ((String, List<String>, Int) -> Unit)?,
+        modifier: Modifier = Modifier
+    ) {
+    // Image special rendering
+    if (message.type == DogechatMessageType.Image) {
+        com.dogechat.android.ui.media.ImageMessageItem(
+            message = message,
+            messages = messages,
+            currentUserNickname = currentUserNickname,
+            meshService = meshService,
+            colorScheme = colorScheme,
+            timeFormatter = timeFormatter,
+            onNicknameClick = onNicknameClick,
+            onMessageLongPress = onMessageLongPress,
+            onCancelTransfer = onCancelTransfer,
+            onImageClick = onImageClick,
+            modifier = modifier
+        )
+        return
+    }
 
-    if (animate) {
-        MessageWithMatrixAnimation(
+    // Voice note special rendering
+    if (message.type == DogechatMessageType.Audio) {
+        com.dogechat.android.ui.media.AudioMessageItem(
             message = message,
             currentUserNickname = currentUserNickname,
             meshService = meshService,
@@ -225,114 +238,236 @@ private fun MessageTextWithClickableNicknames(
             timeFormatter = timeFormatter,
             onNicknameClick = onNicknameClick,
             onMessageLongPress = onMessageLongPress,
+            onCancelTransfer = onCancelTransfer,
             modifier = modifier
         )
         return
     }
 
-    val annotatedText = formatMessageAsAnnotatedString(
-        message = message,
-        currentUserNickname = currentUserNickname,
-        meshService = meshService,
-        colorScheme = colorScheme,
-        timeFormatter = timeFormatter
-    )
+    // File special rendering
+    if (message.type == DogechatMessageType.File) {
+        val path = message.content.trim()
+        // Derive sending progress if applicable
+        val (overrideProgress, _) = when (val st = message.deliveryStatus) {
+            is com.dogechat.android.model.DeliveryStatus.PartiallyDelivered -> {
+                if (st.total > 0 && st.reached < st.total) {
+                    (st.reached.toFloat() / st.total.toFloat()) to Color(0xFF1E88E5) // blue while sending
+                } else null to null
+            }
+            else -> null to null
+        }
+        Column(modifier = modifier.fillMaxWidth()) {
+            // Header: nickname + timestamp line above the file, identical styling to text messages
+            val headerText = formatMessageHeaderAnnotatedString(
+                message = message,
+                currentUserNickname = currentUserNickname,
+                meshService = meshService,
+                colorScheme = colorScheme,
+                timeFormatter = timeFormatter
+            )
+            val haptic = LocalHapticFeedback.current
+            var headerLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+            Text(
+                text = headerText,
+                fontFamily = FontFamily.Monospace,
+                color = colorScheme.onSurface,
+                modifier = Modifier.pointerInput(message.id) {
+                    detectTapGestures(onTap = { pos ->
+                        val layout = headerLayout ?: return@detectTapGestures
+                        val offset = layout.getOffsetForPosition(pos)
+                        val ann = headerText.getStringAnnotations("nickname_click", offset, offset)
+                        if (ann.isNotEmpty() && onNicknameClick != null) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onNicknameClick.invoke(ann.first().item)
+                        }
+                    }, onLongPress = { onMessageLongPress?.invoke(message) })
+                },
+                onTextLayout = { headerLayout = it }
+            )
 
-    val isSelf = message.senderPeerID == meshService.myPeerID ||
-        message.sender == currentUserNickname ||
-        message.sender.startsWith("$currentUserNickname#")
+            // Try to load the file packet from the path
+            val packet = try {
+                val file = java.io.File(path)
+                if (file.exists()) {
+                    // Create a temporary DogechatFilePacket for display
+                    // In a real implementation, this would be stored with the packet metadata
+                    com.dogechat.android.model.DogechatFilePacket(
+                        fileName = file.name,
+                        fileSize = file.length(),
+                        mimeType = com.dogechat.android.features.file.FileUtils.getMimeTypeFromExtension(file.name),
+                        content = file.readBytes()
+                    )
+                } else null
+            } catch (e: Exception) {
+                null
+            }
 
-    val haptic = LocalHapticFeedback.current
-    val context = LocalContext.current
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                Box {
+                    if (packet != null) {
+                        if (overrideProgress != null) {
+                            // Show sending animation while in-flight
+                            com.dogechat.android.ui.media.FileSendingAnimation(
+                                fileName = packet.fileName,
+                                progress = overrideProgress,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            // Static file display with open/save dialog
+                            FileMessageItem(
+                                packet = packet,
+                                onFileClick = {
+                                    // handled inside FileMessageItem via dialog
+                                }
+                            )
+                        }
 
-    Text(
-        text = annotatedText,
-        modifier = modifier.pointerInput(message) {
-            detectTapGestures(
-                onTap = { position ->
-                    val layout = textLayoutResult ?: return@detectTapGestures
-                    val offset = layout.getOffsetForPosition(position)
+                        // Cancel button overlay during sending
+                        val showCancel = message.sender == currentUserNickname && (message.deliveryStatus is DeliveryStatus.PartiallyDelivered)
+                        if (showCancel) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                                    .size(22.dp)
+                                    .background(Color.Gray.copy(alpha = 0.6f), CircleShape)
+                                    .clickable { onCancelTransfer?.invoke(message) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(imageVector = Icons.Filled.Close, contentDescription = "Cancel", tint = Color.White, modifier = Modifier.size(14.dp))
+                            }
+                        }
+                    } else {
+                        Text(text = "[file unavailable]", fontFamily = FontFamily.Monospace, color = Color.Gray)
+                    }
+                }
+            }
+        }
+        return
+    }
 
-                    if (!isSelf && onNicknameClick != null) {
-                        val nicknameAnnotations = annotatedText.getStringAnnotations(
-                            tag = "nickname_click",
+    // Check if this message should be animated during PoW mining
+    val shouldAnimate = shouldAnimateMessage(message.id)
+    
+    // If animation is needed, use the matrix animation component for content only
+    if (shouldAnimate) {
+        // Display message with matrix animation for content
+        MessageWithMatrixAnimation(
+            message = message,
+            messages = messages,
+            currentUserNickname = currentUserNickname,
+            meshService = meshService,
+            colorScheme = colorScheme,
+            timeFormatter = timeFormatter,
+            onNicknameClick = onNicknameClick,
+            onMessageLongPress = onMessageLongPress,
+            onImageClick = onImageClick,
+            modifier = modifier
+        )
+    } else {
+        // Normal message display
+        val annotatedText = formatMessageAsAnnotatedString(
+            message = message,
+            currentUserNickname = currentUserNickname,
+            meshService = meshService,
+            colorScheme = colorScheme,
+            timeFormatter = timeFormatter
+        )
+        
+        // Check if this message was sent by self to avoid click interactions on own nickname
+        val isSelf = message.senderPeerID == meshService.myPeerID || 
+                     message.sender == currentUserNickname ||
+                     message.sender.startsWith("$currentUserNickname#")
+        
+        val haptic = LocalHapticFeedback.current
+        val context = LocalContext.current
+        var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+        Text(
+            text = annotatedText,
+            modifier = modifier.pointerInput(message) {
+                detectTapGestures(
+                    onTap = { position ->
+                        val layout = textLayoutResult ?: return@detectTapGestures
+                        val offset = layout.getOffsetForPosition(position)
+                        // Nickname click only when not self
+                        if (!isSelf && onNicknameClick != null) {
+                            val nicknameAnnotations = annotatedText.getStringAnnotations(
+                                tag = "nickname_click",
+                                start = offset,
+                                end = offset
+                            )
+                            if (nicknameAnnotations.isNotEmpty()) {
+                                val nickname = nicknameAnnotations.first().item
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onNicknameClick.invoke(nickname)
+                                return@detectTapGestures
+                            }
+                        }
+                        // Geohash teleport (all messages)
+                        val geohashAnnotations = annotatedText.getStringAnnotations(
+                            tag = "geohash_click",
                             start = offset,
                             end = offset
                         )
-                        if (nicknameAnnotations.isNotEmpty()) {
-                            val nickname = nicknameAnnotations.first().item
+                        if (geohashAnnotations.isNotEmpty()) {
+                            val geohash = geohashAnnotations.first().item
+                            try {
+                                val locationManager = com.dogechat.android.geohash.LocationChannelManager.getInstance(
+                                    context
+                                )
+                                val level = when (geohash.length) {
+                                    in 0..2 -> com.dogechat.android.geohash.GeohashChannelLevel.REGION
+                                    in 3..4 -> com.dogechat.android.geohash.GeohashChannelLevel.PROVINCE
+                                    5 -> com.dogechat.android.geohash.GeohashChannelLevel.CITY
+                                    6 -> com.dogechat.android.geohash.GeohashChannelLevel.NEIGHBORHOOD
+                                    else -> com.dogechat.android.geohash.GeohashChannelLevel.BLOCK
+                                }
+                                val channel = com.dogechat.android.geohash.GeohashChannel(level, geohash.lowercase())
+                                locationManager.setTeleported(true)
+                                locationManager.select(com.dogechat.android.geohash.ChannelID.Location(channel))
+                            } catch (_: Exception) { }
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onNicknameClick.invoke(nickname)
                             return@detectTapGestures
                         }
+                        // URL open (all messages)
+                        val urlAnnotations = annotatedText.getStringAnnotations(
+                            tag = "url_click",
+                            start = offset,
+                            end = offset
+                        )
+                        if (urlAnnotations.isNotEmpty()) {
+                            val raw = urlAnnotations.first().item
+                            val resolved = if (raw.startsWith("http://", ignoreCase = true) || raw.startsWith("https://", ignoreCase = true)) raw else "https://$raw"
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(resolved))
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(intent)
+                            } catch (_: Exception) { }
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            return@detectTapGestures
+                        }
+                    },
+                    onLongPress = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onMessageLongPress?.invoke(message)
                     }
-
-                    val geohashAnnotations = annotatedText.getStringAnnotations(
-                        tag = "geohash_click",
-                        start = offset,
-                        end = offset
-                    )
-                    if (geohashAnnotations.isNotEmpty()) {
-                        val geohash = geohashAnnotations.first().item
-                        try {
-                            val locationManager =
-                                com.dogechat.android.geohash.LocationChannelManager.getInstance(context)
-                            val level = when (geohash.length) {
-                                in 0..2 -> com.dogechat.android.geohash.GeohashChannelLevel.REGION
-                                in 3..4 -> com.dogechat.android.geohash.GeohashChannelLevel.PROVINCE
-                                5 -> com.dogechat.android.geohash.GeohashChannelLevel.CITY
-                                6 -> com.dogechat.android.geohash.GeohashChannelLevel.NEIGHBORHOOD
-                                else -> com.dogechat.android.geohash.GeohashChannelLevel.BLOCK
-                            }
-                            val channel = com.dogechat.android.geohash.GeohashChannel(level, geohash.lowercase())
-                            locationManager.setTeleported(true)
-                            locationManager.select(com.dogechat.android.geohash.ChannelID.Location(channel))
-                        } catch (_: Exception) { }
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        return@detectTapGestures
-                    }
-
-                    val urlAnnotations = annotatedText.getStringAnnotations(
-                        tag = "url_click",
-                        start = offset,
-                        end = offset
-                    )
-                    if (urlAnnotations.isNotEmpty()) {
-                        val raw = urlAnnotations.first().item
-                        val resolved =
-                            if (raw.startsWith("http://", ignoreCase = true) || raw.startsWith("https://", ignoreCase = true)) raw
-                            else "https://$raw"
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(resolved))
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(intent)
-                        } catch (_: Exception) { }
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        return@detectTapGestures
-                    }
-                },
-                onLongPress = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onMessageLongPress?.invoke(message)
-                }
-            )
-        },
-        fontFamily = FontFamily.Monospace,
-        softWrap = true,
-        overflow = TextOverflow.Visible,
-        style = TextStyle(color = colorScheme.onSurface),
-        onTextLayout = { result -> textLayoutResult = result }
-    )
+                )
+            },
+            fontFamily = FontFamily.Monospace,
+            softWrap = true,
+            overflow = TextOverflow.Visible,
+            style = androidx.compose.ui.text.TextStyle(
+                color = colorScheme.onSurface
+            ),
+            onTextLayout = { result -> textLayoutResult = result }
+        )
+    }
 }
 
-/**
- * Delivery status indicator similar to upstream.
- */
 @Composable
 fun DeliveryStatusIcon(status: DeliveryStatus) {
     val colorScheme = MaterialTheme.colorScheme
-
+    
     when (status) {
         is DeliveryStatus.Sending -> {
             Text(
@@ -342,6 +477,7 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
             )
         }
         is DeliveryStatus.Sent -> {
+            // Use a subtle hollow marker for Sent; single check is reserved for Delivered (iOS parity)
             Text(
                 text = "○",
                 fontSize = 10.sp,
@@ -349,6 +485,7 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
             )
         }
         is DeliveryStatus.Delivered -> {
+            // Single check for Delivered (matches iOS expectations)
             Text(
                 text = "✓",
                 fontSize = 10.sp,
@@ -359,7 +496,7 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
             Text(
                 text = "✓✓",
                 fontSize = 10.sp,
-                color = Color(0xFF007AFF),
+                color = Color(0xFF007AFF), // Blue
                 fontWeight = FontWeight.Bold
             )
         }
@@ -371,20 +508,12 @@ fun DeliveryStatusIcon(status: DeliveryStatus) {
             )
         }
         is DeliveryStatus.PartiallyDelivered -> {
+            // Show a single subdued check without numeric label
             Text(
-                text = "✓${status.reached}/${status.total}",
+                text = "✓",
                 fontSize = 10.sp,
                 color = colorScheme.primary.copy(alpha = 0.6f)
             )
         }
     }
-}
-
-/* =========================
-   Upstream PoW Animation Hooks (Dogechat adaptation)
-   ========================= */
-
-private fun shouldAnimateMessage(message: DogechatMessage): Boolean {
-    // Integrate with PoW tracker if/when exposed
-    return false
 }

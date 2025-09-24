@@ -1,99 +1,42 @@
 package com.dogechat.android.features.voice
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.unit.dp
-import kotlin.math.*
+import kotlin.math.min
 
-/**
- * Voice visualizer component for real-time amplitude display during recording
- */
 @Composable
-fun VoiceVisualizer(
-    amplitude: Int,
-    isRecording: Boolean,
-    modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary,
-    barCount: Int = 30,
-    maxBarHeight: Float = 40f
-) {
-    val amplitudeHistory = remember { mutableListOf<Float>() }
-    
-    // Update amplitude history
-    LaunchedEffect(amplitude, isRecording) {
-        if (isRecording) {
-            val normalizedAmplitude = amplitude.toFloat() / 32767f // Normalize to 0-1
-            amplitudeHistory.add(normalizedAmplitude)
-            
-            // Keep only the last barCount values
-            if (amplitudeHistory.size > barCount) {
-                amplitudeHistory.removeAt(0)
-            }
-        } else {
-            // Gradually fade out when not recording
-            if (amplitudeHistory.isNotEmpty()) {
-                for (i in amplitudeHistory.indices) {
-                    amplitudeHistory[i] = amplitudeHistory[i] * 0.95f
-                }
-                // Remove very small values
-                amplitudeHistory.removeAll { it < 0.01f }
-            }
-        }
-    }
-    
+fun CyberpunkVisualizer(amplitude: Int, color: Color, modifier: Modifier = Modifier) {
+    val norm = min(1f, amplitude / 20_000f)
+    val heightFrac by animateFloatAsState(
+        targetValue = 0.1f + 0.9f * norm,
+        animationSpec = tween(120, easing = LinearEasing), label = "amp"
+    )
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(50.dp)
+            .height(48.dp)
     ) {
-        val canvasWidth = size.width
-        val canvasHeight = size.height
-        val barWidth = if (barCount > 0) canvasWidth / barCount else 0f
-        val centerY = canvasHeight / 2f
-        
-        // Draw amplitude bars
-        amplitudeHistory.forEachIndexed { index, normalizedAmplitude ->
-            val x = index * barWidth + barWidth / 2f
-            val barHeight = normalizedAmplitude * maxBarHeight
-            
-            // Add some animation with sin wave
-            val animatedHeight = if (isRecording) {
-                barHeight + sin((System.currentTimeMillis() / 100f + index * 0.5f)) * 2f
-            } else {
-                barHeight
-            }
-            
-            drawLine(
-                color = color,
-                start = Offset(x, centerY - animatedHeight / 2f),
-                end = Offset(x, centerY + animatedHeight / 2f),
-                strokeWidth = barWidth * 0.8f,
-                cap = StrokeCap.Round
-            )
-        }
-        
-        // Fill remaining bars with baseline when history is short
-        if (amplitudeHistory.size < barCount) {
-            val remainingBars = barCount - amplitudeHistory.size
-            repeat(remainingBars) { index ->
-                val x = (amplitudeHistory.size + index) * barWidth + barWidth / 2f
-                val baselineHeight = if (isRecording) 3f else 1f
-                
-                drawLine(
-                    color = color.copy(alpha = 0.3f),
-                    start = Offset(x, centerY - baselineHeight / 2f),
-                    end = Offset(x, centerY + baselineHeight / 2f),
-                    strokeWidth = barWidth * 0.8f,
-                    cap = StrokeCap.Round
-                )
-            }
+        val w = size.width
+        val h = size.height
+        val barCount = 24
+        val gap = 6f
+        val bw = (w - gap * (barCount - 1)) / barCount
+        for (i in 0 until barCount) {
+            val phase = (i.toFloat() / barCount)
+            val barH = (0.2f + heightFrac * (0.8f * (0.5f + 0.5f * kotlin.math.sin(phase * Math.PI * 2).toFloat()))) * h
+            val x = i * (bw + gap)
+            val y = (h - barH) / 2f
+            drawRect(color.copy(alpha = 0.85f), topLeft = androidx.compose.ui.geometry.Offset(x, y), size = androidx.compose.ui.geometry.Size(bw, barH))
         }
     }
 }

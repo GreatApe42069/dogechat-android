@@ -4,7 +4,6 @@ import android.util.Log
 import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.model.RoutedPacket
-import com.dogechat.android.model.DogechatFilePacket
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.actor
@@ -145,16 +144,17 @@ class PacketProcessor(private val myPeerID: String) {
         when (messageType) {
             MessageType.ANNOUNCE -> handleAnnounce(routed)
             MessageType.MESSAGE -> handleMessage(routed)
+            MessageType.FILE_TRANSFER -> handleMessage(routed) // treat same routing path; parsing happens in handler
             MessageType.LEAVE -> handleLeave(routed)
             MessageType.FRAGMENT -> handleFragment(routed)
             MessageType.REQUEST_SYNC -> handleRequestSync(routed)
-            MessageType.FILE_PACKET -> handleFilePacket(routed)
             else -> {
                 // Handle private packet types (address check required)
                 if (packetRelayManager.isPacketAddressedToMe(packet)) {
                     when (messageType) {
                         MessageType.NOISE_HANDSHAKE -> handleNoiseHandshake(routed)
                         MessageType.NOISE_ENCRYPTED -> handleNoiseEncrypted(routed)
+                        MessageType.FILE_TRANSFER -> handleMessage(routed)
                         else -> {
                             validPacket = false
                             Log.w(TAG, "Unknown message type: ${packet.type}")
@@ -246,15 +246,6 @@ class PacketProcessor(private val myPeerID: String) {
     }
     
     /**
-     * Handle file packet
-     */
-    private suspend fun handleFilePacket(routed: RoutedPacket) {
-        val peerID = routed.peerID ?: "unknown"
-        Log.d(TAG, "Processing FILE_PACKET from ${formatPeerForLog(peerID)}")
-        delegate?.handleFilePacket(routed)
-    }
-    
-    /**
      * Handle delivery acknowledgment
      */
 //    private suspend fun handleDeliveryAck(routed: RoutedPacket) {
@@ -327,7 +318,6 @@ interface PacketProcessorDelegate {
     fun handleLeave(routed: RoutedPacket)
     fun handleFragment(packet: DogechatPacket): DogechatPacket?
     fun handleRequestSync(routed: RoutedPacket)
-    fun handleFilePacket(routed: RoutedPacket)
     
     // Communication
     fun sendAnnouncementToPeer(peerID: String)

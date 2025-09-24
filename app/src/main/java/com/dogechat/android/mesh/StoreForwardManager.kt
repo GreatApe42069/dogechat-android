@@ -56,9 +56,7 @@ class StoreForwardManager {
         if (packet.type == MessageType.NOISE_HANDSHAKE.value ||
             packet.type == MessageType.NOISE_ENCRYPTED.value ||
             packet.type == MessageType.ANNOUNCE.value ||
-            packet.type == MessageType.LEAVE.value ||
-            packet.type == MessageType.FRAGMENT.value ||
-            packet.type == MessageType.FILE_PACKET.value) {
+            packet.type == MessageType.LEAVE.value) {
             Log.d(TAG, "Skipping cache for message type: ${packet.type}")
             return
         }
@@ -167,7 +165,7 @@ class StoreForwardManager {
             
             // Send with delays to avoid overwhelming the connection
             messagesToSend.forEachIndexed { index, storedMessage ->
-                delay(index * 100L) // 100ms between messages
+                delay(index * 10L) // 10ms between messages
                 delegate?.sendPacket(storedMessage.packet)
             }
             

@@ -74,12 +74,14 @@ object PoWMiningTracker {
 @Composable
 fun MessageWithMatrixAnimation(
     message: com.dogechat.android.model.DogechatMessage,
+    messages: List<com.dogechat.android.model.DogechatMessage> = emptyList(),
     currentUserNickname: String,
     meshService: com.dogechat.android.mesh.BluetoothMeshService,
     colorScheme: androidx.compose.material3.ColorScheme,
     timeFormatter: java.text.SimpleDateFormat,
     onNicknameClick: ((String) -> Unit)?,
     onMessageLongPress: ((com.dogechat.android.model.DogechatMessage) -> Unit)?,
+    onImageClick: ((String, List<String>, Int) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val isAnimating = shouldAnimateMessage(message.id)
