@@ -574,6 +574,10 @@ class BluetoothMeshService(private val context: Context) {
                 val transferContext = fileTransferContexts[packet.fileId]
                 val channelForMessage = transferContext?.channel
                 
+                // TODO: For received files, we can't determine the original channel because 
+                // FILE_PACKET doesn't include channel information. This is a protocol limitation.
+                // For now, received files go to mesh timeline unless they're private messages.
+                
                 // Clean up transfer context
                 fileTransferContexts.remove(packet.fileId)
 
