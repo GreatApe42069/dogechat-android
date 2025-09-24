@@ -82,9 +82,42 @@ fun MediaMessageRow(
 @Composable
 private fun ImageRow(message: DogechatMessage, colorScheme: ColorScheme) {
     val context = LocalContext.current
-    val incomingDir = com.dogechat.android.features.file.FileUtils.getIncomingFilesDir(context)
     val fileName = message.mediaFileName
-    val file = remember(fileName) { if (fileName != null) File(incomingDir, fileName) else null }
+    
+    // Check both incoming files directory and original file paths for sender's own media
+    val file = remember(fileName, message.mediaFileId) {
+        if (fileName != null) {
+            // First check incoming files directory (for received files)
+            val incomingDir = com.dogechat.android.features.file.FileUtils.getIncomingFilesDir(context)
+            val incomingFile = File(incomingDir, fileName)
+            
+            if (incomingFile.exists()) {
+                incomingFile
+            } else {
+                // Check temp files directory (for sent files)
+                val tempDir = com.dogechat.android.features.file.FileUtils.getTempFilesDir(context)
+                val tempFile = File(tempDir, fileName)
+                
+                if (tempFile.exists()) {
+                    tempFile
+                } else {
+                    // If file ID is available, try to resolve original path for sender's files
+                    message.mediaFileId?.let { fileId ->
+                        try {
+                            // Check if this is a recently sent file by looking in common image directories
+                            val cacheDir = File(context.cacheDir, "temp")
+                            val cachedFile = File(cacheDir, fileName)
+                            if (cachedFile.exists()) cachedFile else null
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                }
+            }
+        } else {
+            null
+        }
+    }
     val hasFile = file?.exists() == true
 
     Column(
@@ -126,9 +159,49 @@ private fun ImageRow(message: DogechatMessage, colorScheme: ColorScheme) {
 @Composable
 private fun AudioRow(message: DogechatMessage, colorScheme: ColorScheme) {
     val context = LocalContext.current
-    val incomingDir = com.dogechat.android.features.file.FileUtils.getIncomingFilesDir(context)
     val fileName = message.mediaFileName
-    val file = remember(fileName) { if (fileName != null) File(incomingDir, fileName) else null }
+    
+    // Check both incoming files directory and original file paths for sender's own media
+    val file = remember(fileName, message.mediaFileId) {
+        if (fileName != null) {
+            // First check incoming files directory (for received files)
+            val incomingDir = com.dogechat.android.features.file.FileUtils.getIncomingFilesDir(context)
+            val incomingFile = File(incomingDir, fileName)
+            
+            if (incomingFile.exists()) {
+                incomingFile
+            } else {
+                // Check temp files directory (for sent files)
+                val tempDir = com.dogechat.android.features.file.FileUtils.getTempFilesDir(context)
+                val tempFile = File(tempDir, fileName)
+                
+                if (tempFile.exists()) {
+                    tempFile
+                } else {
+                    // Check recordings directory for voice files
+                    val recordingsDir = File(context.cacheDir, "recordings")
+                    val recordingFile = File(recordingsDir, fileName)
+                    
+                    if (recordingFile.exists()) {
+                        recordingFile
+                    } else {
+                        // If file ID is available, try to resolve original path for sender's files
+                        message.mediaFileId?.let { fileId ->
+                            try {
+                                val cacheDir = File(context.cacheDir, "temp")
+                                val cachedFile = File(cacheDir, fileName)
+                                if (cachedFile.exists()) cachedFile else null
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            null
+        }
+    }
     val hasFile = file?.exists() == true
 
     var isPlaying by remember { mutableStateOf(false) }

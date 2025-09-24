@@ -60,6 +60,15 @@ class BluetoothMeshService(private val context: Context) {
     // Service state management
     private var isActive = false
     
+    // Track file transfer contexts for proper message routing
+    private val fileTransferContexts = mutableMapOf<String, FileTransferContext>()
+    
+    data class FileTransferContext(
+        val channel: String?,
+        val recipientPeerID: String?,
+        val senderPeerID: String
+    )
+    
     // Delegate for message callbacks (maintains same interface)
     var delegate: BluetoothMeshDelegate? = null
     
@@ -560,6 +569,13 @@ class BluetoothMeshService(private val context: Context) {
                 val senderNick = senderPeer?.let { peerManager.getPeerNickname(it) } ?: (senderPeer ?: "unknown")
                 val isBroadcast = routed.packet.recipientID == null || routed.packet.recipientID.contentEquals(SpecialRecipients.BROADCAST)
                 val isPrivateForUs = !isBroadcast && routed.packet.recipientID?.toHexString().equals(myPeerID, ignoreCase = true)
+                
+                // Get stored context for this file transfer (if we sent it)
+                val transferContext = fileTransferContexts[packet.fileId]
+                val channelForMessage = transferContext?.channel
+                
+                // Clean up transfer context
+                fileTransferContexts.remove(packet.fileId)
 
                 val uiType = when {
                     packet.mimeType.lowercase().startsWith("image/") -> UiMessageType.IMAGE
@@ -584,7 +600,7 @@ class BluetoothMeshService(private val context: Context) {
                     isPrivate = isPrivateForUs,
                     recipientNickname = if (isPrivateForUs) delegate?.getNickname() else null,
                     senderPeerID = senderPeer,
-                    channel = null, // broadcast goes to mesh timeline
+                    channel = channelForMessage, // Use stored channel context for proper routing
                     messageType = uiType,
                     mediaFileName = packet.fileName,
                     mediaMimeType = packet.mimeType,
@@ -1093,12 +1109,24 @@ class BluetoothMeshService(private val context: Context) {
     // MARK: - File Transfer Support
     
     /**
+     * Get application context for file operations
+     */
+    fun getContext(): Context = context
+    
+    /**
      * Send a file to a specific peer or broadcast to channel
      */
     fun sendFile(file: java.io.File, recipientPeerID: String? = null, channel: String? = null): String? {
         return try {
             val fileId = fileSharingManager.startFileSend(file)
             if (fileId != null) {
+                // Store the context for this file transfer
+                fileTransferContexts[fileId] = FileTransferContext(
+                    channel = channel,
+                    recipientPeerID = recipientPeerID,
+                    senderPeerID = myPeerID
+                )
+                
                 Log.i(TAG, "📁 Started file send: ${file.name} (ID: $fileId)")
                 sendNextFileChunk(fileId, recipientPeerID, channel)
                 fileId
@@ -1144,11 +1172,13 @@ class BluetoothMeshService(private val context: Context) {
                     sendNextFileChunk(fileId, recipientPeerID, channel)
                 } else {
                     // Transfer complete
+                    fileTransferContexts.remove(fileId) // Clean up context
                     delegate?.didCompleteFileTransfer(fileId, true)
                     Log.i(TAG, "✅ File transfer completed: $fileId")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error sending file chunk: ${e.message}")
+                fileTransferContexts.remove(fileId) // Clean up context on error
                 delegate?.didCompleteFileTransfer(fileId, false)
             }
         }
@@ -1160,6 +1190,7 @@ class BluetoothMeshService(private val context: Context) {
     fun cancelFileTransfer(fileId: String) {
         try {
             fileSharingManager.cancelTransfer(fileId)
+            fileTransferContexts.remove(fileId) // Clean up context
             delegate?.didCompleteFileTransfer(fileId, false)
             Log.i(TAG, "🚫 Cancelled file transfer: $fileId")
         } catch (e: Exception) {
