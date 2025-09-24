@@ -1,23 +1,28 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.parcelize")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.kapt")
+    // Upgrade AGP and Kotlin to satisfy the new AndroidX deps
+    id("com.android.application") version "8.3.0"
+    id("org.jetbrains.kotlin.android") version "2.0.20"
+    id("org.jetbrains.kotlin.plugin.parcelize") version "2.0.20"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.20"
+
+    // Keep annotation processors aligned with Kotlin 2.0.20
+    id("org.jetbrains.kotlin.kapt") version "2.0.20"
     id("com.google.devtools.ksp") version "2.0.20-1.0.24"
-    id("com.google.dagger.hilt.android")
+
+    // Same Hilt version you’re using
+    id("com.google.dagger.hilt.android") version "2.51.1"
 }
 
 val bitcoinjVersion = "0.16.1" // must match libdohj's bitcoinj target
 
 android {
     namespace = "com.dogechat.android"
-    compileSdk = 34
+    compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
         applicationId = "com.dogechat.android"
-        minSdk = 26
-        targetSdk = 34
+        minSdk = libs.versions.minSdk.get().toInt()
+        targetSdk = libs.versions.targetSdk.get().toInt()
 
         versionCode = 13
         versionName = "1.1.2"
@@ -59,7 +64,7 @@ android {
     }
 
     compileOptions {
-        // AGP 8.3 runs on JDK 17; bytecode target 1.8 is fine for app code
+        // AGP 8.6 runs on JDK 17; bytecode target 1.8 is fine for app code
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
