@@ -1,6 +1,6 @@
 [versions]
 # Android / Kotlin toolchains
-agp = "8.5.2"                 # satisfies AndroidX 2.9.x / core-ktx 1.16.0 requirements
+agp = "8.7.1"                 # satisfies AndroidX 2.9.x / core-ktx 1.16.0 requirements
 kotlin = "2.0.0"
 compileSdk = "35"
 minSdk = "26"

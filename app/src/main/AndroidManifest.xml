@@ -29,6 +29,9 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
+    <!-- Camera permission for photo capture -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <!-- Haptic feedback permission -->
     <uses-permission android:name="android.permission.VIBRATE" />
     
