@@ -37,9 +37,12 @@ import org.bitcoinj.wallet.Wallet
 import org.libdohj.params.DogecoinMainNetParams
 import java.io.File
 import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.Socket
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.net.SocketFactory
 import org.bitcoinj.core.Context as BtcContext
 
 data class SpvStatus(
@@ -263,6 +266,29 @@ class WalletManager @Inject constructor(
                             runCatching { pg.setMaxConnections(MAX_PEERS) }
                             runCatching { pg.setRequiredServices(0) }
 
+                            // Apply custom SocketFactory for Tor connections if using SOCKS
+                            if (usingSocks) {
+                                val socksAddr = TorManagerWallet.currentSocks()
+                                if (socksAddr != null) {
+                                    AppLog.i(Channel.SPV, TAG, "Applying custom SocketFactory for Tor connections: $socksAddr")
+                                    try {
+                                        val proxy = Proxy(Proxy.Type.SOCKS, socksAddr)
+                                        val customSocketFactory = object : SocketFactory() {
+                                            override fun createSocket(): Socket = Socket(proxy)
+                                            override fun createSocket(host: String?, port: Int): Socket = Socket(proxy)
+                                            override fun createSocket(host: String?, port: Int, localHost: java.net.InetAddress?, localPort: Int): Socket = Socket(proxy)
+                                            override fun createSocket(host: java.net.InetAddress?, port: Int): Socket = Socket(proxy)
+                                            override fun createSocket(address: java.net.InetAddress?, port: Int, localAddress: java.net.InetAddress?, localPort: Int): Socket = Socket(proxy)
+                                        }
+                                        pg.setSocketFactory(customSocketFactory)
+                                        SpvController.log("custom Tor SocketFactory applied")
+                                    } catch (e: Exception) {
+                                        AppLog.w(Channel.SPV, TAG, "Failed to apply custom SocketFactory: ${e.message}", e)
+                                        SpvController.log("warning: SocketFactory application failed: ${e.message}")
+                                    }
+                                }
+                            }
+
                             initialPeers.forEach { pa ->
                                 runCatching { pg.addAddress(pa) }
                                     .onSuccess { SpvController.log("seed ${pa.socketAddress?.hostString}:${pa.port}") }
@@ -408,22 +434,51 @@ class WalletManager @Inject constructor(
     private fun launchKeepAlive() {
         scope.launch {
             AppLog.i(Channel.SPV, TAG, "KeepAlive loop started")
+            var consecutiveFailures = 0
+            val maxConsecutiveFailures = 5
+            
             while (isActive) {
                 delay(KEEP_ALIVE_INTERVAL_MS)
                 val enabled = SpvController.enabled.value
                 val localKit = kit
                 val running = localKit != null && localKit.isRunning
+                
                 if (enabled && !running) {
-                    AppLog.w(Channel.SPV, TAG, "KeepAlive: SPV enabled but not running -> restart")
-                    startNetwork()
+                    consecutiveFailures++
+                    val backoffDelay = minOf(1000L * (1 shl consecutiveFailures), 30000L) // Exponential backoff, max 30s
+                    AppLog.w(Channel.SPV, TAG, "KeepAlive: SPV enabled but not running -> restart (failure #$consecutiveFailures, will wait ${backoffDelay}ms)")
+                    SpvController.log("keep-alive: restart needed (failure #$consecutiveFailures)")
+                    
+                    if (consecutiveFailures <= maxConsecutiveFailures) {
+                        delay(backoffDelay)
+                        startNetwork()
+                    } else {
+                        AppLog.e(Channel.SPV, TAG, "KeepAlive: Max consecutive failures reached ($maxConsecutiveFailures), disabling keep-alive")
+                        SpvController.log("keep-alive: too many failures, disabled")
+                        break
+                    }
+                } else if (running) {
+                    // Reset failure counter when successfully running
+                    if (consecutiveFailures > 0) {
+                        AppLog.i(Channel.SPV, TAG, "KeepAlive: SPV running normally, resetting failure counter")
+                        consecutiveFailures = 0
+                    }
                 }
-                // Wallet Tor keep-alive
+                
+                // Wallet Tor keep-alive with better error handling
                 val wantTor = WalletTorPreferenceManager.get(appContext) == com.dogechat.android.net.TorMode.ON
                 if (wantTor && !TorManagerWallet.isRunning()) {
                     AppLog.w(Channel.SPV, TAG, "KeepAlive: Wallet Tor wanted but not running -> start")
-                    runCatching { TorManagerWallet.start(appContext.applicationContext as Application) }
+                    SpvController.log("keep-alive: wallet Tor restart needed")
+                    runCatching { 
+                        TorManagerWallet.start(appContext.applicationContext as Application) 
+                    }.onFailure { 
+                        AppLog.w(Channel.SPV, TAG, "KeepAlive: Wallet Tor start failed: ${it.message}", it)
+                        SpvController.log("keep-alive: wallet Tor start failed: ${it.message}")
+                    }
                 }
             }
+            AppLog.i(Channel.SPV, TAG, "KeepAlive loop ended")
         }
     }
 
@@ -452,27 +507,59 @@ class WalletManager @Inject constructor(
     fun refreshNow() {
         AppLog.action("WalletScreen", "refreshNow")
         scope.launch {
-            pushAddress(); pushBalance(); pushHistory()
-            val local = kit
-            if (local == null) {
-                SpvController.log("refresh skipped (wallet not started)")
-                return@launch
-            }
-            if (!local.isRunning) {
-                SpvController.log("refresh aborted (kit not running)")
-                return@launch
-            }
-            runCatching {
-                local.peerGroup().startBlockChainDownload(object : DownloadProgressTracker() {
-                    override fun doneDownload() {
-                        pushBalance(); pushHistory()
-                        SpvController.log("manual refresh done")
-                    }
-                })
-                SpvController.log("manual refresh triggered")
-            }.onFailure {
-                SpvController.log("refresh trigger failed: ${it.message}")
-                AppLog.w(Channel.SPV, TAG, "refreshNow failed: ${it.message}", it)
+            try {
+                pushAddress(); pushBalance(); pushHistory()
+                val local = kit
+                if (local == null) {
+                    SpvController.log("refresh skipped (wallet not started)")
+                    AppLog.d(Channel.SPV, TAG, "refreshNow: wallet not started")
+                    return@launch
+                }
+                if (!local.isRunning) {
+                    SpvController.log("refresh aborted (kit not running)")
+                    AppLog.d(Channel.SPV, TAG, "refreshNow: kit not running")
+                    return@launch
+                }
+                
+                // Check if we have peer connections before attempting sync
+                val peerGroup = runCatching { local.peerGroup() }.getOrNull()
+                if (peerGroup == null) {
+                    SpvController.log("refresh skipped (no peer group)")
+                    AppLog.d(Channel.SPV, TAG, "refreshNow: no peer group available")
+                    return@launch
+                }
+                
+                val connectedPeers = runCatching { peerGroup.connectedPeers.size }.getOrElse { 0 }
+                if (connectedPeers == 0) {
+                    SpvController.log("refresh deferred (no peers connected)")
+                    AppLog.d(Channel.SPV, TAG, "refreshNow: no peers connected, deferring")
+                    return@launch
+                }
+                
+                runCatching {
+                    peerGroup.startBlockChainDownload(object : DownloadProgressTracker() {
+                        override fun doneDownload() {
+                            pushBalance(); pushHistory()
+                            SpvController.log("manual refresh done")
+                            AppLog.i(Channel.SPV, TAG, "refreshNow: manual refresh completed")
+                        }
+                        override fun progress(pct: Double, blocksSoFar: Int, date: Date?) {
+                            val p = pct.toInt().coerceIn(0, 100)
+                            if (blocksSoFar % 50 == 0) { // Log less frequently during manual refresh
+                                SpvController.log("manual refresh progress: $p% ($blocksSoFar blocks)")
+                            }
+                        }
+                    })
+                    SpvController.log("manual refresh triggered ($connectedPeers peers)")
+                    AppLog.i(Channel.SPV, TAG, "refreshNow: manual refresh started with $connectedPeers peers")
+                }.onFailure {
+                    SpvController.log("refresh trigger failed: ${it.message}")
+                    AppLog.w(Channel.SPV, TAG, "refreshNow failed: ${it.message}", it)
+                }
+            } catch (e: Throwable) {
+                // Comprehensive exception handling to prevent crashes
+                SpvController.log("refresh error: ${e.message}")
+                AppLog.e(Channel.SPV, TAG, "refreshNow unexpected error: ${e.message}", e)
             }
         }
     }
