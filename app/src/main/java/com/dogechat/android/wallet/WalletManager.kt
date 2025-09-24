@@ -494,12 +494,34 @@ class WalletManager @Inject constructor(
     fun refreshAddress() {
         AppLog.action("WalletScreen", "refreshAddress")
         scope.launch {
-            val addr = kit?.wallet()?.freshReceiveAddress()?.toString()
-            AppLog.i(Channel.SPV, TAG, "refreshAddress new=$addr")
-            if (addr != null) {
-                prefs.edit().remove(PREF_KEY_CACHED_WIF).putString(PREF_KEY_RECEIVE_ADDRESS, addr).apply()
-                _address.value = addr
-                SpvController.log("new address $addr")
+            try {
+                val localKit = kit
+                if (localKit == null) {
+                    SpvController.log("refresh address skipped (wallet not started)")
+                    AppLog.d(Channel.SPV, TAG, "refreshAddress: wallet not started")
+                    return@launch
+                }
+                
+                val addr = runCatching { 
+                    localKit.wallet()?.freshReceiveAddress()?.toString() 
+                }.getOrNull()
+                
+                if (!addr.isNullOrBlank()) {
+                    // Clear any cached WIF since we're generating a fresh address
+                    prefs.edit()
+                        .remove(PREF_KEY_CACHED_WIF)
+                        .putString(PREF_KEY_RECEIVE_ADDRESS, addr)
+                        .apply()
+                    _address.value = addr
+                    SpvController.log("new fresh address $addr")
+                    AppLog.i(Channel.SPV, TAG, "refreshAddress: generated fresh address $addr")
+                } else {
+                    SpvController.log("refresh address failed (could not generate)")
+                    AppLog.w(Channel.SPV, TAG, "refreshAddress: could not generate fresh address")
+                }
+            } catch (e: Throwable) {
+                SpvController.log("refresh address error: ${e.message}")
+                AppLog.e(Channel.SPV, TAG, "refreshAddress failed: ${e.message}", e)
             }
         }
     }
@@ -574,17 +596,53 @@ class WalletManager @Inject constructor(
             try {
                 val address: Address = LegacyAddress.fromBase58(params, toAddress)
                 val amount = org.bitcoinj.core.Coin.valueOf(amountDoge * 100_000_000L)
-                AppLog.i(Channel.SPV, TAG, "Attempting send tx amount=$amount to=$toAddress")
-                localKit.wallet().sendCoins(localKit.peerGroup(), address, amount).let { req ->
-                    SpvController.log("broadcast requested tx=${req.tx.txId}")
-                    AppLog.i(Channel.SPV, TAG, "Broadcast requested tx=${req.tx.txId}")
+                
+                // Check balance before attempting send
+                val balance = localKit.wallet().balance
+                if (balance < amount) {
+                    val msg = "Insufficient balance: have ${balance.toFriendlyString()}, need ${amount.toFriendlyString()}"
+                    AppLog.w(Channel.SPV, TAG, msg)
+                    withContext(Dispatchers.Main) { onResult(false, msg) }
+                    return@launch
                 }
+                
+                // Estimate fee (Dogecoin uses ~0.01 DOGE per KB)
+                val estimatedFee = org.bitcoinj.core.Coin.valueOf(100_000L) // 0.001 DOGE base fee
+                val totalNeeded = amount.add(estimatedFee)
+                
+                if (balance < totalNeeded) {
+                    val msg = "Insufficient balance for transaction + fee: need ${totalNeeded.toFriendlyString()}"
+                    AppLog.w(Channel.SPV, TAG, msg)
+                    withContext(Dispatchers.Main) { onResult(false, msg) }
+                    return@launch
+                }
+                
+                AppLog.i(Channel.SPV, TAG, "Attempting send tx amount=$amount to=$toAddress (estimated fee: $estimatedFee)")
+                SpvController.log("send: ${amount.toFriendlyString()} to ${toAddress.take(10)}… (fee ~${estimatedFee.toFriendlyString()})")
+                
+                val sendReq = localKit.wallet().sendCoins(localKit.peerGroup(), address, amount)
+                val actualFee = sendReq.tx.fee
+                
+                SpvController.log("broadcast requested tx=${sendReq.tx.txId} (actual fee: ${actualFee?.toFriendlyString() ?: "unknown"})")
+                AppLog.i(Channel.SPV, TAG, "Broadcast requested tx=${sendReq.tx.txId} fee=${actualFee?.toFriendlyString()}")
+                
                 pushBalance(); pushHistory()
-                withContext(Dispatchers.Main) { onResult(true, "Broadcast requested") }
+                withContext(Dispatchers.Main) { 
+                    val feeInfo = actualFee?.let { " (fee: ${it.toFriendlyString()})" } ?: ""
+                    onResult(true, "Transaction broadcasted$feeInfo") 
+                }
             } catch (e: Throwable) {
                 AppLog.e(Channel.SPV, TAG, "sendCoins failed: ${e.message}", e)
                 SpvController.log("send error: ${e.message}")
-                withContext(Dispatchers.Main) { onResult(false, e.message ?: "Unknown error") }
+                withContext(Dispatchers.Main) { 
+                    val errorMsg = when {
+                        e.message?.contains("Insufficient money") == true -> "Insufficient funds"
+                        e.message?.contains("No peer") == true -> "No network connection"
+                        e.message?.contains("dust") == true -> "Amount too small (dust limit)"
+                        else -> e.message ?: "Transaction failed"
+                    }
+                    onResult(false, errorMsg) 
+                }
             }
         }
     }
@@ -620,27 +678,80 @@ class WalletManager @Inject constructor(
         AppLog.action("PrivateKeyImport", "importWIF", "len=${wif.length}")
         scope.launch {
             try {
-                val key = DumpedPrivateKey.fromBase58(params, wif).key
-                val addr = LegacyAddress.fromKey(params, key).toString()
-                val w = kit?.wallet()
-                if (w == null) {
-                    persistWif(wif, addr)
-                    _address.value = addr
-                    SpvController.log("WIF cached (wallet idle)")
-                    withContext(Dispatchers.Main) { onResult(true, "WIF cached. Loads when wallet starts.") }
+                // Validate WIF format first
+                if (wif.isBlank()) {
+                    withContext(Dispatchers.Main) { onResult(false, "Empty private key") }
                     return@launch
                 }
-                val exists = runCatching { w.importedKeys.contains(key) }.getOrDefault(false)
-                if (!exists) runCatching { w.importKey(key) }.onSuccess {
-                    SpvController.log("key imported")
+                
+                // Attempt to parse the WIF
+                val key = try {
+                    DumpedPrivateKey.fromBase58(params, wif.trim()).key
+                } catch (e: Exception) {
+                    AppLog.w(Channel.SPV, TAG, "Invalid WIF format: ${e.message}")
+                    withContext(Dispatchers.Main) { onResult(false, "Invalid private key format") }
+                    return@launch
                 }
-                persistWif(wif, addr)
+                
+                val addr = LegacyAddress.fromKey(params, key).toString()
+                AppLog.i(Channel.SPV, TAG, "WIF import: derived address $addr")
+                
+                val w = kit?.wallet()
+                if (w == null) {
+                    // Wallet not running - cache the WIF for later import
+                    persistWif(wif.trim(), addr)
+                    _address.value = addr
+                    SpvController.log("WIF cached (wallet idle) -> $addr")
+                    withContext(Dispatchers.Main) { 
+                        onResult(true, "Private key cached. Will be imported when wallet starts.\nAddress: $addr") 
+                    }
+                    return@launch
+                }
+                
+                // Check if key is already imported
+                val exists = runCatching { w.importedKeys.contains(key) }.getOrDefault(false)
+                if (exists) {
+                    AppLog.i(Channel.SPV, TAG, "Key already imported")
+                    persistWif(wif.trim(), addr)
+                    _address.value = addr
+                    withContext(Dispatchers.Main) { 
+                        onResult(true, "Private key already imported.\nAddress: $addr") 
+                    }
+                    return@launch
+                }
+                
+                // Import the key
+                runCatching { w.importKey(key) }.onSuccess {
+                    SpvController.log("key imported successfully")
+                    AppLog.i(Channel.SPV, TAG, "Private key imported successfully")
+                }.onFailure {
+                    AppLog.w(Channel.SPV, TAG, "Key import failed: ${it.message}", it)
+                    withContext(Dispatchers.Main) { onResult(false, "Failed to import: ${it.message}") }
+                    return@launch
+                }
+                
+                persistWif(wif.trim(), addr)
                 _address.value = addr
-                triggerRescanFromBirth(key.creationTimeSeconds)
-                withContext(Dispatchers.Main) { onResult(true, "Private key imported") }
+                
+                // Trigger rescan from key creation time
+                val creationTime = key.creationTimeSeconds
+                SpvController.log("triggering rescan from ${Date(creationTime * 1000)}")
+                triggerRescanFromBirth(creationTime)
+                
+                withContext(Dispatchers.Main) { 
+                    onResult(true, "Private key imported successfully.\nAddress: $addr\nRescanning blockchain...") 
+                }
             } catch (e: Throwable) {
                 AppLog.e(Channel.SPV, TAG, "importPrivateKeyWif failed: ${e.message}", e)
-                withContext(Dispatchers.Main) { onResult(false, e.message ?: "Import failed") }
+                SpvController.log("WIF import error: ${e.message}")
+                withContext(Dispatchers.Main) { 
+                    val errorMsg = when {
+                        e.message?.contains("Checksum") == true -> "Invalid private key checksum"
+                        e.message?.contains("Base58") == true -> "Invalid private key format"
+                        else -> e.message ?: "Import failed"
+                    }
+                    onResult(false, errorMsg) 
+                }
             }
         }
     }
@@ -679,28 +790,64 @@ class WalletManager @Inject constructor(
 
     private fun triggerRescanFromBirth(birthTimeSecs: Long) {
         val pg = kit?.peerGroup() ?: return
-        AppLog.i(Channel.SPV, TAG, "triggerRescan birth=$birthTimeSecs")
-        runCatching { pg.setFastCatchupTimeSecs(birthTimeSecs) }
-        runCatching {
-            val m = pg.javaClass.methods.firstOrNull { it.name == "recalculateFastCatchupAndFilter" && it.parameterTypes.isEmpty() }
-            if (m != null) m.invoke(pg) else runCatching {
-                val enumClass = Class.forName("org.bitcoinj.core.PeerGroup\$FilterRecalculateMode")
-                val forceSend = enumClass.enumConstants?.firstOrNull()
-                val m2 = pg.javaClass.getMethod("recalculateFastCatchupAndFilter", enumClass)
-                m2.invoke(pg, forceSend)
-            }
-        }
-        runCatching {
-            pg.startBlockChainDownload(object : DownloadProgressTracker() {
-                override fun doneDownload() {
-                    pushBalance(); pushHistory()
-                    SpvController.log("rescan complete")
+        AppLog.i(Channel.SPV, TAG, "triggerRescan birth=$birthTimeSecs (${Date(birthTimeSecs * 1000)})")
+        
+        try {
+            // Set fast catchup time
+            runCatching { pg.setFastCatchupTimeSecs(birthTimeSecs) }
+                .onSuccess { SpvController.log("fast catchup time set to $birthTimeSecs") }
+                .onFailure { AppLog.w(Channel.SPV, TAG, "setFastCatchupTimeSecs failed: ${it.message}") }
+            
+            // Try to recalculate filter - use reflection for compatibility
+            runCatching {
+                val m = pg.javaClass.methods.firstOrNull { 
+                    it.name == "recalculateFastCatchupAndFilter" && it.parameterTypes.isEmpty() 
                 }
-            })
-            SpvController.log("rescan started")
-        }.onFailure {
-            SpvController.log("rescan failed: ${it.message}")
-            AppLog.w(Channel.SPV, TAG, "rescan failed: ${it.message}", it)
+                if (m != null) {
+                    m.invoke(pg)
+                    SpvController.log("filter recalculated (no params)")
+                } else {
+                    // Try with enum parameter for older bitcoinj versions
+                    runCatching {
+                        val enumClass = Class.forName("org.bitcoinj.core.PeerGroup\$FilterRecalculateMode")
+                        val forceSend = enumClass.enumConstants?.firstOrNull()
+                        val m2 = pg.javaClass.getMethod("recalculateFastCatchupAndFilter", enumClass)
+                        m2.invoke(pg, forceSend)
+                        SpvController.log("filter recalculated (with enum)")
+                    }.onFailure {
+                        SpvController.log("filter recalculation fallback failed: ${it.message}")
+                    }
+                }
+            }.onFailure {
+                SpvController.log("filter recalculation failed: ${it.message}")
+                AppLog.w(Channel.SPV, TAG, "filter recalculation failed: ${it.message}")
+            }
+            
+            // Start blockchain download
+            runCatching {
+                pg.startBlockChainDownload(object : DownloadProgressTracker() {
+                    override fun doneDownload() {
+                        pushBalance(); pushHistory()
+                        SpvController.log("rescan complete")
+                        AppLog.i(Channel.SPV, TAG, "Rescan download completed")
+                    }
+                    override fun progress(pct: Double, blocksSoFar: Int, date: Date?) {
+                        val p = pct.toInt().coerceIn(0, 100)
+                        if (blocksSoFar % 100 == 0) { // Log less frequently during rescan
+                            SpvController.log("rescan progress: $p% ($blocksSoFar blocks)")
+                        }
+                    }
+                })
+                SpvController.log("rescan started")
+                AppLog.i(Channel.SPV, TAG, "Rescan blockchain download started")
+            }.onFailure {
+                SpvController.log("rescan start failed: ${it.message}")
+                AppLog.w(Channel.SPV, TAG, "rescan start failed: ${it.message}", it)
+            }
+            
+        } catch (e: Throwable) {
+            SpvController.log("rescan trigger error: ${e.message}")
+            AppLog.e(Channel.SPV, TAG, "triggerRescanFromBirth error: ${e.message}", e)
         }
     }
 
@@ -790,7 +937,7 @@ class WalletManager @Inject constructor(
 
     private fun attachConfidenceListenerIfAvailable() {
         val w = kit?.wallet() ?: return
-        // bitcoinj versions differ; attempt reflection
+        // bitcoinj versions differ; attempt reflection for confidence listener
         val method = w.javaClass.methods.firstOrNull { it.name == "addTransactionConfidenceEventListener" }
         if (method != null) {
             runCatching {
@@ -808,12 +955,23 @@ class WalletManager @Inject constructor(
                             val conf = tx.javaClass.methods.firstOrNull { it.name == "getConfidence" }?.invoke(tx)
                             conf?.javaClass?.methods?.firstOrNull { it.name == "getDepthInBlocks" }?.invoke(conf)
                         }.getOrElse { "?" }
-                        SpvController.log("confidence tx=$txId depth=$depth")
+                        val confType = runCatching {
+                            val conf = tx.javaClass.methods.firstOrNull { it.name == "getConfidence" }?.invoke(tx)
+                            conf?.javaClass?.methods?.firstOrNull { it.name == "getConfidenceType" }?.invoke(conf)?.toString()
+                        }.getOrElse { "UNKNOWN" }
+                        
+                        val fmt = { t: String -> "${timeFmt.format(Date())} $t" }
+                        SpvController.log(fmt("confidence tx=${txId.take(12)}… depth=$depth type=$confType"))
+                        
+                        // Update history when confidence changes significantly
+                        if (depth is Int && depth % 3 == 0) { // Update every 3 confirmations
+                            pushHistory()
+                        }
                     }
                     null
                 }
                 method.invoke(w, listenerProxy)
-                AppLog.i(Channel.SPV, TAG, "Confidence listener attached")
+                AppLog.i(Channel.SPV, TAG, "Confidence listener attached with enhanced logging")
             }.onFailure {
                 AppLog.w(Channel.SPV, TAG, "Confidence listener attach failed: ${it.message}")
             }
