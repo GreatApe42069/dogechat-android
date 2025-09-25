@@ -1,6 +1,6 @@
 plugins {
     // Upgrade AGP and Kotlin to satisfy the new AndroidX deps
-    id("com.android.application") version "8.6.1"
+    id("com.android.application") version "8.4.2"
     id("org.jetbrains.kotlin.android") version "2.0.20"
     id("org.jetbrains.kotlin.plugin.parcelize") version "2.0.20"
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.20"
