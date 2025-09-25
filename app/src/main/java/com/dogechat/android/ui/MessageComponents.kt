@@ -43,6 +43,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import com.dogechat.android.ui.media.FileMessageItem
 import com.dogechat.android.model.DogechatMessageType
+import com.dogechat.android.ui.media.FileSendingAnimation
+
+// Import ChatUIUtils functions that are missing
+import com.dogechat.android.ui.formatMessageAsAnnotatedString
+import com.dogechat.android.ui.formatMessageHeaderAnnotatedString
+import com.dogechat.android.ui.shouldAnimateMessage
+import com.dogechat.android.ui.MessageWithMatrixAnimation
+import com.dogechat.android.model.DogechatFilePacket
+import com.dogechat.android.features.file.FileUtils
 
 // VoiceNotePlayer moved to com.dogechat.android.ui.media.VoiceNotePlayer
 
