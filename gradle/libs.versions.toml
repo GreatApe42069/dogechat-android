@@ -1,6 +1,6 @@
 [versions]
 # Android / Kotlin toolchains
-agp = "8.5.2"                 # satisfies AndroidX 2.9.x / core-ktx 1.16.0 requirements
+agp = "8.6.1"
 kotlin = "2.0.0"
 compileSdk = "35"
 minSdk = "26"
@@ -39,11 +39,11 @@ okhttp = "4.12.0"
 tor-android-binary = "0.4.4.6"
 arti-mobile-ex = "1.2.3"
 protobuf-javalite = "3.18.0"
-lz4 = "1.8.0"
+lz4 = "1.8.0"                # Using org.lz4:lz4-java (WORKING coordinate)
 zxing = "3.5.1"
 
 # Google Play Services
-gms-location = "21.3.0"
+gms-location = "21.3.0"      # Was 21.2.0 in last working set; keep or downgrade as needed
 
 # Logging
 slf4j-api = "2.0.7"
@@ -58,8 +58,8 @@ androidx-test-ext = "1.2.1"
 espresso = "3.6.1"
 mockito-kotlin = "4.1.0"
 mockito-inline = "4.1.0"
-roboelectric = "4.15"
-robolectric = "4.15"
+roboelectric = "4.15"        # Keep alias name you already used
+robolectric = "4.15"         # Added correct spelling alias (optional future use)
 kotlinx-coroutines-test = "1.10.2"
 
 [libraries]

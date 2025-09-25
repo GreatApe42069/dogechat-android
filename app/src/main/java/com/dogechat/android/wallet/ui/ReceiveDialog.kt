@@ -100,20 +100,14 @@ fun ReceiveDialog(
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // QR Code instead of icon
-                        Box(
+                        Icon(
+                            imageVector = Icons.Default.QrCode,
+                            contentDescription = "QR",
                             modifier = Modifier
-                                .size(200.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.White),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            QRCodeCanvas(
-                                text = "dogecoin:$currentAddress",
-                                size = 200.dp,
-                                modifier = Modifier.padding(8.dp)
-                            )
-                        }
+                                .size(160.dp)
+                                .padding(8.dp),
+                            tint = Color(0xFF00C851)
+                        )
 
                         Spacer(modifier = Modifier.height(8.dp))
 

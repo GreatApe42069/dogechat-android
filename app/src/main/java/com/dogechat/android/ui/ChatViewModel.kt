@@ -9,12 +9,11 @@ import androidx.lifecycle.viewModelScope
 import com.dogechat.android.mesh.BluetoothMeshDelegate
 import com.dogechat.android.mesh.BluetoothMeshService
 import com.dogechat.android.model.DogechatMessage
-import com.bitchat.android.model.DogechatMessageType
-import com.dogechat.android.model.DogechatPacket
+import com.dogechat.android.protocol.DogechatPacket
 
 
 import kotlinx.coroutines.launch
-import com.bitchat.android.util.NotificationIntervalManager
+import com.dogechat.android.util.NotificationIntervalManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -35,27 +34,10 @@ class ChatViewModel(
         private const val TAG = "ChatViewModel"
     }
 
-    fun sendVoiceNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
-        mediaSendingManager.sendVoiceNote(toPeerIDOrNull, channelOrNull, filePath)
-    }
-
-    fun sendFileNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
-        mediaSendingManager.sendFileNote(toPeerIDOrNull, channelOrNull, filePath)
-    }
-
-    fun sendImageNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
-        mediaSendingManager.sendImageNote(toPeerIDOrNull, channelOrNull, filePath)
-    }
-
-    // MARK: - State management
+    // State management
     private val state = ChatState()
     
-
-    // Transfer progress tracking
-    private val transferMessageMap = mutableMapOf<String, String>()
-    private val messageTransferMap = mutableMapOf<String, String>()
-
-     // Specialized managers
+    // Specialized managers
     private val dataManager = DataManager(application.applicationContext)
     private val messageManager = MessageManager(state)
     private val channelManager = ChannelManager(state, messageManager, dataManager, viewModelScope)
@@ -74,9 +56,6 @@ class ChatViewModel(
       NotificationManagerCompat.from(application.applicationContext),
       NotificationIntervalManager()
     )
-
-    // Media file sending manager
-    private val mediaSendingManager = MediaSendingManager(state, messageManager, channelManager, meshService)
     
     // Delegate handler for mesh callbacks
     private val meshDelegateHandler = MeshDelegateHandler(
@@ -101,6 +80,9 @@ class ChatViewModel(
         dataManager = dataManager,
         notificationManager = notificationManager
     )
+
+
+
 
     // Expose state through LiveData (maintaining the same interface)
     val messages: LiveData<List<DogechatMessage>> = state.messages
@@ -140,28 +122,7 @@ class ChatViewModel(
     init {
         // Note: Mesh service delegate is now set by MainActivity
         loadAndInitialize()
-        // Subscribe to BLE transfer progress and reflect in message deliveryStatus
-        viewModelScope.launch {
-            com.bitchat.android.mesh.TransferProgressManager.events.collect { evt ->
-                mediaSendingManager.handleTransferProgressEvent(evt)
-            }
-        }
     }
-
-    fun cancelMediaSend(messageId: String) {
-        val transferId = synchronized(transferMessageMap) { messageTransferMap[messageId] }
-        if (transferId != null) {
-            val cancelled = meshService.cancelFileTransfer(transferId)
-            if (cancelled) {
-                // Remove the message from chat upon explicit cancel
-                messageManager.removeMessageById(messageId)
-                synchronized(transferMessageMap) {
-                    transferMessageMap.remove(transferId)
-                    messageTransferMap.remove(messageId)
-                }
-            }
-        }
-     }
     
     private fun loadAndInitialize() {
         // Load nickname
@@ -503,7 +464,7 @@ class ChatViewModel(
                             currentChannelValue,
                             state.getNicknameValue(),
                             meshService.myPeerID,
-                            onEncryptedPayload = { _ ->
+                            onEncryptedPayload = { encryptedData ->
                                 // This would need proper mesh service integration
                                 meshService.sendMessage(content, mentions, currentChannelValue)
                             },

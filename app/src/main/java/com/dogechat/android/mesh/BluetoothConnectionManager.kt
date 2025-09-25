@@ -29,7 +29,7 @@ class BluetoothConnectionManager(
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
     
     // Power management
-    private val powerManager = PowerManager(context.applicationContext)
+    private val powerManager = PowerManager(context)
     
     // Coroutines
     private val connectionScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -246,10 +246,6 @@ class BluetoothConnectionManager(
             serverManager.getGattServer(),
             serverManager.getCharacteristic()
         )
-    }
-
-    fun cancelTransfer(transferId: String): Boolean {
-        return packetBroadcaster.cancelTransfer(transferId)
     }
 
     /**

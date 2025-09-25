@@ -1,15 +1,12 @@
 plugins {
-    // Upgrade AGP and Kotlin to satisfy the new AndroidX deps
-    id("com.android.application") version "8.6.1"
-    id("org.jetbrains.kotlin.android") version "2.0.20"
-    id("org.jetbrains.kotlin.plugin.parcelize") version "2.0.20"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.20"
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.kotlin.compose)
 
-    // Keep annotation processors aligned with Kotlin 2.0.20
-    id("org.jetbrains.kotlin.kapt") version "2.0.20"
-    id("com.google.devtools.ksp") version "2.0.20-1.0.24"
-
-    // Same Hilt version you’re using
+    // Hilt via KAPT (stable) + keep KSP for other processors if needed
+    id("org.jetbrains.kotlin.kapt") version "2.0.0"
+    id("com.google.devtools.ksp") version "2.0.0-1.0.24"
     id("com.google.dagger.hilt.android") version "2.51.1"
 }
 
@@ -24,8 +21,8 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
 
-        versionCode = 13
-        versionName = "1.1.2"
+        versionCode = 12
+        versionName = "0.9.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -34,19 +31,20 @@ android {
     }
 
     dependenciesInfo {
+        // Disables dependency metadata when building APKs.
         includeInApk = false
+        // Disables dependency metadata when building Android App Bundles.
         includeInBundle = false
     }
 
     signingConfigs {
         create("release") {
             storeFile = file("dogechat-release-key.jks")
-            storePassword = "MichaelHailey0608!"  // Replace with your actual keystore password
+            storePassword = "Your_Keystore_pass_goes_Here"  // Replace with your actual keystore password
             keyAlias = "dogechat-key"
-            keyPassword = "MichaelHailey0608!"  // Replace with your actual key password
+            keyPassword = "Your_Key_Pass_goes_Here"  // Replace with your actual key password
         }
     }
-
 
     buildTypes {
         release {
@@ -65,7 +63,6 @@ android {
     }
 
     compileOptions {
-        // AGP 8.6 runs on JDK 17; bytecode target 1.8 is fine for app code
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -120,9 +117,6 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    // For all filled/extended icons (AudioFile, AttachFile, Image, etc.)
-    implementation("androidx.compose.material:material-icons-extended")
-
     // ---- AndroidX Core / Lifecycle / Navigation ----
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -137,6 +131,7 @@ dependencies {
 
     // ---- Hilt + Navigation ----
     implementation("com.google.dagger:hilt-android:2.51.1")
+    // Use KAPT for Hilt to avoid KSP NonExistentClass issues
     kapt("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
@@ -168,8 +163,10 @@ dependencies {
     implementation(libs.slf4j.simple)
 
     // ---- Dogecoin (libdohj snapshot jar + bitcoinj 0.16.1) ----
+    // Ensure this file exists: app/libs/libdohj-core-0.16-SNAPSHOT.jar
     implementation(files("libs/libdohj-core-0.16-SNAPSHOT.jar"))
 
+    // bitcoinj must match libdohj's target; exclude its older bcprov
     implementation("org.bitcoinj:bitcoinj-core:$bitcoinjVersion") {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
     }
@@ -182,6 +179,7 @@ dependencies {
     implementation(libs.okhttp)
 
     // ---- Tor stacks ----
+    // Arti (Rust-based Tor)
     implementation(libs.arti.mobile.ex)
 
     // ---- Location ----
@@ -203,6 +201,7 @@ dependencies {
     // coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 
+// KAPT configuration for Hilt
 kapt {
     correctErrorTypes = true
 }

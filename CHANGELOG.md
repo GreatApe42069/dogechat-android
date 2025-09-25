@@ -5,34 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.7] - 2025-09-23
-### Added
-- **Media Transfer System**: Complete implementation of file sharing and multimedia messaging
-  - Voice recording and playback with real-time waveform visualization
-  - Image sharing with automatic compression and thumbnail generation
-  - File transfer support for documents, audio, video, and other media types
-  - TLV-based file packet protocol for efficient chunk-based transfers
-  - Progress tracking and transfer management UI
-  - Media permissions management (READ_MEDIA_*, RECORD_AUDIO, CAMERA)
-  - FileProvider integration for secure file sharing
-  - Voice message waveform display with seek functionality
-  - Image compression utilities with orientation correction
-  - File type validation and size limits
-- **Protocol Enhancements**:
-  - Added FILE_PACKET message type to binary protocol
-  - Enhanced DogechatMessage with MessageType enum and media fields
-  - Updated Noise protocol to support file transfer payloads
-  - File fragmentation support for large media files
-- **Mesh Network Improvements**:
-  - Enhanced BluetoothMeshService with file transfer capabilities
-  - Updated PacketProcessor to handle file packets
-  - StoreForwardManager excludes file packets from caching
-  - Transfer progress management and delegate callbacks
-- **UI Components**:
-  - Media message utilities and formatting functions
-  - File type icons and media type color coding
-  - Enhanced permission categorization and descriptions
-
 ## [0.9.6] - 2025-09-17
 This release introduces initial Dogecoin wallet support and syncs with upstream changes through permissionlesstech/bitchat-android commit 1178fc254a81e660fde509dbc9130f4c4940be68.
 

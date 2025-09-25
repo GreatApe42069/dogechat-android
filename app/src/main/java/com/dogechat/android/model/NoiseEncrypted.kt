@@ -20,8 +20,7 @@ import kotlinx.parcelize.Parcelize
 enum class NoisePayloadType(val value: UByte) {
     PRIVATE_MESSAGE(0x01u),     // Private chat message with TLV encoding
     READ_RECEIPT(0x02u),        // Message was read
-    DELIVERED(0x03u),           // Message was delivered
-    FILE_PACKET(0x04u);         // File transfer packet
+    DELIVERED(0x03u);           // Message was delivered
 
     companion object {
         fun fromValue(value: UByte): NoisePayloadType? {

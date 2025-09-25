@@ -589,7 +589,6 @@ fun AboutSheet(
                                     label = {
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("spv off", fontFamily = FontFamily.Monospace)
-                                            // Only show red when OFF is selected AND the service is confirmed stopped
                                             if (!spvEnabled && !spvStatus.running) {
                                                 Surface(color = Color.Red, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
@@ -607,13 +606,12 @@ fun AboutSheet(
                                     label = {
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("spv on", fontFamily = FontFamily.Monospace)
-                                            // Show indicator only when ON is selected
+                                            val indColor = when {
+                                                !spvStatus.running -> Color.Red
+                                                spvStatus.syncPercent < 100 -> warnOrange
+                                                else -> standardGreen
+                                            }
                                             if (spvEnabled) {
-                                                val indColor = when {
-                                                    !spvStatus.running -> Color.Red // Red only if ON selected but not running
-                                                    spvStatus.syncPercent < 100 -> warnOrange // Orange for syncing
-                                                    else -> standardGreen // Green for fully synced
-                                                }
                                                 Surface(color = indColor, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
                                                 }
@@ -688,7 +686,6 @@ fun AboutSheet(
                                     label = {
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("wallet tor off", fontFamily = FontFamily.Monospace)
-                                            // Only show red when OFF is selected AND the service is confirmed stopped
                                             if (walletTorMode == com.dogechat.android.net.TorMode.OFF && !walletTorStatus.running) {
                                                 Surface(color = Color.Red, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
@@ -715,13 +712,12 @@ fun AboutSheet(
                                     label = {
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("wallet tor on", fontFamily = FontFamily.Monospace)
-                                            // Show indicator only when ON is selected
+                                            val indColor = when {
+                                                !walletTorStatus.running -> Color.Red
+                                                walletTorStatus.bootstrapPercent < 100 -> warnOrange
+                                                else -> standardGreen
+                                            }
                                             if (walletTorMode == com.dogechat.android.net.TorMode.ON) {
-                                                val indColor = when {
-                                                    !walletTorStatus.running -> Color.Red // Red only if ON selected but not running
-                                                    walletTorStatus.bootstrapPercent < 100 -> warnOrange // Orange for bootstrapping
-                                                    else -> standardGreen // Green for fully connected
-                                                }
                                                 Surface(color = indColor, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
                                                 }

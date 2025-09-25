@@ -4,7 +4,6 @@ import com.dogechat.android.mesh.BluetoothMeshDelegate
 import com.dogechat.android.mesh.BluetoothMeshService
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.DeliveryStatus
-import com.dogechat.android.model.DogechatFilePacket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -213,27 +212,6 @@ class MeshDelegateHandler(
     
     override fun isFavorite(peerID: String): Boolean {
         return privateChatManager.isFavorite(peerID)
-    }
-
-    // --- File transfer delegate methods ---
-    override fun didReceiveFilePacket(packet: DogechatFilePacket) {
-        // For now, just log; UI wiring for displaying/previewing files can be added here.
-        android.util.Log.d("MeshDelegateHandler", "didReceiveFilePacket: ${packet.fileName} chunk ${packet.chunkIndex + 1}/${packet.totalChunks} (id=${packet.fileId})")
-        // Optional: trigger a subtle haptic to indicate inbound media
-        onHapticFeedback()
-    }
-
-    override fun didUpdateFileTransferProgress(fileId: String, progress: Int) {
-        // Hook for progress UI (notifications, in-chat progress bubbles, etc.)
-        android.util.Log.d("MeshDelegateHandler", "didUpdateFileTransferProgress: id=$fileId progress=$progress%")
-        // Example: could surface a transient system message in mesh chat if desired
-        // messageManager.addSystemMessage("Transfer $fileId: $progress%")
-    }
-
-    override fun didCompleteFileTransfer(fileId: String, success: Boolean) {
-        android.util.Log.d("MeshDelegateHandler", "didCompleteFileTransfer: id=$fileId success=$success")
-        // Example UX: show a completion notification/toast in future
-        // notificationManager.showFileTransferResult(fileId, success)
     }
     
     /**
