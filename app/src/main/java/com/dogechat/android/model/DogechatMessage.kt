@@ -7,6 +7,14 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
 
+@Parcelize
+enum class DogechatMessageType : Parcelable {
+    Message,
+    Audio,
+    Image,
+    File
+}
+
 /**
  * Delivery status for messages - exact same as iOS version
  */

@@ -22,7 +22,7 @@ class NoiseChannelEncryption {
         
         // PBKDF2 parameters (same as iOS)
         private const val PBKDF2_ITERATIONS = 100000
-        private const val KEY_LENGTH = 256 // 256-doge AES key
+        private const val KEY_LENGTH = 256 // 256-bit AES key
     }
     
     // Channel keys storage (channelName -> AES key)
@@ -129,7 +129,7 @@ class NoiseChannelEncryption {
             val iv = encryptedData.sliceArray(0..11)
             val ciphertext = encryptedData.sliceArray(12 until encryptedData.size)
             
-            val gcmSpec = GCMParameterSpec(128, iv) // 128-doge authentication tag
+            val gcmSpec = GCMParameterSpec(128, iv) // 128-bit authentication tag
             cipher.init(Cipher.DECRYPT_MODE, key, gcmSpec)
             
             val decryptedBytes = cipher.doFinal(ciphertext)

@@ -1,4 +1,5 @@
 package com.dogechat.android.mesh
+import com.dogechat.android.protocol.MessageType
 
 import android.util.Log
 import com.dogechat.android.model.RoutedPacket

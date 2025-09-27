@@ -85,7 +85,7 @@ class NostrTransport(
                     return@launch
                 }
                 
-                // Strict: lookup the recipient's current DogeChat peer ID using favorites mapping
+                // Strict: lookup the recipient's current Dogechat peer ID using favorites mapping
                 val recipientPeerIDForEmbed = try {
                     com.dogechat.android.favorites.FavoritesPersistenceService.shared
                         .findPeerIDForNostrPubkey(recipientNostrPubkey)
@@ -240,11 +240,7 @@ class NostrTransport(
                     return@launch
                 }
                 
-                val content = if (isFavorite) {
-                    "[FAVORITED]:${senderIdentity.npub}"
-                } else {
-                    "[UNFAVORITED]:${senderIdentity.npub}"
-                }
+                val content = if (isFavorite) "[FAVORITED]:${senderIdentity.npub}" else "[UNFAVORITED]:${senderIdentity.npub}"
                 
                 Log.d(TAG, "NostrTransport: preparing FAVORITE($isFavorite) to ${recipientNostrPubkey.take(16)}...")
                 
@@ -452,7 +448,7 @@ class NostrTransport(
                     "GeoDM: send PM -> recip=${toRecipientHex.take(8)}... mid=${messageID.take(8)}... from=${fromIdentity.publicKeyHex.take(8)}... geohash=$geohash"
                 )
 
-                // Build embedded DogeChat packet without recipient peer ID
+                // Build embedded Dogechat packet without recipient peer ID
                 val embedded = NostrEmbeddedDogechat.encodePMForNostrNoRecipient(
                     content = content,
                     messageID = messageID,

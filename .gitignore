@@ -104,3 +104,9 @@ google-services.json
 # Keystore files
 *.jks
 *.keystore
+
+# Media files (recordings, temp files)
+/app/files/incoming/
+/app/cache/recordings/
+/app/cache/temp/
+

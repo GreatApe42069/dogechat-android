@@ -269,21 +269,7 @@ class MainActivity : ComponentActivity() {
 
                 // Add the callback - this will be automatically removed when the activity is destroyed
                 onBackPressedDispatcher.addCallback(this, backCallback)
-                // Open wallet: either start an Activity or open a Compose destination.
-// For now we start an Activity named WalletActivity (create it or replace with your navigation code).
-ChatScreen(
-    viewModel = chatViewModel,
-    onWalletClick = { parsedToken: com.dogechat.android.parsing.ParsedDogeToken? ->
-        val intent = Intent(this, com.dogechat.android.wallet.WalletActivity::class.java)
-        if (parsedToken != null) {
-            intent.putExtra("token_amount_koinu", parsedToken.amountKoinu)
-            intent.putExtra("token_address", parsedToken.address)
-            intent.putExtra("token_memo", parsedToken.memo)
-            intent.putExtra("token_original", parsedToken.originalString)
-        }
-        startActivity(intent)
-    }
-)
+                ChatScreen(viewModel = chatViewModel)
             }
             
             OnboardingState.ERROR -> {
