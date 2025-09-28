@@ -7,6 +7,7 @@ import com.dogechat.android.mesh.PeerFingerprintManager
 import com.dogechat.android.noise.southernstorm.protocol.Noise
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Main Noise encryption service - 100% compatible with iOS implementation

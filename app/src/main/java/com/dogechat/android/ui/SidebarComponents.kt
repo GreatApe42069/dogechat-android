@@ -34,13 +34,14 @@ import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 fun SidebarOverlay(
     viewModel: ChatViewModel,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onWalletClick: (() -> Unit)? = null // NEW: optional wallet handler
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
 
     val connectedPeers by viewModel.connectedPeers.observeAsState(emptyList())
-    val joinedChannels by viewModel.joinedChannels.observeAsState(emptyList())
+    val joinedChannels by viewModel.joinedChannels.observeAsState(emptySet())
     val currentChannel by viewModel.currentChannel.observeAsState()
     val selectedPrivatePeer by viewModel.selectedPrivateChatPeer.observeAsState()
     val nickname by viewModel.nickname.observeAsState("")
@@ -75,7 +76,7 @@ fun SidebarOverlay(
                     .background(colorScheme.background.copy(alpha = 0.95f))
                     .windowInsetsPadding(WindowInsets.statusBars) // Add status bar padding
             ) {
-                SidebarHeader()
+                SidebarHeader(onWalletClick = onWalletClick)
 
                 HorizontalDivider()
                 
@@ -146,8 +147,11 @@ fun SidebarOverlay(
 }
 
 @Composable
-private fun SidebarHeader() {
+private fun SidebarHeader(
+    onWalletClick: (() -> Unit)? = null // NEW: wallet icon in sidebar header
+) {
     val colorScheme = MaterialTheme.colorScheme
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     Row(
         modifier = Modifier
@@ -166,6 +170,28 @@ private fun SidebarHeader() {
             color = colorScheme.onSurface
         )
         Spacer(modifier = Modifier.weight(1f))
+        // Wallet icon pinned on the right of the sidebar header
+        IconButton(
+            onClick = {
+                if (onWalletClick != null) {
+                    onWalletClick()
+                } else {
+                    // Fallback: open wallet activity directly if no callback is provided
+                    runCatching {
+                        val intent = android.content.Intent(context, com.dogechat.android.wallet.WalletActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                }
+            },
+            modifier = Modifier.size(20.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.AccountBalanceWallet,
+                contentDescription = "Wallet",
+                tint = Color(0xFFFFD700), // dogeGold
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 
@@ -383,9 +409,9 @@ fun PeopleSection(
             val displayName = if (peerID == nickname) "You" else (peerNicknames[peerID] ?: (privateChats[peerID]?.lastOrNull()?.sender ?: peerID.take(12)))
             val (bName, _) = com.dogechat.android.ui.splitSuffix(displayName)
             val showHash = (baseNameCounts[bName] ?: 0) > 1
+
             val directMap by viewModel.peerDirect.observeAsState(emptyMap())
             val isDirectLive = directMap[peerID] ?: try { viewModel.meshService.getPeerInfo(peerID)?.isDirectConnection == true } catch (_: Exception) { false }
-
             PeerItem(
                 peerID = peerID,
                 displayName = displayName,
@@ -445,8 +471,8 @@ fun PeopleSection(
 
             PeerItem(
                 peerID = favPeerID,
+                displayName = dn,
                 isDirect = false,
-                signalStrength = 0,
                 isSelected = (mappedConnectedPeerID ?: favPeerID) == selectedPrivatePeer,
                 isFavorite = true,
                 hasUnreadDM = hasUnread,
@@ -465,7 +491,6 @@ fun PeopleSection(
         }
 
         // NOTE: Do NOT append Nostr-only (nostr_*) conversations to the mesh people list.
-        // This ensures a user can open and read Nostr messages while the sender remains offline
         // Geohash DMs should appear in the GeohashPeople list for the active geohash, not in mesh offline contacts.
         // We intentionally remove previously-added behavior that mixed geohash DMs into mesh sidebar.
         // If you need to surface non-geohash offline mesh conversations in the future, do it here for 64-hex noise IDs only.
@@ -506,6 +531,7 @@ fun PeopleSection(
             }
         */
         // End intentional removal
+        
     }
 }
 
@@ -513,7 +539,7 @@ fun PeopleSection(
 private fun PeerItem(
     peerID: String,
     displayName: String,
-    signalStrength: Boolean,
+    isDirect: Boolean,
     isSelected: Boolean,
     isFavorite: Boolean,
     hasUnreadDM: Boolean,
@@ -711,4 +737,5 @@ private fun convertRSSIToSignalStrength(rssi: Int?): Int {
         rssi >= -100 -> 25  // Poor signal
         else -> 0           // Very poor or no signal
     }
+
 }

@@ -5,7 +5,8 @@ import android.app.Activity
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
-import android.view.ViewGroup
+import android.os.Handler
+import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
@@ -13,8 +14,10 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -22,7 +25,6 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -33,14 +35,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.updateLayoutParams
 import com.dogechat.android.geohash.Geohash
+import com.dogechat.android.geohash.GeohashBookmarksStore
 import com.dogechat.android.geohash.LocationChannelManager
 import com.dogechat.android.ui.theme.BASE_FONT_SIZE
+import com.google.gson.Gson
 
 @OptIn(ExperimentalMaterial3Api::class)
 class GeohashPickerActivity : ComponentActivity() {
@@ -60,24 +63,21 @@ class GeohashPickerActivity : ComponentActivity() {
 
         if (!initialGeohash.isNullOrEmpty()) {
             geohashToFocus = initialGeohash
-            try {
+            runCatching {
                 val (lat, lon) = Geohash.decodeToCenter(initialGeohash)
-                initLat = lat
-                initLon = lon
-            } catch (_: Throwable) {}
+                initLat = lat; initLon = lon
+            }
         } else {
-            // If no initial geohash, try to use the user's coarsest location
+            // Do not default to real device location. Only use #d0ge when no explicit geohash is supplied.
             val locationManager = LocationChannelManager.getInstance(applicationContext)
             val channels = locationManager.availableChannels.value
             if (!channels.isNullOrEmpty()) {
-                val coarsestChannel = channels.minByOrNull { it.geohash.length }
-                if (coarsestChannel != null) {
-                    geohashToFocus = coarsestChannel.geohash
-                    try {
-                        val (lat, lon) = Geohash.decodeToCenter(coarsestChannel.geohash)
-                        initLat = lat
-                        initLon = lon
-                    } catch (_: Throwable) {}
+                val coarsest = channels.minByOrNull { it.geohash.length }
+                if (coarsest != null) {
+                    runCatching {
+                        val (lat, lon) = Geohash.decodeToCenter(coarsest.geohash)
+                        initLat = lat; initLon = lon
+                    }
                 }
             }
         }
@@ -90,10 +90,7 @@ class GeohashPickerActivity : ComponentActivity() {
                 var precision by remember { mutableStateOf(initialPrecision.coerceIn(1, 12)) }
                 var webViewRef by remember { mutableStateOf<WebView?>(null) }
 
-                // iOS system-like colors used across app
-                val colorScheme = MaterialTheme.colorScheme
-                val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
-                val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
+                val dogeGold = Color(0xFFFFD700)
 
                 Scaffold { padding ->
                     Box(Modifier.fillMaxSize()) {
@@ -106,34 +103,111 @@ class GeohashPickerActivity : ComponentActivity() {
                                     settings.allowFileAccess = true
                                     settings.allowContentAccess = true
                                     webChromeClient = WebChromeClient()
+
+                                    val gson = Gson()
+
+                                    // Batch buffer for ~500ms streaming cadence
+                                    val uiHandler = Handler(Looper.getMainLooper())
+                                    val batchBuffer = mutableListOf<List<Double>>()
+                                    var flushScheduled = false
+                                    fun scheduleFlush() {
+                                        if (flushScheduled) return
+                                        flushScheduled = true
+                                        uiHandler.postDelayed({
+                                            try {
+                                                val payload = ArrayList(batchBuffer)
+                                                batchBuffer.clear()
+                                                if (payload.isNotEmpty()) {
+                                                    evaluateJavascript("window.addHeatPoints(${gson.toJson(payload)});", null)
+                                                }
+                                            } finally {
+                                                flushScheduled = false
+                                            }
+                                        }, 500)
+                                    }
+
+                                    // Listener for counts + points (from GeohashViewModel via HeatStreamBus)
+                                    val heatListener = object : HeatStreamBus.Listener {
+                                        override fun onCounts(counts: Map<String, Int>) {
+                                            runCatching {
+                                                evaluateJavascript("window.setGeohashCounts(${gson.toJson(counts)});", null)
+                                            }
+                                        }
+                                        override fun onPoints(points: List<HeatStreamBus.HeatPoint>) {
+                                            if (points.isEmpty()) return
+                                            points.forEach { p ->
+                                                batchBuffer.add(listOf(p.lat, p.lng, p.intensity))
+                                            }
+                                            scheduleFlush()
+                                        }
+                                    }
+
                                     webViewClient = object : WebViewClient() {
                                         override fun onPageFinished(view: WebView?, url: String?) {
                                             super.onPageFinished(view, url)
-                                            // Initialize to last/initial geohash if provided, otherwise center
+
+                                            // Theme for tiles
+                                            val nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                                            val theme = if (nightMode == Configuration.UI_MODE_NIGHT_YES) "dark" else "light"
+                                            evaluateJavascript("window.setMapTheme('$theme')", null)
+
+                                            // Default start: center on #d0ge unless explicit geohash is provided by intent
                                             if (!geohashToFocus.isNullOrEmpty()) {
-                                                evaluateJavascript(
-                                                    "window.focusGeohash('${geohashToFocus}')",
-                                                    null
-                                                )
+                                                evaluateJavascript("window.focusGeohash('${geohashToFocus}')", null)
+                                                evaluateJavascript("window.setPrecision(${geohashToFocus!!.length})", null)
                                             } else {
-                                                evaluateJavascript(
-                                                    "window.setCenter(${initLat}, ${initLon})",
-                                                    null
-                                                )
+                                                evaluateJavascript("window.focusGeohash('d0ge')", null)
+                                                evaluateJavascript("window.setPrecision(5)", null)
                                             }
 
-                                            // Apply theme to map tiles
-                                            val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                                            val theme = if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES) "dark" else "light"
-                                            evaluateJavascript("window.setMapTheme('" + theme + "')", null)
+                                            // TTL 5 minutes and warm start
+                                            evaluateJavascript("window.setHeatmapTTL(300000);", null)
+                                            HeatStreamBus.setTTL(300_000L)
+
+                                            val warm = HeatStreamBus.getWarmPointsSnapshot()
+                                            if (warm.isNotEmpty()) {
+                                                val arr = warm.map { listOf(it.lat, it.lng, it.intensity) }
+                                                evaluateJavascript("window.setHeatmap(${gson.toJson(arr)});", null)
+                                            }
+                                            val cSnap = HeatStreamBus.getCountsSnapshot()
+                                            if (cSnap.isNotEmpty()) {
+                                                evaluateJavascript("window.setGeohashCounts(${gson.toJson(cSnap)});", null)
+                                            }
+
+                                            // Mirror favorites into the map (from Android store)
+                                            runCatching {
+                                                val favs = GeohashBookmarksStore.getInstance(applicationContext).bookmarks.value ?: emptyList()
+                                                evaluateJavascript("window.setFavorites(${gson.toJson(favs)});", null)
+                                            }
+
+                                            // Subscribe live
+                                            HeatStreamBus.addListener(heatListener)
                                         }
                                     }
+
+                                    // JS Bridge: selection + favorites + share
                                     addJavascriptInterface(object {
                                         @JavascriptInterface
                                         fun onGeohashChanged(geohash: String) {
+                                            runOnUiThread { currentGeohash = geohash }
+                                        }
+
+                                        @JavascriptInterface
+                                        fun onFavoriteChanged(gh: String, isFav: Boolean) {
+                                            // Ensure we mutate bookmarks on the main thread so LiveData observers (Location sheet) update reliably.
                                             runOnUiThread {
-                                                currentGeohash = geohash
+                                                runCatching {
+                                                    val store = GeohashBookmarksStore.getInstance(applicationContext)
+                                                    val already = store.isBookmarked(gh)
+                                                    if (isFav && !already) store.toggle(gh)
+                                                    if (!isFav && already) store.toggle(gh)
+                                                }
                                             }
+                                        }
+
+                                        @JavascriptInterface
+                                        fun shareText(text: String) {
+                                            // Optional Android Sharesheet hook
                                         }
                                     }, "Android")
 
@@ -145,47 +219,24 @@ class GeohashPickerActivity : ComponentActivity() {
                                 .padding(padding),
                             update = { webView ->
                                 webViewRef = webView
-                                // ensure it fills parent
-                                webView.updateLayoutParams<ViewGroup.LayoutParams> {
-                                    width = ViewGroup.LayoutParams.MATCH_PARENT
-                                    height = ViewGroup.LayoutParams.MATCH_PARENT
+                                webView.updateLayoutParams<android.view.ViewGroup.LayoutParams> {
+                                    width = android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                    height = android.view.ViewGroup.LayoutParams.MATCH_PARENT
                                 }
                             },
                             onRelease = { webView ->
-                                // Best-effort cleanup to avoid leaks and timers
-                                try { webView.evaluateJavascript("window.cleanup && window.cleanup()", null) } catch (_: Throwable) {}
-                                try { webView.stopLoading() } catch (_: Throwable) {}
-                                try { webView.clearHistory() } catch (_: Throwable) {}
-                                try { webView.clearCache(true) } catch (_: Throwable) {}
-                                try { webView.loadUrl("about:blank") } catch (_: Throwable) {}
-                                try { webView.removeAllViews() } catch (_: Throwable) {}
-                                try { webView.destroy() } catch (_: Throwable) {}
+                                runCatching { HeatStreamBus.clearAllListeners() }
+                                runCatching { webView.evaluateJavascript("window.cleanup && window.cleanup()", null) }
+                                runCatching { webView.stopLoading() }
+                                runCatching { webView.clearHistory() }
+                                runCatching { webView.clearCache(true) }
+                                runCatching { webView.loadUrl("about:blank") }
+                                runCatching { webView.removeAllViews() }
+                                runCatching { webView.destroy() }
                             }
                         )
 
-                        // Floating info pill
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 20.dp)
-                                .fillMaxWidth(0.75f),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                            shape = RoundedCornerShape(12.dp),
-                            tonalElevation = 3.dp,
-                            shadowElevation = 6.dp
-                        ) {
-                            Text(
-                                text = "pan and zoom to select a geohash",
-                                fontSize = 12.sp,
-                                textAlign = TextAlign.Center,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier
-                                    .padding(horizontal = 14.dp, vertical = 10.dp)
-                            )
-                        }
-
-                        // Floating bottom controls
+                        // Bottom controls - Black & Gold styling
                         Column(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
@@ -193,78 +244,80 @@ class GeohashPickerActivity : ComponentActivity() {
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Geohash label (monospace, app style)
+                            // Geohash label chip (black background, gold border/text)
                             Surface(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                color = Color.Black.copy(alpha = 0.92f),
                                 shape = RoundedCornerShape(12.dp),
-                                tonalElevation = 3.dp,
-                                shadowElevation = 6.dp
+                                tonalElevation = 0.dp,
+                                shadowElevation = 6.dp,
+                                modifier = Modifier
+                                    .border(
+                                        BorderStroke(1.2.dp, dogeGold.copy(alpha = 0.9f)),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
                             ) {
                                 Text(
-                                    text = if (currentGeohash.isNotEmpty()) "#${currentGeohash}" else "select location",
+                                    text = if (currentGeohash.isNotEmpty()) "#${currentGeohash}" else "#d0ge",
                                     fontSize = BASE_FONT_SIZE.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier
-                                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                                    color = dogeGold,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                                 )
                             }
 
-                            // Button row
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Decrease precision
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Button(
                                     onClick = {
                                         precision = (precision - 1).coerceAtLeast(1)
                                         webViewRef?.evaluateJavascript("window.setPrecision($precision)", null)
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = standardGreen.copy(alpha = 0.12f),
-                                        contentColor = standardGreen
+                                        containerColor = Color.Black.copy(alpha = 0.85f),
+                                        contentColor = dogeGold
                                     )
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Filled.Remove, contentDescription = "Decrease precision")
-                                    }
+                                    androidx.compose.material3.Icon(
+                                        Icons.Filled.Remove,
+                                        contentDescription = "Decrease precision"
+                                    )
                                 }
 
-                                // Increase precision
                                 Button(
                                     onClick = {
                                         precision = (precision + 1).coerceAtMost(12)
                                         webViewRef?.evaluateJavascript("window.setPrecision($precision)", null)
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = standardGreen.copy(alpha = 0.12f),
-                                        contentColor = standardGreen
+                                        containerColor = Color.Black.copy(alpha = 0.85f),
+                                        contentColor = dogeGold
                                     )
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Filled.Add, contentDescription = "Increase precision")
-                                    }
+                                    androidx.compose.material3.Icon(
+                                        Icons.Filled.Add,
+                                        contentDescription = "Increase precision"
+                                    )
                                 }
 
-                                // Select button
                                 Button(
                                     onClick = {
                                         webViewRef?.evaluateJavascript("window.getGeohash()") { value ->
-                                            val gh = value?.trim('"') ?: currentGeohash
+                                            val gh = (value?.trim('"') ?: currentGeohash).ifEmpty { "d0ge" }
                                             val result = Intent().apply { putExtra(EXTRA_RESULT_GEOHASH, gh) }
                                             setResult(Activity.RESULT_OK, result)
                                             finish()
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
-                                        contentColor = MaterialTheme.colorScheme.onSurface
+                                        containerColor = Color.Black.copy(alpha = 0.85f),
+                                        contentColor = dogeGold
                                     )
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Filled.Check, contentDescription = "Select geohash")
+                                        androidx.compose.material3.Icon(
+                                            Icons.Filled.Check,
+                                            contentDescription = "Select geohash"
+                                        )
                                         Spacer(Modifier.width(6.dp))
                                         Text(
                                             text = "select",

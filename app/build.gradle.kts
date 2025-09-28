@@ -21,8 +21,8 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
 
-        versionCode = 12
-        versionName = "0.9.6"
+        versionCode = 13
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -40,9 +40,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("dogechat-release-key.jks")
-            storePassword = "MichaelHailey0608!"  // Replace with your actual keystore password
+            storePassword = "Your_Keystore_pass_goes_Here"  // Replace with your actual keystore password
             keyAlias = "dogechat-key"
-            keyPassword = "MichaelHailey0608!"  // Replace with your actual key password
+            keyPassword = "Your_Key_Pass_goes_Here"  // Replace with your actual key password
         }
     }
 
@@ -193,6 +193,7 @@ dependencies {
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.bundles.compose.testing)
+    debugImplementation(libs.androidx.compose.ui.tooling)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
 

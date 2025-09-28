@@ -10,20 +10,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 
 /**
  * Loading screen shown during app initialization after permissions are granted
  */
 @Composable
-fun InitializingScreen() {
+fun InitializingScreen(modifier: Modifier) {
     val colorScheme = MaterialTheme.colorScheme
-
+    
     // Animated rotation for the loading indicator
     val infiniteTransition = rememberInfiniteTransition(label = "loading")
     val rotationAngle by infiniteTransition.animateFloat(
@@ -54,18 +54,16 @@ fun InitializingScreen() {
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = modifier.padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+           // Logo above the app title
             val screenWidthDp = LocalConfiguration.current.screenWidthDp
             val logoSizeDp = (screenWidthDp * 0.45f).dp  // 45% of screen width
-            // Logo above the app title
             Image(
                 painter = painterResource(id = com.dogechat.android.R.mipmap.ic_launcher_adaptive_fore),
                 contentDescription = "Dogechat logo",
@@ -105,13 +103,13 @@ fun InitializingScreen() {
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Initializing Mesh Network",
+                    text = "Much Initializing... Such Mesh Network",
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 )
-
+                
                 // Animated dots
                 dots.forEach { alpha ->
                     Text(
@@ -147,9 +145,9 @@ fun InitializingScreen() {
                         ),
                         textAlign = TextAlign.Center
                     )
-
+                    
                     Text(
-                        text = "This should only take a few seconds, Much Patience",
+                        text = "This should only take a few seconds",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.6f)
@@ -167,6 +165,7 @@ fun InitializingScreen() {
  */
 @Composable
 fun InitializationErrorScreen(
+    modifier: Modifier,
     errorMessage: String,
     onRetry: () -> Unit,
     onOpenSettings: () -> Unit
@@ -174,9 +173,7 @@ fun InitializationErrorScreen(
     val colorScheme = MaterialTheme.colorScheme
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = modifier.padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(

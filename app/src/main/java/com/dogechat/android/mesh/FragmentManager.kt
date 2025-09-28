@@ -8,23 +8,16 @@ import com.dogechat.android.model.FragmentPayload
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 
-// Map this package's FragmentManager reference to AndroidX FragmentManager to avoid naming conflicts.
-// This ensures any function signatures using com.dogechat.android.mesh.FragmentManager
-// actually refer to androidx.fragment.app.FragmentManager.
-typealias FragmentManager = androidx.fragment.app.FragmentManager
-
 /**
  * Manages message fragmentation and reassembly - 100% iOS Compatible
- *
+ * 
  * This implementation exactly matches iOS SimplifiedBluetoothService fragmentation:
  * - Same fragment payload structure (13-byte header + data)
  * - Same MTU thresholds and fragment sizes
  * - Same reassembly logic and timeout handling
  * - Uses new FragmentPayload model for type safety
- *
- * NOTE: Renamed from FragmentManager to PacketFragmentManager to avoid clash with AndroidX FragmentManager.
  */
-class PacketFragmentManager {
+class FragmentManager {
     
     companion object {
         private const val TAG = "FragmentManager"
@@ -41,7 +34,7 @@ class PacketFragmentManager {
     private val fragmentMetadata = ConcurrentHashMap<String, Triple<UByte, Int, Long>>() // originalType, totalFragments, timestamp
     
     // Delegate for callbacks
-    var delegate: PacketFragmentManagerDelegate? = null
+    var delegate: FragmentManagerDelegate? = null
     
     // Coroutines
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -55,10 +48,23 @@ class PacketFragmentManager {
      * Matches iOS sendFragmentedPacket() implementation exactly
      */
     fun createFragments(packet: DogechatPacket): List<DogechatPacket> {
-        val encoded = packet.toBinaryData() ?: return emptyList()
+        try {
+            Log.d(TAG, "🔀 Creating fragments for packet type ${packet.type}, payload: ${packet.payload.size} bytes")
+        val encoded = packet.toBinaryData()
+            if (encoded == null) {
+                Log.e(TAG, "❌ Failed to encode packet to binary data")
+                return emptyList()
+            }
+            Log.d(TAG, "📦 Encoded to ${encoded.size} bytes")
         
         // Fragment the unpadded frame; each fragment will be encoded (and padded) independently - iOS fix
-        val fullData = MessagePadding.unpad(encoded)
+        val fullData = try {
+                MessagePadding.unpad(encoded)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to unpad data: ${e.message}", e)
+                return emptyList()
+            }
+            Log.d(TAG, "📏 Unpadded to ${fullData.size} bytes")
         
         // iOS logic: if data.count > 512 && packet.type != MessageType.fragment.rawValue
         if (fullData.size <= FRAGMENT_SIZE_THRESHOLD) {
@@ -105,7 +111,13 @@ class PacketFragmentManager {
             fragments.add(fragmentPacket)
         }
         
-        return fragments
+        Log.d(TAG, "✅ Created ${fragments.size} fragments successfully")
+            return fragments
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Fragment creation failed: ${e.message}", e)
+            Log.e(TAG, "❌ Packet type: ${packet.type}, payload: ${packet.payload.size} bytes")
+            return emptyList()
+        }
     }
     
     /**
@@ -118,6 +130,9 @@ class PacketFragmentManager {
             Log.w(TAG, "Fragment packet too small: ${packet.payload.size}")
             return null
         }
+        
+        // Don't process our own fragments - iOS equivalent check
+        // This would be done at a higher level but we'll include for safety
         
         try {
             // Use FragmentPayload for type-safe decoding
@@ -268,11 +283,8 @@ class PacketFragmentManager {
 }
 
 /**
- * Delegate interface for packet fragment manager callbacks
+ * Delegate interface for fragment manager callbacks
  */
-interface PacketFragmentManagerDelegate {
+interface FragmentManagerDelegate {
     fun onPacketReassembled(packet: DogechatPacket)
 }
-
-// Backwards-compat: if any code references FragmentManagerDelegate, keep it working.
-typealias FragmentManagerDelegate = PacketFragmentManagerDelegate

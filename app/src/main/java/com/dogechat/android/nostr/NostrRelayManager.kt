@@ -452,7 +452,7 @@ class NostrRelayManager private constructor() {
             }
         }
     }
-
+    
     /**
      * Clear all subscription tracking, message handlers, routing caches, and queued messages.
      * Intended for panic/reset flows prior to reconnecting and re-subscribing from scratch.
@@ -665,6 +665,16 @@ class NostrRelayManager private constructor() {
                     val relay = relaysList.find { it.url == relayUrl }
                     relay?.messagesReceived = (relay?.messagesReceived ?: 0) + 1
                     updateRelaysList()
+                    
+                    // CLIENT-SIDE FILTER ENFORCEMENT: Ensure this event matches the subscription's filter
+                    activeSubscriptions[response.subscriptionId]?.let { subInfo ->
+                        val matches = try { subInfo.filter.matches(response.event) } catch (e: Exception) { true }
+                        if (!matches) {
+                            Log.v(TAG, "🚫 Dropping event ${response.event.id.take(16)}... not matching filter for sub=${response.subscriptionId}")
+                            // Do NOT call deduplicator here to allow the correct subscription to process it later
+                            return
+                        }
+                    }
                     
                     // DEDUPLICATION: Check if we've already processed this event
                     val wasProcessed = eventDeduplicator.processEvent(response.event) { event ->

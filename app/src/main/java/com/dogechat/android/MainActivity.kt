@@ -15,8 +15,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.repeatOnLifecycle
@@ -45,6 +44,14 @@ import com.dogechat.android.nostr.PoWPreferenceManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// ADDED for system bars + location lock
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.dogechat.android.geohash.LocationChannelManager
+
 class MainActivity : ComponentActivity() {
     
     private lateinit var permissionManager: PermissionManager
@@ -68,18 +75,28 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Enable edge-to-edge display for modern Android look
+        // ADDED: remove gray flash and set edge-to-edge with brand system bars
+        window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
         enableEdgeToEdge()
-        
-        // Make status bar transparent and content can extend behind it
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        
-        // Opaque yellow status bar with dark icons
-        window.statusBarColor = 0xFFFFFF00.toInt()
+        // Bright yellow status bar with dark icons
+        @Suppress("DEPRECATION")
+        run {
+            window.statusBarColor = 0xFFFFFF00.toInt()
+        }
         WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
-        
-        // Initialize permission management and services
+        // Transparent nav bar; disable contrast so no scrims
+        @Suppress("DEPRECATION")
+        run {
+            window.navigationBarColor = Color.TRANSPARENT
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+
+        // Initialize permission management
         permissionManager = PermissionManager(this)
+        // Initialize core mesh service first
         meshService = BluetoothMeshService(this)
         bluetoothStatusManager = BluetoothStatusManager(
             activity = this,
@@ -112,16 +129,15 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     containerColor = MaterialTheme.colorScheme.background
                 ) { innerPadding ->
-                    OnboardingFlowScreen(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
+                    OnboardingFlowScreen(modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
                     )
                 }
             }
         }
         
-        // Collect state changes
+        // Collect state changes in a lifecycle-aware manner
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 mainViewModel.onboardingState.collect { state ->
@@ -130,6 +146,8 @@ class MainActivity : ComponentActivity() {
             }
         }
         
+        // Only start onboarding process if we're in the initial CHECKING state
+        // This prevents restarting onboarding on configuration changes
         if (mainViewModel.onboardingState.value == OnboardingState.CHECKING) {
             checkOnboardingStatus()
         }
@@ -148,14 +166,16 @@ class MainActivity : ComponentActivity() {
         val isBatteryOptimizationLoading by mainViewModel.isBatteryOptimizationLoading.collectAsState()
 
         DisposableEffect(context, bluetoothStatusManager) {
+
             val receiver = bluetoothStatusManager.monitorBluetoothState(
                 context = context,
-                bluetoothStatusManager = bluetoothStatusManager
-            ) { status ->
-                if (status == BluetoothStatus.ENABLED && onboardingState == OnboardingState.BLUETOOTH_CHECK) {
-                    checkBluetoothAndProceed()
+                bluetoothStatusManager = bluetoothStatusManager,
+                onBluetoothStateChanged = { status ->
+                    if (status == BluetoothStatus.ENABLED && onboardingState == OnboardingState.BLUETOOTH_CHECK) {
+                        checkBluetoothAndProceed()
+                    }
                 }
-            }
+            )
 
             onDispose {
                 try {
@@ -169,13 +189,11 @@ class MainActivity : ComponentActivity() {
 
         when (onboardingState) {
             OnboardingState.PERMISSION_REQUESTING -> {
-                // InitializingScreen has no parameters
-                InitializingScreen()
+                InitializingScreen(modifier)
             }
             
             OnboardingState.BLUETOOTH_CHECK -> {
                 BluetoothCheckScreen(
-                    modifier = modifier,
                     status = bluetoothStatus,
                     onEnableBluetooth = {
                         mainViewModel.updateBluetoothLoading(true)
@@ -232,29 +250,26 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
-            
-            OnboardingState.CHECKING, OnboardingState.INITIALIZING, OnboardingState.COMPLETE -> {
 
-                // Back handling
+            OnboardingState.CHECKING, OnboardingState.INITIALIZING, OnboardingState.COMPLETE -> {
+                // Set up back navigation handling for the chat screen
                 val backCallback = object : OnBackPressedCallback(true) {
                     override fun handleOnBackPressed() {
+                        // Let ChatViewModel handle navigation state
                         val handled = chatViewModel.handleBackPressed()
                         if (!handled) {
+                            // If ChatViewModel doesn't handle it, disable this callback
+                            // and let the system handle it (which will exit the app)
                             this.isEnabled = false
                             onBackPressedDispatcher.onBackPressed()
                             this.isEnabled = true
                         }
                     }
                 }
-                onBackPressedDispatcher.addCallback(this@MainActivity, backCallback)
 
-                ChatScreen(
-                    viewModel = chatViewModel,
-                    onWalletClick = {
-                        val intent = Intent(context, com.dogechat.android.wallet.WalletActivity::class.java)
-                        context.startActivity(intent)
-                    }
-                )
+                // Add the callback - this will be automatically removed when the activity is destroyed
+                onBackPressedDispatcher.addCallback(this, backCallback)
+                ChatScreen(viewModel = chatViewModel)
             }
             
             OnboardingState.ERROR -> {
@@ -274,8 +289,10 @@ class MainActivity : ComponentActivity() {
     }
     
     private fun handleOnboardingStateChange(state: OnboardingState) {
+
         when (state) {
             OnboardingState.COMPLETE -> {
+                // App is fully initialized, mesh service is running
                 android.util.Log.d("MainActivity", "Onboarding completed - app ready")
             }
             OnboardingState.ERROR -> {
@@ -289,31 +306,45 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "Checking onboarding status")
         
         lifecycleScope.launch {
+            // Small delay to show the checking state
             delay(500)
+            
+            // First check Bluetooth status (always required)
             checkBluetoothAndProceed()
         }
     }
     
+    /**
+     * Check Bluetooth status and proceed with onboarding flow
+     */
     private fun checkBluetoothAndProceed() {
+        // Log.d("MainActivity", "Checking Bluetooth status")
+        
+        // For first-time users, skip Bluetooth check and go straight to permissions
+        // We'll check Bluetooth after permissions are granted
         if (permissionManager.isFirstTimeLaunch()) {
             Log.d("MainActivity", "First-time launch, skipping Bluetooth check - will check after permissions")
             proceedWithPermissionCheck()
             return
         }
         
+        // For existing users, check Bluetooth status first
         bluetoothStatusManager.logBluetoothStatus()
         mainViewModel.updateBluetoothStatus(bluetoothStatusManager.checkBluetoothStatus())
         
         when (mainViewModel.bluetoothStatus.value) {
             BluetoothStatus.ENABLED -> {
+                // Bluetooth is enabled, check location services next
                 checkLocationAndProceed()
             }
             BluetoothStatus.DISABLED -> {
+                // Show Bluetooth enable screen (should have permissions as existing user)
                 Log.d("MainActivity", "Bluetooth disabled, showing enable screen")
                 mainViewModel.updateOnboardingState(OnboardingState.BLUETOOTH_CHECK)
                 mainViewModel.updateBluetoothLoading(false)
             }
             BluetoothStatus.NOT_SUPPORTED -> {
+                // Device doesn't support Bluetooth
                 android.util.Log.e("MainActivity", "Bluetooth not supported")
                 mainViewModel.updateOnboardingState(OnboardingState.BLUETOOTH_CHECK)
                 mainViewModel.updateBluetoothLoading(false)
@@ -321,11 +352,14 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    /**
+     * Proceed with permission checking 
+     */
     private fun proceedWithPermissionCheck() {
         Log.d("MainActivity", "Proceeding with permission check")
         
         lifecycleScope.launch {
-            delay(200)
+            delay(200) // Small delay for smooth transition
             
             if (permissionManager.isFirstTimeLaunch()) {
                 Log.d("MainActivity", "First time launch, showing permission explanation")
@@ -341,6 +375,9 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    /**
+     * Handle Bluetooth enabled callback
+     */
     private fun handleBluetoothEnabled() {
         Log.d("MainActivity", "Bluetooth enabled by user")
         mainViewModel.updateBluetoothLoading(false)
@@ -348,28 +385,52 @@ class MainActivity : ComponentActivity() {
         checkLocationAndProceed()
     }
 
+    // ADDED: force-lock location channels immediately (mirror bitchat behavior)
+    private fun lockLocationNow() {
+        runCatching {
+            val mgr = LocationChannelManager.getInstance(this)
+            mgr.enableLocationServices()
+            mgr.setTeleported(false)
+            mgr.refreshChannels()
+            mgr.beginLiveRefresh()
+        }.onFailure {
+            Log.w("MainActivity", "lockLocationNow error: ${it.message}")
+        }
+    }
+
+    /**
+     * Check Location services status and proceed with onboarding flow
+     */
     private fun checkLocationAndProceed() {
         Log.d("MainActivity", "Checking location services status")
         
+        // For first-time users, skip location check and go straight to permissions
+        // We'll check location after permissions are granted
         if (permissionManager.isFirstTimeLaunch()) {
             Log.d("MainActivity", "First-time launch, skipping location check - will check after permissions")
             proceedWithPermissionCheck()
             return
         }
         
+        // For existing users, check location status
         locationStatusManager.logLocationStatus()
         mainViewModel.updateLocationStatus(locationStatusManager.checkLocationStatus())
         
         when (mainViewModel.locationStatus.value) {
             LocationStatus.ENABLED -> {
+                // ADDED: lock location immediately
+                lockLocationNow()
+                // Location services enabled, check battery optimization next
                 checkBatteryOptimizationAndProceed()
             }
             LocationStatus.DISABLED -> {
+                // Show location enable screen (should have permissions as existing user)
                 Log.d("MainActivity", "Location services disabled, showing enable screen")
                 mainViewModel.updateOnboardingState(OnboardingState.LOCATION_CHECK)
                 mainViewModel.updateLocationLoading(false)
             }
             LocationStatus.NOT_AVAILABLE -> {
+                // Device doesn't support location services (very unusual)
                 Log.e("MainActivity", "Location services not available")
                 mainViewModel.updateOnboardingState(OnboardingState.LOCATION_CHECK)
                 mainViewModel.updateLocationLoading(false)
@@ -377,26 +438,42 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Handle Location enabled callback
+     */
     private fun handleLocationEnabled() {
         Log.d("MainActivity", "Location services enabled by user")
         mainViewModel.updateLocationLoading(false)
         mainViewModel.updateLocationStatus(LocationStatus.ENABLED)
+        // ADDED: lock immediately
+        lockLocationNow()
         checkBatteryOptimizationAndProceed()
     }
 
+    /**
+     * Handle Location disabled callback
+     */
     private fun handleLocationDisabled(message: String) {
         Log.w("MainActivity", "Location services disabled or failed: $message")
         mainViewModel.updateLocationLoading(false)
         mainViewModel.updateLocationStatus(locationStatusManager.checkLocationStatus())
 
-        if (mainViewModel.locationStatus.value == LocationStatus.NOT_AVAILABLE) {
-            mainViewModel.updateErrorMessage(message)
-            mainViewModel.updateOnboardingState(OnboardingState.ERROR)
-        } else {
-            mainViewModel.updateOnboardingState(OnboardingState.LOCATION_CHECK)
+        when {
+            mainViewModel.locationStatus.value == LocationStatus.NOT_AVAILABLE -> {
+                // Show permanent error for devices without location services
+                mainViewModel.updateErrorMessage(message)
+                mainViewModel.updateOnboardingState(OnboardingState.ERROR)
+            }
+            else -> {
+                // Stay on location check screen for retry
+                mainViewModel.updateOnboardingState(OnboardingState.LOCATION_CHECK)
+            }
         }
     }
     
+    /**
+     * Handle Bluetooth disabled callback
+     */
     private fun handleBluetoothDisabled(message: String) {
         Log.w("MainActivity", "Bluetooth disabled or failed: $message")
         mainViewModel.updateBluetoothLoading(false)
@@ -404,18 +481,23 @@ class MainActivity : ComponentActivity() {
         
         when {
             mainViewModel.bluetoothStatus.value == BluetoothStatus.NOT_SUPPORTED -> {
+                // Show permanent error for unsupported devices
                 mainViewModel.updateErrorMessage(message)
                 mainViewModel.updateOnboardingState(OnboardingState.ERROR)
             }
             message.contains("Permission") && permissionManager.isFirstTimeLaunch() -> {
+                // During first-time onboarding, if Bluetooth enable fails due to permissions,
+                // proceed to permission explanation screen where user will grant permissions first
                 Log.d("MainActivity", "Bluetooth enable requires permissions, proceeding to permission explanation")
                 proceedWithPermissionCheck()
             }
             message.contains("Permission") -> {
+                // For existing users, redirect to permission explanation to grant missing permissions
                 Log.d("MainActivity", "Bluetooth enable requires permissions, showing permission explanation")
                 mainViewModel.updateOnboardingState(OnboardingState.PERMISSION_EXPLANATION)
             }
             else -> {
+                // Stay on Bluetooth check screen for retry
                 mainViewModel.updateOnboardingState(OnboardingState.BLUETOOTH_CHECK)
             }
         }
@@ -424,6 +506,7 @@ class MainActivity : ComponentActivity() {
     private fun handleOnboardingComplete() {
         Log.d("MainActivity", "Onboarding completed, checking Bluetooth and Location before initializing app")
         
+        // After permissions are granted, re-check Bluetooth, Location, and Battery Optimization status
         val currentBluetoothStatus = bluetoothStatusManager.checkBluetoothStatus()
         val currentLocationStatus = locationStatusManager.checkLocationStatus()
         val currentBatteryOptimizationStatus = when {
@@ -434,24 +517,28 @@ class MainActivity : ComponentActivity() {
         
         when {
             currentBluetoothStatus != BluetoothStatus.ENABLED -> {
+                // Bluetooth still disabled, but now we have permissions to enable it
                 Log.d("MainActivity", "Permissions granted, but Bluetooth still disabled. Showing Bluetooth enable screen.")
                 mainViewModel.updateBluetoothStatus(currentBluetoothStatus)
                 mainViewModel.updateOnboardingState(OnboardingState.BLUETOOTH_CHECK)
                 mainViewModel.updateBluetoothLoading(false)
             }
             currentLocationStatus != LocationStatus.ENABLED -> {
+                // Location services still disabled, but now we have permissions to enable it
                 Log.d("MainActivity", "Permissions granted, but Location services still disabled. Showing Location enable screen.")
                 mainViewModel.updateLocationStatus(currentLocationStatus)
                 mainViewModel.updateOnboardingState(OnboardingState.LOCATION_CHECK)
                 mainViewModel.updateLocationLoading(false)
             }
             currentBatteryOptimizationStatus == BatteryOptimizationStatus.ENABLED -> {
+                // Battery optimization still enabled, show battery optimization screen
                 android.util.Log.d("MainActivity", "Permissions granted, but battery optimization still enabled. Showing battery optimization screen.")
                 mainViewModel.updateBatteryOptimizationStatus(currentBatteryOptimizationStatus)
                 mainViewModel.updateOnboardingState(OnboardingState.BATTERY_OPTIMIZATION_CHECK)
                 mainViewModel.updateBatteryOptimizationLoading(false)
             }
             else -> {
+                // Both are enabled, proceed to app initialization
                 Log.d("MainActivity", "Both Bluetooth and Location services are enabled, proceeding to initialization")
                 mainViewModel.updateOnboardingState(OnboardingState.INITIALIZING)
                 initializeApp()
@@ -465,21 +552,28 @@ class MainActivity : ComponentActivity() {
         mainViewModel.updateOnboardingState(OnboardingState.ERROR)
     }
     
+    /**
+     * Check Battery Optimization status and proceed with onboarding flow
+     */
     private fun checkBatteryOptimizationAndProceed() {
         android.util.Log.d("MainActivity", "Checking battery optimization status")
         
+        // For first-time users, skip battery optimization check and go straight to permissions
+        // We'll check battery optimization after permissions are granted
         if (permissionManager.isFirstTimeLaunch()) {
             android.util.Log.d("MainActivity", "First-time launch, skipping battery optimization check - will check after permissions")
             proceedWithPermissionCheck()
             return
         }
-
+        
+        // Check if user has previously skipped battery optimization
         if (BatteryOptimizationPreferenceManager.isSkipped(this)) {
             android.util.Log.d("MainActivity", "User previously skipped battery optimization, proceeding to permissions")
             proceedWithPermissionCheck()
             return
         }
         
+        // For existing users, check battery optimization status
         batteryOptimizationManager.logBatteryOptimizationStatus()
         val currentBatteryOptimizationStatus = when {
             !batteryOptimizationManager.isBatteryOptimizationSupported() -> BatteryOptimizationStatus.NOT_SUPPORTED
@@ -490,9 +584,11 @@ class MainActivity : ComponentActivity() {
         
         when (currentBatteryOptimizationStatus) {
             BatteryOptimizationStatus.DISABLED, BatteryOptimizationStatus.NOT_SUPPORTED -> {
+                // Battery optimization is disabled or not supported, proceed with permission check
                 proceedWithPermissionCheck()
             }
             BatteryOptimizationStatus.ENABLED -> {
+                // Show battery optimization disable screen
                 android.util.Log.d("MainActivity", "Battery optimization enabled, showing disable screen")
                 mainViewModel.updateOnboardingState(OnboardingState.BATTERY_OPTIMIZATION_CHECK)
                 mainViewModel.updateBatteryOptimizationLoading(false)
@@ -500,6 +596,9 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    /**
+     * Handle Battery Optimization disabled callback
+     */
     private fun handleBatteryOptimizationDisabled() {
         android.util.Log.d("MainActivity", "Battery optimization disabled by user")
         mainViewModel.updateBatteryOptimizationLoading(false)
@@ -507,6 +606,9 @@ class MainActivity : ComponentActivity() {
         proceedWithPermissionCheck()
     }
     
+    /**
+     * Handle Battery Optimization failed callback
+     */
     private fun handleBatteryOptimizationFailed(message: String) {
         android.util.Log.w("MainActivity", "Battery optimization disable failed: $message")
         mainViewModel.updateBatteryOptimizationLoading(false)
@@ -516,6 +618,8 @@ class MainActivity : ComponentActivity() {
             else -> BatteryOptimizationStatus.ENABLED
         }
         mainViewModel.updateBatteryOptimizationStatus(currentStatus)
+        
+        // Stay on battery optimization check screen for retry
         mainViewModel.updateOnboardingState(OnboardingState.BATTERY_OPTIMIZATION_CHECK)
     }
     
@@ -524,11 +628,17 @@ class MainActivity : ComponentActivity() {
         
         lifecycleScope.launch {
             try {
-                delay(1000)
+                // Initialize the app with a proper delay to ensure Bluetooth stack is ready
+                // This solves the issue where app needs restart to work on first install
+                delay(1000) // Give the system time to process permission grants
+                
                 Log.d("MainActivity", "Permissions verified, initializing chat system")
+                
+                // Initialize PoW preferences early in the initialization process
                 PoWPreferenceManager.init(this@MainActivity)
                 Log.d("MainActivity", "PoW preferences initialized")
-
+                
+                // Ensure all permissions are still granted (user might have revoked in settings)
                 if (!permissionManager.areAllPermissionsGranted()) {
                     val missing = permissionManager.getMissingPermissions()
                     Log.w("MainActivity", "Permissions revoked during initialization: $missing")
@@ -536,12 +646,33 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
+                // >>> Location WARM-UP INSERTED HERE (bitchat parity) <<<
+                // Make LocationChannelManager hot immediately after permissions are granted
+                runCatching {
+                    val lcm = LocationChannelManager.getInstance(this@MainActivity)
+                    lcm.enableLocationChannels()   // does not pop the permission dialog; just updates internal state
+                    lcm.refreshChannels()
+                    lcm.beginLiveRefresh()
+                }.onFailure { e ->
+                    Log.w("MainActivity", "LCM warmup failed: ${e.message}")
+                }
+                // >>> END WARM-UP <<<
+
+                // If system location is already enabled, lock now
+                if (locationStatusManager.checkLocationStatus() == LocationStatus.ENABLED) {
+                    lockLocationNow()
+                }
+
+                // Set up mesh service delegate and start services
                 meshService.delegate = chatViewModel
                 meshService.startServices()
                 
                 Log.d("MainActivity", "Mesh service started successfully")
+                
+                // Handle any notification intent
                 handleNotificationIntent(intent)
                 
+                // Small delay to ensure mesh service is fully initialized
                 delay(500)
                 Log.d("MainActivity", "App initialization complete")
                 mainViewModel.updateOnboardingState(OnboardingState.COMPLETE)
@@ -554,6 +685,7 @@ class MainActivity : ComponentActivity() {
     
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // Handle notification intents when app is already running
         if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
             handleNotificationIntent(intent)
         }
@@ -561,10 +693,13 @@ class MainActivity : ComponentActivity() {
     
     override fun onResume() {
         super.onResume()
+        // Check Bluetooth and Location status on resume and handle accordingly
         if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
+            // Set app foreground state
             meshService.connectionManager.setAppBackgroundState(false)
             chatViewModel.setAppBackgroundState(false)
 
+            // Check if Bluetooth was disabled while app was backgrounded
             val currentBluetoothStatus = bluetoothStatusManager.checkBluetoothStatus()
             if (currentBluetoothStatus != BluetoothStatus.ENABLED) {
                 Log.w("MainActivity", "Bluetooth disabled while app was backgrounded")
@@ -574,24 +709,33 @@ class MainActivity : ComponentActivity() {
                 return
             }
             
+            // Check if location services were disabled while app was backgrounded
             val currentLocationStatus = locationStatusManager.checkLocationStatus()
             if (currentLocationStatus != LocationStatus.ENABLED) {
                 Log.w("MainActivity", "Location services disabled while app was backgrounded")
                 mainViewModel.updateLocationStatus(currentLocationStatus)
                 mainViewModel.updateOnboardingState(OnboardingState.LOCATION_CHECK)
                 mainViewModel.updateLocationLoading(false)
+            } else {
+                // ADDED: ensure lock remains active when returning
+                lockLocationNow()
             }
         }
     }
     
-    override fun onPause() {
+     override fun onPause() {
         super.onPause()
+        // Only set background state if app is fully initialized
         if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
+            // Set app background state
             meshService.connectionManager.setAppBackgroundState(true)
             chatViewModel.setAppBackgroundState(true)
         }
     }
     
+    /**
+     * Handle intents from notification clicks - open specific private chat or geohash chat
+     */
     private fun handleNotificationIntent(intent: Intent) {
         val shouldOpenPrivateChat = intent.getBooleanExtra(
             com.dogechat.android.ui.NotificationManager.EXTRA_OPEN_PRIVATE_CHAT, 
@@ -610,34 +754,49 @@ class MainActivity : ComponentActivity() {
                 
                 if (peerID != null) {
                     Log.d("MainActivity", "Opening private chat with $senderNickname (peerID: $peerID) from notification")
+                    
+                    // Open the private chat with this peer
                     chatViewModel.startPrivateChat(peerID)
+                    
+                    // Clear notifications for this sender since user is now viewing the chat
                     chatViewModel.clearNotificationsForSender(peerID)
                 }
             }
+            
             shouldOpenGeohashChat -> {
                 val geohash = intent.getStringExtra(com.dogechat.android.ui.NotificationManager.EXTRA_GEOHASH)
+                
                 if (geohash != null) {
                     Log.d("MainActivity", "Opening geohash chat #$geohash from notification")
+                    
+                    // Switch to the geohash channel - create appropriate geohash channel level
                     val level = when (geohash.length) {
                         7 -> com.dogechat.android.geohash.GeohashChannelLevel.BLOCK
                         6 -> com.dogechat.android.geohash.GeohashChannelLevel.NEIGHBORHOOD
                         5 -> com.dogechat.android.geohash.GeohashChannelLevel.CITY
                         4 -> com.dogechat.android.geohash.GeohashChannelLevel.PROVINCE
                         2 -> com.dogechat.android.geohash.GeohashChannelLevel.REGION
-                        else -> com.dogechat.android.geohash.GeohashChannelLevel.CITY
+                        else -> com.dogechat.android.geohash.GeohashChannelLevel.CITY // Default fallback
                     }
                     val geohashChannel = com.dogechat.android.geohash.GeohashChannel(level, geohash)
                     val channelId = com.dogechat.android.geohash.ChannelID.Location(geohashChannel)
                     chatViewModel.selectLocationChannel(channelId)
+                    
+                    // Update current geohash state for notifications
                     chatViewModel.setCurrentGeohash(geohash)
+                    
+                    // Clear notifications for this geohash since user is now viewing it
                     chatViewModel.clearNotificationsForGeohash(geohash)
                 }
             }
         }
     }
+
     
     override fun onDestroy() {
         super.onDestroy()
+        
+        // Cleanup location status manager
         try {
             locationStatusManager.cleanup()
             Log.d("MainActivity", "Location status manager cleaned up successfully")
@@ -645,6 +804,7 @@ class MainActivity : ComponentActivity() {
             Log.w("MainActivity", "Error cleaning up location status manager: ${e.message}")
         }
         
+        // Stop mesh services if app was fully initialized
         if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
             try {
                 meshService.stopServices()
