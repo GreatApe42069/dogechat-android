@@ -5,19 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2025-09-27
+** All commits up to this point have been merged Commits on Sep 15, 2025
+remove the noise handshake if peer goes offline (permissionlesstech#435)
+Commit 1178fc254a81e660fde509dbc9130f4c4940be68 and all prior
+Verified by Greatape42069
+
+
+* remove the noise handshake if peer goes offline
+* fix: bookmark removal persistence
+* lock to tor
+* bootstrap state
+* fix remove peer on disconnect
+* feat(geohash): add in-app Geohash Picker map with quadrant drill-down and Activity integration
+
+- New GeohashPickerActivity hosting a WebView with Leaflet-based picker
+- Adds map icon next to custom geohash input in LocationChannelsSheet
+- Picker allows quadrant selection and subquadrant drill-down; returns selected geohash
+- Register activity in AndroidManifest
+
+perf(picker): improve map performance and correctness
+- Use LayerGroup and clearLayers() on redraw to avoid stale overlays
+- Use Leaflet canvas renderer for rectangles to reduce DOM and improve perf
+- Make labels non-interactive and pointer-events: none to avoid gesture overhead
+- Fix initial mega-label artifact by grouping and clearing labels with cells
+- added asset geohash_picker.html with minimal geohash helpers (pulse,activity,pts,heatmap)
+
+* fixed mismatches in files
+
+* fix some issues
+
+* better geohash labels on map
+
+* design wip
+
+* countries green
+
+* wip
+
+* geohashpicker: pan + zoom; start from current geohash channel, heatmap, activity, #d0ge icon centered on start
+
+* better ui
+
+* ui elements
+
+* better readability
+
 ## [0.9.6] - 2025-09-17
-This release introduces initial Dogecoin wallet support and syncs with upstream changes through permissionlesstech/bitchat-android commit 1178fc254a81e660fde509dbc9130f4c4940be68.
+This release introduces initial Dogecoin wallet support and also syncs with upstream changes through permissionlesstech/bitchat-android commit 1178fc254a81e660fde509dbc9130f4c4940be68.
 
 ### Added
-- Dogecoin wallet (alpha)
-  - Wallet screen and navigation from ChatHeader.
+- Dogecoin wallet integration start (alpha)
+  - Wallet screen and navigation from ChatHeader to side bar component.
   - DNS seed peer discovery for Dogecoin; connects to peers without Tor.
   - Initial transaction fetch logic and detailed SPV logs for troubleshooting.
   - WIF import support and private key display/backup action.
   - Triple-tap emergency wallet data wipe from header for quick reset.
   - About screen controls for starting the SPV node (exposed entry point for wallet/SPV controls).
 - Tor separation for wallet
-  - Early support to start wallet/SPV connectivity separately from main app Tor controls; added extensive logging to aid validation.
+  - Early support to start wallet/SPV connectivity separately from main app Tor controls; added extensive logging to aid validation (Wallet not functional).
 
 ### Changed
 - UI/Theming
