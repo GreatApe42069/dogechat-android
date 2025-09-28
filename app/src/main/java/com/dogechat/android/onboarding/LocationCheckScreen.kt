@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun LocationCheckScreen(
+    modifier: Modifier,
     status: LocationStatus,
     onEnableLocation: () -> Unit,
     onRetry: () -> Unit,
@@ -29,9 +30,7 @@ fun LocationCheckScreen(
     val colorScheme = MaterialTheme.colorScheme
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = modifier.padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
         when (status) {
@@ -68,16 +67,15 @@ private fun LocationDisabledContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Location icon - using LocationOn outlined icon in app's yellow color
         Icon(
             imageVector = Icons.Outlined.LocationOn,
             contentDescription = "Location Services",
             modifier = Modifier.size(64.dp),
-            tint = Color(0xFFFFFF00) // App's main yellow color
+            tint = Color(0xFFFFD700)
         )
 
         Text(
-            text = "Location Services Much Required",
+            text = "Location Services Required",
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -97,7 +95,6 @@ private fun LocationDisabledContent(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Privacy assurance section
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -105,19 +102,19 @@ private fun LocationDisabledContent(
                     Icon(
                         imageVector = Icons.Filled.Security,
                         contentDescription = "Privacy",
-                        tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(20.dp)
+                        tint = Color(0xFFFFD700),
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Privacy First",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = colorScheme.onSurface
+                            color = Color(0xFFFFFF00)
                         )
                     )
                 }
-                
+
                 Text(
                     text = "Đogechat does NOT track your location.\n\nLocation services are required for Bluetooth scanning and for the Geohash chat feature.",
                     style = MaterialTheme.typography.bodySmall.copy(
@@ -132,17 +129,17 @@ private fun LocationDisabledContent(
                     text = "Đogechat needs Much location services for:",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
-                        color = colorScheme.onSurface
+                        color = Color(0xFFFFFF00)
                     ),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
-                
+
                 Text(
-                    text = "• Bluetooth Đevice Much Scanning\n" +
-                            "• Điscovering Many nearby users on Much mesh network\n" +
-                            "• Geohash Such Chat Feature\n" +
-                            "• No tracking Shibes or location collection",
+                    text = "• Bluetooth device Such Scanning\n" +
+                            "• Điscovering nearby Shibes on the mesh network\n" +
+                            "• Geohash chat feature\n" +
+                            "• No tracking of shibes or location collection",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -156,13 +153,16 @@ private fun LocationDisabledContent(
         } else {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding() // Ensure buttons aren’t hidden by bottom bar
             ) {
                 Button(
                     onClick = onEnableLocation,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFFF00) // App's main yellow color
+                        containerColor = Color(0xFFFFD700)
                     )
                 ) {
                     Text(
@@ -200,7 +200,6 @@ private fun LocationNotAvailableContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Error icon
         Icon(
             imageVector = Icons.Filled.ErrorOutline,
             contentDescription = "Error",
@@ -226,7 +225,7 @@ private fun LocationNotAvailableContent(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Text(
-                text = "Location services are not available on this device. This is unusual as location services are standard on Android devices.\n\nDogechat needs location services for Bluetooth scanning to work properly (Android requirement). Without this, the app cannot discover nearby users.",
+                text = "Location services are not available on this device. This is unusual as location services are standard on Android devices.\n\nĐogechat needs Much location services for Bluetooth scanning to work properly (Android requirement). Without this, the app cannot discover nearby users.",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     color = colorScheme.onSurface
@@ -247,7 +246,7 @@ private fun LocationCheckingContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "dogechat",
+            text = "Đogechat",
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -270,7 +269,6 @@ private fun LocationCheckingContent(
 
 @Composable
 private fun LocationLoadingIndicator() {
-    // Animated rotation for the loading indicator
     val infiniteTransition = rememberInfiniteTransition(label = "location_loading")
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -290,7 +288,7 @@ private fun LocationLoadingIndicator() {
             modifier = Modifier
                 .fillMaxSize()
                 .rotate(rotationAngle),
-            color = Color(0xFFFFFF00), // Location yellow
+            color = Color(0xFFFFD700),
             strokeWidth = 3.dp
         )
     }

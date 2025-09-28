@@ -1,7 +1,6 @@
 package com.dogechat.android
 
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -9,15 +8,14 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.repeatOnLifecycle
@@ -27,6 +25,7 @@ import com.dogechat.android.onboarding.BluetoothCheckScreen
 import com.dogechat.android.onboarding.BluetoothStatus
 import com.dogechat.android.onboarding.BluetoothStatusManager
 import com.dogechat.android.onboarding.BatteryOptimizationManager
+import com.dogechat.android.onboarding.BatteryOptimizationPreferenceManager
 import com.dogechat.android.onboarding.BatteryOptimizationScreen
 import com.dogechat.android.onboarding.BatteryOptimizationStatus
 import com.dogechat.android.onboarding.InitializationErrorScreen
@@ -41,10 +40,17 @@ import com.dogechat.android.onboarding.PermissionManager
 import com.dogechat.android.ui.ChatScreen
 import com.dogechat.android.ui.ChatViewModel
 import com.dogechat.android.ui.theme.DogechatTheme
-import com.dogechat.android.ui.theme.ThemePreference
-import com.dogechat.android.ui.theme.ThemePreferenceManager
+import com.dogechat.android.nostr.PoWPreferenceManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// ADDED for system bars + location lock
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.dogechat.android.geohash.LocationChannelManager
 
 class MainActivity : ComponentActivity() {
     
@@ -69,17 +75,25 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Enable edge-to-edge display for modern Android look
+        // ADDED: remove gray flash and set edge-to-edge with brand system bars
+        window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
         enableEdgeToEdge()
-        
-        // Make status bar transparent and content can extend behind it
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        
-        // Force a solid opaque yellow status bar while keeping edge-to-edge content.
-        // Use dark icons so they remain visible on yellow.
-        window.statusBarColor = 0xFFFFFF00.toInt() // opaque bright yellow
+        // Bright yellow status bar with dark icons
+        @Suppress("DEPRECATION")
+        run {
+            window.statusBarColor = 0xFFFFFF00.toInt()
+        }
         WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
-        
+        // Transparent nav bar; disable contrast so no scrims
+        @Suppress("DEPRECATION")
+        run {
+            window.navigationBarColor = Color.TRANSPARENT
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+
         // Initialize permission management
         permissionManager = PermissionManager(this)
         // Initialize core mesh service first
@@ -111,11 +125,14 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             DogechatTheme {
-                Surface(
+                Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    OnboardingFlowScreen()
+                    containerColor = MaterialTheme.colorScheme.background
+                ) { innerPadding ->
+                    OnboardingFlowScreen(modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                    )
                 }
             }
         }
@@ -137,7 +154,7 @@ class MainActivity : ComponentActivity() {
     }
     
     @Composable
-    private fun OnboardingFlowScreen() {
+    private fun OnboardingFlowScreen(modifier: Modifier = Modifier) {
         val context = LocalContext.current
         val onboardingState by mainViewModel.onboardingState.collectAsState()
         val bluetoothStatus by mainViewModel.bluetoothStatus.collectAsState()
@@ -171,8 +188,8 @@ class MainActivity : ComponentActivity() {
         }
 
         when (onboardingState) {
-            OnboardingState.CHECKING -> {
-                InitializingScreen()
+            OnboardingState.PERMISSION_REQUESTING -> {
+                InitializingScreen(modifier)
             }
             
             OnboardingState.BLUETOOTH_CHECK -> {
@@ -191,6 +208,7 @@ class MainActivity : ComponentActivity() {
             
             OnboardingState.LOCATION_CHECK -> {
                 LocationCheckScreen(
+                    modifier = modifier,
                     status = locationStatus,
                     onEnableLocation = {
                         mainViewModel.updateLocationLoading(true)
@@ -205,6 +223,7 @@ class MainActivity : ComponentActivity() {
             
             OnboardingState.BATTERY_OPTIMIZATION_CHECK -> {
                 BatteryOptimizationScreen(
+                    modifier = modifier,
                     status = batteryOptimizationStatus,
                     onDisableBatteryOptimization = {
                         mainViewModel.updateBatteryOptimizationLoading(true)
@@ -223,6 +242,7 @@ class MainActivity : ComponentActivity() {
             
             OnboardingState.PERMISSION_EXPLANATION -> {
                 PermissionExplanationScreen(
+                    modifier = modifier,
                     permissionCategories = permissionManager.getCategorizedPermissions(),
                     onContinue = {
                         mainViewModel.updateOnboardingState(OnboardingState.PERMISSION_REQUESTING)
@@ -230,16 +250,8 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
-            
-            OnboardingState.PERMISSION_REQUESTING -> {
-                InitializingScreen()
-            }
-            
-            OnboardingState.INITIALIZING -> {
-                InitializingScreen()
-            }
-            
-            OnboardingState.COMPLETE -> {
+
+            OnboardingState.CHECKING, OnboardingState.INITIALIZING, OnboardingState.COMPLETE -> {
                 // Set up back navigation handling for the chat screen
                 val backCallback = object : OnBackPressedCallback(true) {
                     override fun handleOnBackPressed() {
@@ -262,6 +274,7 @@ class MainActivity : ComponentActivity() {
             
             OnboardingState.ERROR -> {
                 InitializationErrorScreen(
+                    modifier = modifier,
                     errorMessage = errorMessage,
                     onRetry = {
                         mainViewModel.updateOnboardingState(OnboardingState.CHECKING)
@@ -372,6 +385,19 @@ class MainActivity : ComponentActivity() {
         checkLocationAndProceed()
     }
 
+    // ADDED: force-lock location channels immediately (mirror bitchat behavior)
+    private fun lockLocationNow() {
+        runCatching {
+            val mgr = LocationChannelManager.getInstance(this)
+            mgr.enableLocationServices()
+            mgr.setTeleported(false)
+            mgr.refreshChannels()
+            mgr.beginLiveRefresh()
+        }.onFailure {
+            Log.w("MainActivity", "lockLocationNow error: ${it.message}")
+        }
+    }
+
     /**
      * Check Location services status and proceed with onboarding flow
      */
@@ -392,6 +418,8 @@ class MainActivity : ComponentActivity() {
         
         when (mainViewModel.locationStatus.value) {
             LocationStatus.ENABLED -> {
+                // ADDED: lock location immediately
+                lockLocationNow()
                 // Location services enabled, check battery optimization next
                 checkBatteryOptimizationAndProceed()
             }
@@ -417,6 +445,8 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "Location services enabled by user")
         mainViewModel.updateLocationLoading(false)
         mainViewModel.updateLocationStatus(LocationStatus.ENABLED)
+        // ADDED: lock immediately
+        lockLocationNow()
         checkBatteryOptimizationAndProceed()
     }
 
@@ -536,6 +566,13 @@ class MainActivity : ComponentActivity() {
             return
         }
         
+        // Check if user has previously skipped battery optimization
+        if (BatteryOptimizationPreferenceManager.isSkipped(this)) {
+            android.util.Log.d("MainActivity", "User previously skipped battery optimization, proceeding to permissions")
+            proceedWithPermissionCheck()
+            return
+        }
+        
         // For existing users, check battery optimization status
         batteryOptimizationManager.logBatteryOptimizationStatus()
         val currentBatteryOptimizationStatus = when {
@@ -594,8 +631,12 @@ class MainActivity : ComponentActivity() {
                 // Initialize the app with a proper delay to ensure Bluetooth stack is ready
                 // This solves the issue where app needs restart to work on first install
                 delay(1000) // Give the system time to process permission grants
-               
+                
                 Log.d("MainActivity", "Permissions verified, initializing chat system")
+                
+                // Initialize PoW preferences early in the initialization process
+                PoWPreferenceManager.init(this@MainActivity)
+                Log.d("MainActivity", "PoW preferences initialized")
                 
                 // Ensure all permissions are still granted (user might have revoked in settings)
                 if (!permissionManager.areAllPermissionsGranted()) {
@@ -603,6 +644,23 @@ class MainActivity : ComponentActivity() {
                     Log.w("MainActivity", "Permissions revoked during initialization: $missing")
                     handleOnboardingFailed("Some permissions were revoked. Please grant all permissions to continue.")
                     return@launch
+                }
+
+                // >>> Location WARM-UP INSERTED HERE (bitchat parity) <<<
+                // Make LocationChannelManager hot immediately after permissions are granted
+                runCatching {
+                    val lcm = LocationChannelManager.getInstance(this@MainActivity)
+                    lcm.enableLocationChannels()   // does not pop the permission dialog; just updates internal state
+                    lcm.refreshChannels()
+                    lcm.beginLiveRefresh()
+                }.onFailure { e ->
+                    Log.w("MainActivity", "LCM warmup failed: ${e.message}")
+                }
+                // >>> END WARM-UP <<<
+
+                // If system location is already enabled, lock now
+                if (locationStatusManager.checkLocationStatus() == LocationStatus.ENABLED) {
+                    lockLocationNow()
                 }
 
                 // Set up mesh service delegate and start services
@@ -658,6 +716,9 @@ class MainActivity : ComponentActivity() {
                 mainViewModel.updateLocationStatus(currentLocationStatus)
                 mainViewModel.updateOnboardingState(OnboardingState.LOCATION_CHECK)
                 mainViewModel.updateLocationLoading(false)
+            } else {
+                // ADDED: ensure lock remains active when returning
+                lockLocationNow()
             }
         }
     }
@@ -730,6 +791,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
     
     override fun onDestroy() {
         super.onDestroy()

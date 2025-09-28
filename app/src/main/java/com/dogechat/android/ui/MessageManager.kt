@@ -23,6 +23,17 @@ class MessageManager(private val state: ChatState) {
         currentMessages.add(message)
         state.setMessages(currentMessages)
     }
+
+    // Log a system message into the main chat (visible to user)
+    fun addSystemMessage(text: String) {
+        val sys = DogechatMessage(
+            sender = "system",
+            content = text,
+            timestamp = Date(),
+            isRelay = false
+        )
+        addMessage(sys)
+    }
     
     fun clearMessages() {
         state.setMessages(emptyList())
@@ -41,8 +52,18 @@ class MessageManager(private val state: ChatState) {
         currentChannelMessages[channel] = channelMessageList
         state.setChannelMessages(currentChannelMessages)
         
-        // Update unread count if not currently in this channel
-        if (state.getCurrentChannelValue() != channel) {
+        // Update unread count if not currently viewing this channel
+        // Consider both classic channels (state.currentChannel) and geohash location channel selection
+        val viewingClassicChannel = state.getCurrentChannelValue() == channel
+        val viewingGeohashChannel = try {
+            if (channel.startsWith("geo:")) {
+                val geo = channel.removePrefix("geo:")
+                val selected = state.selectedLocationChannel.value
+                selected is com.dogechat.android.geohash.ChannelID.Location && selected.channel.geohash.equals(geo, ignoreCase = true)
+            } else false
+        } catch (_: Exception) { false }
+
+        if (!viewingClassicChannel && !viewingGeohashChannel) {
             val currentUnread = state.getUnreadChannelMessagesValue().toMutableMap()
             currentUnread[channel] = (currentUnread[channel] ?: 0) + 1
             state.setUnreadChannelMessages(currentUnread)
@@ -72,7 +93,7 @@ class MessageManager(private val state: ChatState) {
     }
     
     // MARK: - Private Message Management
-    
+
     fun addPrivateMessage(peerID: String, message: DogechatMessage) {
         val currentPrivateChats = state.getPrivateChatsValue().toMutableMap()
         if (!currentPrivateChats.containsKey(peerID)) {
@@ -90,6 +111,18 @@ class MessageManager(private val state: ChatState) {
             currentUnread.add(peerID)
             state.setUnreadPrivateMessages(currentUnread)
         }
+    }
+
+    // Variant that does not mark unread (used when we know the message has been read already, e.g., persisted Nostr read store)
+    fun addPrivateMessageNoUnread(peerID: String, message: DogechatMessage) {
+        val currentPrivateChats = state.getPrivateChatsValue().toMutableMap()
+        if (!currentPrivateChats.containsKey(peerID)) {
+            currentPrivateChats[peerID] = mutableListOf()
+        }
+        val chatMessages = currentPrivateChats[peerID]?.toMutableList() ?: mutableListOf()
+        chatMessages.add(message)
+        currentPrivateChats[peerID] = chatMessages
+        state.setPrivateChats(currentPrivateChats)
     }
     
     fun clearPrivateMessages(peerID: String) {
@@ -210,6 +243,49 @@ class MessageManager(private val state: ChatState) {
             }
         }
         state.setChannelMessages(updatedChannelMessages)
+    }
+
+    // Remove a message from all locations (main timeline, private chats, channels)
+    fun removeMessageById(messageID: String) {
+        // Main timeline
+        run {
+            val list = state.getMessagesValue().toMutableList()
+            val idx = list.indexOfFirst { it.id == messageID }
+            if (idx >= 0) {
+                list.removeAt(idx)
+                state.setMessages(list)
+            }
+        }
+        // Private chats
+        run {
+            val chats = state.getPrivateChatsValue().toMutableMap()
+            var changed = false
+            chats.keys.toList().forEach { key ->
+                val msgs = chats[key]?.toMutableList() ?: mutableListOf()
+                val idx = msgs.indexOfFirst { it.id == messageID }
+                if (idx >= 0) {
+                    msgs.removeAt(idx)
+                    chats[key] = msgs
+                    changed = true
+                }
+            }
+            if (changed) state.setPrivateChats(chats)
+        }
+        // Channels
+        run {
+            val chans = state.getChannelMessagesValue().toMutableMap()
+            var changed = false
+            chans.keys.toList().forEach { ch ->
+                val msgs = chans[ch]?.toMutableList() ?: mutableListOf()
+                val idx = msgs.indexOfFirst { it.id == messageID }
+                if (idx >= 0) {
+                    msgs.removeAt(idx)
+                    chans[ch] = msgs
+                    changed = true
+                }
+            }
+            if (changed) state.setChannelMessages(chans)
+        }
     }
     
     // MARK: - Utility Functions

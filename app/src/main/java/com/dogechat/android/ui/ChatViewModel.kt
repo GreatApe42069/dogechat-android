@@ -10,7 +10,7 @@ import com.dogechat.android.mesh.BluetoothMeshDelegate
 import com.dogechat.android.mesh.BluetoothMeshService
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.protocol.DogechatPacket
-import com.dogechat.android.nostr.NostrGeohashService
+
 
 import kotlinx.coroutines.launch
 import com.dogechat.android.util.NotificationIntervalManager
@@ -18,6 +18,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Date
 import kotlin.random.Random
+import com.dogechat.android.geohash.Geohash
 
 /**
  * Refactored ChatViewModel - Main coordinator for dogechat functionality
@@ -27,6 +28,7 @@ class ChatViewModel(
     application: Application,
     val meshService: BluetoothMeshService
 ) : AndroidViewModel(application), BluetoothMeshDelegate {
+    private val debugManager by lazy { try { com.dogechat.android.ui.debug.DebugSettingsManager.getInstance() } catch (e: Exception) { null } }
 
     companion object {
         private const val TAG = "ChatViewModel"
@@ -68,18 +70,20 @@ class ChatViewModel(
         getMeshService = { meshService }
     )
     
-    // Nostr and Geohash service - initialize singleton
-    private val nostrGeohashService = NostrGeohashService.initialize(
+    // New Geohash architecture ViewModel (replaces God object service usage in UI path)
+    val geohashViewModel = GeohashViewModel(
         application = application,
         state = state,
         messageManager = messageManager,
         privateChatManager = privateChatManager,
         meshDelegateHandler = meshDelegateHandler,
-        coroutineScope = viewModelScope,
         dataManager = dataManager,
         notificationManager = notificationManager
     )
-    
+
+
+
+
     // Expose state through LiveData (maintaining the same interface)
     val messages: LiveData<List<DogechatMessage>> = state.messages
     val connectedPeers: LiveData<List<String>> = state.connectedPeers
@@ -107,13 +111,14 @@ class ChatViewModel(
     val peerFingerprints: LiveData<Map<String, String>> = state.peerFingerprints
     val peerNicknames: LiveData<Map<String, String>> = state.peerNicknames
     val peerRSSI: LiveData<Map<String, Int>> = state.peerRSSI
+    val peerDirect: LiveData<Map<String, Boolean>> = state.peerDirect
     val showAppInfo: LiveData<Boolean> = state.showAppInfo
     val selectedLocationChannel: LiveData<com.dogechat.android.geohash.ChannelID?> = state.selectedLocationChannel
     val isTeleported: LiveData<Boolean> = state.isTeleported
     val geohashPeople: LiveData<List<GeoPerson>> = state.geohashPeople
     val teleportedGeo: LiveData<Set<String>> = state.teleportedGeo
     val geohashParticipantCounts: LiveData<Map<String, Int>> = state.geohashParticipantCounts
-    
+
     init {
         // Note: Mesh service delegate is now set by MainActivity
         loadAndInitialize()
@@ -143,29 +148,53 @@ class ChatViewModel(
         state.setFavoritePeers(dataManager.favoritePeers.toSet())
         dataManager.loadBlockedUsers()
         dataManager.loadGeohashBlockedUsers()
-        
+
         // Log all favorites at startup
         dataManager.logAllFavorites()
         logCurrentFavoriteState()
         
         // Initialize session state monitoring
         initializeSessionStateMonitoring()
+
+        // Bridge DebugSettingsManager -> Chat messages when verbose logging is on
+        viewModelScope.launch {
+            com.dogechat.android.ui.debug.DebugSettingsManager.getInstance().debugMessages.collect { msgs ->
+                if (com.dogechat.android.ui.debug.DebugSettingsManager.getInstance().verboseLoggingEnabled.value) {
+                    // Only show debug logs in the Mesh chat timeline to avoid leaking into geohash chats
+                    val selectedLocation = state.selectedLocationChannel.value
+                    if (selectedLocation is com.dogechat.android.geohash.ChannelID.Mesh) {
+                        // Append only latest debug message as system message to avoid flooding
+                        msgs.lastOrNull()?.let { dm ->
+                            messageManager.addSystemMessage(dm.content)
+                        }
+                    }
+                }
+            }
+        }
         
-        // Initialize location channel state
-        nostrGeohashService.initializeLocationChannelState()
-        
+        // Initialize new geohash architecture
+        geohashViewModel.initialize()
+
+        // MAP HEAT WARM-UP: make warm start instant and avoid jank on opening the picker
+        runCatching {
+            HeatStreamBus.setTTL(300_000L) // 5-minute rolling window
+            warmMapWithCurrentData()      // push current counts + recent geo messages as pulses
+            viewModelScope.launch {
+                delay(1500)               // in case repos finished another batch after init
+                warmMapWithCurrentData()
+            }
+        }
+
         // Initialize favorites persistence service
         com.dogechat.android.favorites.FavoritesPersistenceService.initialize(getApplication())
-        
-        // Initialize Nostr integration
-        nostrGeohashService.initializeNostrIntegration()
+
 
         // Ensure NostrTransport knows our mesh peer ID for embedded packets
         try {
             val nostrTransport = com.dogechat.android.nostr.NostrTransport.getInstance(getApplication())
             nostrTransport.senderPeerID = meshService.myPeerID
         } catch (_: Exception) { }
-        
+
         // Note: Mesh service is now started by MainActivity
         
         // Show welcome message if no peers after delay
@@ -174,7 +203,7 @@ class ChatViewModel(
             if (state.getConnectedPeersValue().isEmpty() && state.getMessagesValue().isEmpty()) {
                 val welcomeMessage = DogechatMessage(
                     sender = "system",
-                    content = "get Many people around you to Very download dogechat and Much chat with them here!",
+                    content = "Get Many Shibes Around you to Download dogechat and chat with them here... Much Communication.. Such LFG!",
                     timestamp = Date(),
                     isRelay = false
                 )
@@ -187,13 +216,53 @@ class ChatViewModel(
         super.onCleared()
         // Note: Mesh service lifecycle is now managed by MainActivity
     }
-
+    
     // MARK: - Nickname Management
     
     fun setNickname(newNickname: String) {
         state.setNickname(newNickname)
         dataManager.saveNickname(newNickname)
         meshService.sendBroadcastAnnounce()
+    }
+    
+    /**
+     * Ensure Nostr DM subscription for a geohash conversation key if known
+     * Minimal-change approach: reflectively access GeohashViewModel internals to reuse pipeline
+     */
+    private fun ensureGeohashDMSubscriptionIfNeeded(convKey: String) {
+        try {
+            val repoField = GeohashViewModel::class.java.getDeclaredField("repo")
+            repoField.isAccessible = true
+            val repo = repoField.get(geohashViewModel) as com.dogechat.android.nostr.GeohashRepository
+            val gh = repo.getConversationGeohash(convKey)
+            if (!gh.isNullOrEmpty()) {
+                val subMgrField = GeohashViewModel::class.java.getDeclaredField("subscriptionManager")
+                subMgrField.isAccessible = true
+                val subMgr = subMgrField.get(geohashViewModel) as com.dogechat.android.nostr.NostrSubscriptionManager
+                val identity = com.dogechat.android.nostr.NostrIdentityBridge.deriveIdentity(gh, getApplication())
+                val subId = "geo-dm-$gh"
+                val currentDmSubField = GeohashViewModel::class.java.getDeclaredField("currentDmSubId")
+                currentDmSubField.isAccessible = true
+                val currentId = currentDmSubField.get(geohashViewModel) as String?
+                if (currentId != subId) {
+                    (currentId)?.let { subMgr.unsubscribe(it) }
+                    currentDmSubField.set(geohashViewModel, subId)
+                    subMgr.subscribeGiftWraps(
+                        pubkey = identity.publicKeyHex,
+                        sinceMs = System.currentTimeMillis() - 172800000L,
+                        id = subId,
+                        handler = { event ->
+                            val dmHandlerField = GeohashViewModel::class.java.getDeclaredField("dmHandler")
+                            dmHandlerField.isAccessible = true
+                            val dmHandler = dmHandlerField.get(geohashViewModel) as com.dogechat.android.nostr.NostrDirectMessageHandler
+                            dmHandler.onGiftWrap(event, gh, identity)
+                        }
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "ensureGeohashDMSubscriptionIfNeeded failed: ${e.message}")
+        }
     }
 
     // MARK: - Channel Management (delegated)
@@ -210,10 +279,15 @@ class ChatViewModel(
         channelManager.leaveChannel(channel)
         meshService.sendMessage("left $channel")
     }
-
+    
     // MARK: - Private Chat Management (delegated)
     
     fun startPrivateChat(peerID: String) {
+        // For geohash conversation keys, ensure DM subscription is active
+        if (peerID.startsWith("nostr_")) {
+            ensureGeohashDMSubscriptionIfNeeded(peerID)
+        }
+        
         val success = privateChatManager.startPrivateChat(peerID, meshService)
         if (success) {
             // Notify notification manager about current private chat
@@ -242,19 +316,91 @@ class ChatViewModel(
         clearMeshMentionNotifications()
     }
 
+    // MARK: - Open Latest Unread Private Chat
+
+    fun openLatestUnreadPrivateChat() {
+        try {
+            val unreadKeys = state.getUnreadPrivateMessagesValue()
+            if (unreadKeys.isEmpty()) return
+
+            val myID = meshService.myPeerID
+            val chats = state.getPrivateChatsValue()
+
+            // Pick the latest incoming message among unread conversations
+            var bestKey: String? = null
+            var bestTime: Long = Long.MIN_VALUE
+
+            unreadKeys.forEach { key ->
+                val list = chats[key]
+                if (!list.isNullOrEmpty()) {
+                    // Prefer the latest incoming message (sender != me), fallback to last message
+                    val latestIncoming = list.lastOrNull { it.sender != myID }
+                    val candidateTime = (latestIncoming ?: list.last()).timestamp.time
+                    if (candidateTime > bestTime) {
+                        bestTime = candidateTime
+                        bestKey = key
+                    }
+                }
+            }
+
+            val targetKey = bestKey ?: unreadKeys.firstOrNull() ?: return
+
+            val openPeer: String = if (targetKey.startsWith("nostr_")) {
+                // Use the exact conversation key for geohash DMs and ensure DM subscription
+                ensureGeohashDMSubscriptionIfNeeded(targetKey)
+                targetKey
+            } else {
+                // Resolve to a canonical mesh peer if needed
+                val canonical = com.dogechat.android.services.ConversationAliasResolver.resolveCanonicalPeerID(
+                    selectedPeerID = targetKey,
+                    connectedPeers = state.getConnectedPeersValue(),
+                    meshNoiseKeyForPeer = { pid -> meshService.getPeerInfo(pid)?.noisePublicKey },
+                    meshHasPeer = { pid -> meshService.getPeerInfo(pid)?.isConnected == true },
+                    nostrPubHexForAlias = { alias -> com.dogechat.android.nostr.GeohashAliasRegistry.get(alias) },
+                    findNoiseKeyForNostr = { key -> com.dogechat.android.favorites.FavoritesPersistenceService.shared.findNoiseKey(key) }
+                )
+                canonical ?: targetKey
+            }
+
+            startPrivateChat(openPeer)
+
+            // If sidebar visible, hide it to focus on the private chat
+            if (state.getShowSidebarValue()) {
+                state.setShowSidebar(false)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "openLatestUnreadPrivateChat failed: ${e.message}")
+        }
+    }
+
+    // END - Open Latest Unread Private Chat
+
+    
     // MARK: - Message Sending
     
     fun sendMessage(content: String) {
         if (content.isEmpty()) return
-
+        
         // Check for commands
         if (content.startsWith("/")) {
+            val selectedLocationForCommand = state.selectedLocationChannel.value
             commandProcessor.processCommand(content, meshService, meshService.myPeerID, { messageContent, mentions, channel ->
-                meshService.sendMessage(messageContent, mentions, channel)
-            }, this)
+                if (selectedLocationForCommand is com.dogechat.android.geohash.ChannelID.Location) {
+                    // Route command-generated public messages via Nostr in geohash channels
+                    geohashViewModel.sendGeohashMessage(
+                        messageContent,
+                        selectedLocationForCommand.channel,
+                        meshService.myPeerID,
+                        state.getNicknameValue()
+                    )
+                } else {
+                    // Default: route via mesh
+                    meshService.sendMessage(messageContent, mentions, channel)
+                }
+            })
             return
         }
-
+        
         val mentions = messageManager.parseMentions(content, meshService.getPeerNicknames().values.toSet(), state.getNicknameValue())
         // REMOVED: Auto-join mentioned channels feature that was incorrectly parsing hashtags from @mentions
         // This was causing messages like "test @jack#1234 test" to auto-join channel "#1234"
@@ -269,7 +415,7 @@ class ChatViewModel(
                 connectedPeers = state.getConnectedPeersValue(),
                 meshNoiseKeyForPeer = { pid -> meshService.getPeerInfo(pid)?.noisePublicKey },
                 meshHasPeer = { pid -> meshService.getPeerInfo(pid)?.isConnected == true },
-                nostrPubHexForAlias = { alias -> nostrGeohashService.getNostrKeyMapping()[alias] },
+                nostrPubHexForAlias = { alias -> com.dogechat.android.nostr.GeohashAliasRegistry.get(alias) },
                 findNoiseKeyForNostr = { key -> com.dogechat.android.favorites.FavoritesPersistenceService.shared.findNoiseKey(key) }
             ).also { canonical ->
                 if (canonical != state.getSelectedPrivateChatPeerValue()) {
@@ -294,7 +440,7 @@ class ChatViewModel(
             val selectedLocationChannel = state.selectedLocationChannel.value
             if (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location) {
                 // Send to geohash channel via Nostr ephemeral event
-                nostrGeohashService.sendGeohashMessage(content, selectedLocationChannel.channel, meshService.myPeerID, state.getNicknameValue())
+                geohashViewModel.sendGeohashMessage(content, selectedLocationChannel.channel, meshService.myPeerID, state.getNicknameValue())
             } else {
                 // Send public/channel message via mesh
                 val message = DogechatMessage(
@@ -306,7 +452,7 @@ class ChatViewModel(
                     mentions = if (mentions.isNotEmpty()) mentions else null,
                     channel = currentChannelValue
                 )
-                
+
                 if (currentChannelValue != null) {
                     channelManager.addChannelMessage(currentChannelValue, message, meshService.myPeerID)
 
@@ -347,17 +493,36 @@ class ChatViewModel(
         Log.d("ChatViewModel", "toggleFavorite called for peerID: $peerID")
         privateChatManager.toggleFavorite(peerID)
 
-        // Persist relationship in FavoritesPersistenceService when we have Noise key
+        // Persist relationship in FavoritesPersistenceService
         try {
+            var noiseKey: ByteArray? = null
+            var nickname: String = meshService.getPeerNicknames()[peerID] ?: peerID
+
+            // Case 1: Live mesh peer with known info
             val peerInfo = meshService.getPeerInfo(peerID)
-            val noiseKey = peerInfo?.noisePublicKey
-            val nickname = peerInfo?.nickname ?: (meshService.getPeerNicknames()[peerID] ?: peerID)
+            if (peerInfo?.noisePublicKey != null) {
+                noiseKey = peerInfo.noisePublicKey
+                nickname = peerInfo.nickname
+            } else {
+                // Case 2: Offline favorite entry using 64-hex noise public key as peerID
+                if (peerID.length == 64 && peerID.matches(Regex("^[0-9a-fA-F]+$"))) {
+                    try {
+                        noiseKey = peerID.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+                        // Prefer nickname from favorites store if available
+                        val rel = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey!!)
+                        if (rel != null) nickname = rel.peerNickname
+                    } catch (_: Exception) { }
+                }
+            }
+
             if (noiseKey != null) {
-                val isNowFavorite = dataManager.favoritePeers.contains(
-                    com.dogechat.android.mesh.PeerFingerprintManager.getInstance().getFingerprintForPeer(peerID) ?: ""
-                )
+                // Determine current favorite state from DataManager using fingerprint
+                val identityManager = com.dogechat.android.identity.SecureIdentityStateManager(getApplication())
+                val fingerprint = identityManager.generateFingerprint(noiseKey!!)
+                val isNowFavorite = dataManager.favoritePeers.contains(fingerprint)
+
                 com.dogechat.android.favorites.FavoritesPersistenceService.shared.updateFavoriteStatus(
-                    noisePublicKey = noiseKey,
+                    noisePublicKey = noiseKey!!,
                     nickname = nickname,
                     isFavorite = isNowFavorite
                 )
@@ -438,24 +603,16 @@ class ChatViewModel(
 
         val rssiValues = meshService.getPeerRSSI()
         state.setPeerRSSI(rssiValues)
+
+        // Update directness per peer (driven by PeerManager state)
+        try {
+            val directMap = state.getConnectedPeersValue().associateWith { pid ->
+                meshService.getPeerInfo(pid)?.isDirectConnection == true
+            }
+            state.setPeerDirect(directMap)
+        } catch (_: Exception) { }
     }
-    
 
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
     // MARK: - Debug and Troubleshooting
     
     fun getDebugStatus(): String {
@@ -479,7 +636,7 @@ class ChatViewModel(
         // Update notification manager with current geohash for notification logic
         notificationManager.setCurrentGeohash(geohash)
     }
-    
+
     fun clearNotificationsForSender(peerID: String) {
         // Clear notifications when user opens a chat
         notificationManager.clearNotificationsForSender(peerID)
@@ -489,7 +646,7 @@ class ChatViewModel(
         // Clear notifications when user opens a geohash chat
         notificationManager.clearNotificationsForGeohash(geohash)
     }
-    
+
     /**
      * Clear mesh mention notifications when user opens mesh chat
      */
@@ -506,7 +663,7 @@ class ChatViewModel(
     fun selectCommandSuggestion(suggestion: CommandSuggestion): String {
         return commandProcessor.selectCommandSuggestion(suggestion)
     }
-
+    
     // MARK: - Mention Autocomplete
     
     fun updateMentionSuggestions(input: String) {
@@ -516,7 +673,7 @@ class ChatViewModel(
     fun selectMentionSuggestion(nickname: String, currentText: String): String {
         return commandProcessor.selectMentionSuggestion(nickname, currentText)
     }
-
+    
     // MARK: - BluetoothMeshDelegate Implementation (delegated)
     
     override fun didReceiveMessage(message: DogechatMessage) {
@@ -550,9 +707,9 @@ class ChatViewModel(
     override fun isFavorite(peerID: String): Boolean {
         return meshDelegateHandler.isFavorite(peerID)
     }
-
+    
     // registerPeerPublicKey REMOVED - fingerprints now handled centrally in PeerManager
-
+    
     // MARK: - Emergency Clear
     
     fun panicClearAllData() {
@@ -573,24 +730,30 @@ class ChatViewModel(
         // Clear all notifications
         notificationManager.clearAllNotifications()
         
-        // Clear Nostr/geohash state, keys, connections, and reinitialize from scratch
+        // Clear Nostr/geohash state, keys, connections, bookmarks, and reinitialize from scratch
         try {
-            nostrGeohashService.panicResetNostrAndGeohash()
+            // Clear geohash bookmarks too (panic should remove everything)
+            try {
+                val store = com.dogechat.android.geohash.GeohashBookmarksStore.getInstance(getApplication())
+                store.clearAll()
+            } catch (_: Exception) { }
+
+            geohashViewModel.panicReset()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to reset Nostr/geohash: ${e.message}")
         }
-        
+
         // Reset nickname
         val newNickname = "anon${Random.nextInt(1000, 9999)}"
         state.setNickname(newNickname)
         dataManager.saveNickname(newNickname)
         
-        Log.w(TAG, "🚨 PANIC MODE COMPLETED - All sensitive data Much cleared")
-
+        Log.w(TAG, "🚨 PANIC MODE COMPLETED - All sensitive data cleared")
+        
         // Note: Mesh service restart is now handled by MainActivity
         // This method now only clears data, not mesh service lifecycle
     }
-
+    
     /**
      * Clear all mesh service related data
      */
@@ -604,7 +767,7 @@ class ChatViewModel(
             Log.e(TAG, "❌ Error clearing mesh service data: ${e.message}")
         }
     }
-
+    
     /**
      * Clear all cryptographic data including persistent identity
      */
@@ -617,10 +780,20 @@ class ChatViewModel(
             try {
                 val identityManager = com.dogechat.android.identity.SecureIdentityStateManager(getApplication())
                 identityManager.clearIdentityData()
-                Log.d(TAG, "✅ Cleared secure identity state")
+                // Also clear secure values used by FavoritesPersistenceService (favorites + peerID index)
+                try {
+                    identityManager.clearSecureValues("favorite_relationships", "favorite_peerid_index")
+                } catch (_: Exception) { }
+                Log.d(TAG, "✅ Cleared secure identity state and secure favorites store")
             } catch (e: Exception) {
                 Log.d(TAG, "SecureIdentityStateManager not available or already cleared: ${e.message}")
             }
+
+            // Clear FavoritesPersistenceService persistent relationships
+            try {
+                com.dogechat.android.favorites.FavoritesPersistenceService.shared.clearAllFavorites()
+                Log.d(TAG, "✅ Cleared FavoritesPersistenceService relationships")
+            } catch (_: Exception) { }
             
             Log.d(TAG, "✅ Cleared all cryptographic data")
         } catch (e: Exception) {
@@ -632,48 +805,48 @@ class ChatViewModel(
      * Get participant count for a specific geohash (5-minute activity window)
      */
     fun geohashParticipantCount(geohash: String): Int {
-        return nostrGeohashService.geohashParticipantCount(geohash)
+        return geohashViewModel.geohashParticipantCount(geohash)
     }
-    
+
     /**
      * Begin sampling multiple geohashes for participant activity
      */
     fun beginGeohashSampling(geohashes: List<String>) {
-        nostrGeohashService.beginGeohashSampling(geohashes)
+        geohashViewModel.beginGeohashSampling(geohashes)
     }
-    
+
     /**
      * End geohash sampling
      */
     fun endGeohashSampling() {
-        nostrGeohashService.endGeohashSampling()
+        // No-op in refactored architecture; sampling subscriptions are short-lived
     }
 
     /**
      * Check if a geohash person is teleported (iOS-compatible)
      */
     fun isPersonTeleported(pubkeyHex: String): Boolean {
-        return nostrGeohashService.isPersonTeleported(pubkeyHex)
+        return geohashViewModel.isPersonTeleported(pubkeyHex)
     }
-    
+
     /**
      * Start geohash DM with pubkey hex (iOS-compatible)
      */
     fun startGeohashDM(pubkeyHex: String) {
-        nostrGeohashService.startGeohashDM(pubkeyHex) { convKey ->
+        geohashViewModel.startGeohashDM(pubkeyHex) { convKey ->
             startPrivateChat(convKey)
         }
     }
 
     fun selectLocationChannel(channel: com.dogechat.android.geohash.ChannelID) {
-        nostrGeohashService.selectLocationChannel(channel)
+        geohashViewModel.selectLocationChannel(channel)
     }
-    
+
     /**
      * Block a user in geohash channels by their nickname
      */
     fun blockUserInGeohash(targetNickname: String) {
-        nostrGeohashService.blockUserInGeohash(targetNickname)
+        geohashViewModel.blockUserInGeohash(targetNickname)
     }
 
     // MARK: - Navigation Management
@@ -693,7 +866,7 @@ class ChatViewModel(
     fun hideSidebar() {
         state.setShowSidebar(false)
     }
-
+    
     /**
      * Handle Android back navigation
      * Returns true if the back press was handled, false if it should be passed to the system
@@ -746,6 +919,43 @@ class ChatViewModel(
      * Get consistent color for a Nostr pubkey (iOS-compatible)
      */
     fun colorForNostrPubkey(pubkeyHex: String, isDark: Boolean): androidx.compose.ui.graphics.Color {
-        return nostrGeohashService.colorForNostrPubkey(pubkeyHex, isDark)
+        return geohashViewModel.colorForNostrPubkey(pubkeyHex, isDark)
+    }
+
+    // --- Map warm-up helper: publish current counts + recent geo messages as pulses ---
+    private fun warmMapWithCurrentData() {
+        try {
+            // Push whatever counts we already have so labels render immediately
+            val counts = state.getGeohashParticipantCountsValue()
+            if (counts.isNotEmpty()) {
+                HeatStreamBus.publishCounts(counts)
+            }
+
+            // Convert recent channel messages in geo channels to pulses
+            val all = state.getChannelMessagesValue()
+            val pulses = mutableListOf<HeatStreamBus.HeatPoint>()
+            val now = System.currentTimeMillis()
+            val tauSec = 240.0 // 4 minutes time constant
+
+            all.forEach { (key, list) ->
+                if (!key.startsWith("geo:")) return@forEach
+                val gh = key.removePrefix("geo:")
+                val center = runCatching { Geohash.decodeToCenter(gh) }.getOrNull() ?: return@forEach
+                val recent = list.takeLast(40) // cap per geohash
+
+                for (msg in recent) {
+                    val ageSec = ((now - msg.timestamp.time).coerceAtLeast(0)).toDouble() / 1000.0
+                    val decay = kotlin.math.exp(-ageSec / tauSec)
+                    val sizeBoost = (kotlin.math.ln(1.0 + (msg.content.length).toDouble()) / kotlin.math.ln(400.0)).coerceIn(0.0, 1.0)
+                    val intensity = (0.25 + 0.5 * decay + 0.35 * sizeBoost).coerceIn(0.2, 1.0)
+                    pulses += HeatStreamBus.HeatPoint(center.first, center.second, intensity, msg.timestamp.time)
+                }
+            }
+            if (pulses.isNotEmpty()) {
+                HeatStreamBus.publishPoints(pulses)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "warmMapWithCurrentData failed: ${e.message}")
+        }
     }
 }

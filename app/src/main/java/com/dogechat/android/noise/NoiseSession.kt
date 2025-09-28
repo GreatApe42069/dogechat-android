@@ -58,9 +58,9 @@ class NoiseSession(
             
             val offset = (highestReceivedNonce - receivedNonce).toInt()
             val byteIndex = offset / 8
-            val dogeIndex = offset % 8
+            val bitIndex = offset % 8
             
-            return (replayWindow[byteIndex].toInt() and (1 shl dogeIndex)) == 0  // Not yet seen
+            return (replayWindow[byteIndex].toInt() and (1 shl bitIndex)) == 0  // Not yet seen
         }
         
         /**
@@ -77,7 +77,7 @@ class NoiseSession(
                     // Clear entire window - shift is too large
                     newReplayWindow.fill(0)
                 } else {
-                    // Shift window right by `shift` doges
+                    // Shift window right by `shift` bits
                     for (i in (REPLAY_WINDOW_BYTES - 1) downTo 0) {
                         val sourceByteIndex = i - shift / 8
                         var newByte = 0
@@ -94,12 +94,12 @@ class NoiseSession(
                 }
                 
                 newHighestReceivedNonce = receivedNonce
-                newReplayWindow[0] = (newReplayWindow[0].toInt() or 1).toByte()  // Mark most recent doge as seen
+                newReplayWindow[0] = (newReplayWindow[0].toInt() or 1).toByte()  // Mark most recent bit as seen
             } else {
                 val offset = (highestReceivedNonce - receivedNonce).toInt()
                 val byteIndex = offset / 8
-                val dogeIndex = offset % 8
-                newReplayWindow[byteIndex] = (newReplayWindow[byteIndex].toInt() or (1 shl dogeIndex)).toByte()
+                val bitIndex = offset % 8
+                newReplayWindow[byteIndex] = (newReplayWindow[byteIndex].toInt() or (1 shl bitIndex)).toByte()
             }
             
             return Pair(newHighestReceivedNonce, newReplayWindow)

@@ -4,7 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.sp
  */
 @Composable
 fun PermissionExplanationScreen(
+    modifier: Modifier,
     permissionCategories: List<PermissionCategory>,
     onContinue: () -> Unit
 ) {
@@ -53,9 +55,9 @@ fun PermissionExplanationScreen(
                     ),
                     textAlign = TextAlign.Center
                 )
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Text(
                     text = "Đecentralized mesh messaging over Bluetooth",
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -93,11 +95,11 @@ fun PermissionExplanationScreen(
                             text = "Your Privacy is Protected",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = colorScheme.onSurface
+                                color = Color(0xFFFFFF00)
                             )
                         )
                     }
-                    
+
                     Text(
                         text = "• Đogechat doesn't track you or collect any personal data\n" +
                                 "• Bluetooth mesh chats are fully offline and require no internet\n" +
@@ -114,20 +116,72 @@ fun PermissionExplanationScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "To work properly, Đogechat needs these permissions:",
+                text = "To work properly, Đogechat needs Such permissions:",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Medium,
-                    color = colorScheme.onSurface
+                    color = Color(0xFFFFD700)
                 )
             )
 
             // Permission categories
-            permissionCategories.forEach { category ->
-                PermissionCategoryCard(
-                    category = category,
-                    colorScheme = colorScheme
-                )
+            permissionCategories
+                .forEach { category ->
+                    PermissionCategoryCard(
+                        category = category,
+                        colorScheme = colorScheme
+                    )
+                }
+
+            // --- Network/Internet Permission Explanation Section (kept) ---
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🌐",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Internet & Network Permissions",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFFF00)
+                            )
+                        )
+                    }
+                    Text(
+                        text = "Đogechat only uses internet/network permissions for advanced features:",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                    )
+                    Text(
+                        text = "• Dogecoin wallet (SPV) sync and blockchain access\n" +
+                                "• Tor Enhanced privacy mode (routes wallet and chat traffic over Tor)\n" +
+                                "• Geohash channels and relays (optional online chat)\n\n" +
+                                "Offline Bluetooth mesh chat does NOT require internet. You can always use Đogechat fully offline unless you want blockchain or Tor features.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.75f)
+                        )
+                    )
+                }
             }
+            // --- End Network/Internet Section ---
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -188,7 +242,7 @@ private fun PermissionCategoryCard(
                     color = getPermissionIconColor(category.type),
                     modifier = Modifier.size(24.dp)
                 )
-                
+
                 Text(
                     text = category.type.nameValue,
                     style = MaterialTheme.typography.titleSmall.copy(
@@ -197,7 +251,7 @@ private fun PermissionCategoryCard(
                     )
                 )
             }
-            
+
             Text(
                 text = category.description,
                 style = MaterialTheme.typography.bodySmall.copy(
@@ -245,7 +299,7 @@ private fun getPermissionEmoji(permissionType: PermissionType): String {
 private fun getPermissionIconColor(permissionType: PermissionType): Color {
     return when (permissionType) {
         PermissionType.NEARBY_DEVICES -> Color(0xFF2196F3) // Blue
-        PermissionType.PRECISE_LOCATION -> Color(0xFF000000) // Yellow
+        PermissionType.PRECISE_LOCATION -> Color(0xFFFFD700) // Gold
         PermissionType.NOTIFICATIONS -> Color(0xFFFFD700) // Gold
         PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
         PermissionType.OTHER -> Color(0xFF9C27B0) // Purple

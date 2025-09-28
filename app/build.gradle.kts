@@ -1,10 +1,11 @@
 plugins {
-    id("com.android.application") version "8.7.1"
-    id("org.jetbrains.kotlin.android") version "2.0.0"
-    id("org.jetbrains.kotlin.plugin.parcelize") version "2.0.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.0"
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.kotlin.compose)
 
-    // Hilt + KSP
+    // Hilt via KAPT (stable) + keep KSP for other processors if needed
+    id("org.jetbrains.kotlin.kapt") version "2.0.0"
     id("com.google.devtools.ksp") version "2.0.0-1.0.24"
     id("com.google.dagger.hilt.android") version "2.51.1"
 }
@@ -13,18 +14,27 @@ val bitcoinjVersion = "0.16.1" // must match libdohj's bitcoinj target
 
 android {
     namespace = "com.dogechat.android"
-    compileSdk = 34
+    compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
         applicationId = "com.dogechat.android"
-        minSdk = 26
-        targetSdk = 34
+        minSdk = libs.versions.minSdk.get().toInt()
+        targetSdk = libs.versions.targetSdk.get().toInt()
 
-        versionCode = 11
-        versionName = "0.9.5"
+        versionCode = 13
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables.useSupportLibrary = true
+        vectorDrawables {
+            useSupportLibrary = true
+        }
+    }
+
+    dependenciesInfo {
+        // Disables dependency metadata when building APKs.
+        includeInApk = false
+        // Disables dependency metadata when building Android App Bundles.
+        includeInBundle = false
     }
 
     signingConfigs {
@@ -46,29 +56,39 @@ android {
             )
             signingConfig = signingConfigs.getByName("release")
         }
+        debug {
+            // Faster local iteration
+            isMinifyEnabled = false
+        }
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+    }
 
     packaging {
         resources {
-            // Keep existing pick-first rules and excludes
-            pickFirsts += listOf("paymentrequest.proto")
-            excludes += listOf("META-INF/AL2.0", "META-INF/LGPL2.1")
-
-            // --- QUICK / SAFE FIX ---
-            // Exclude macOS / non-Android native files and reserved root/lib paths
-            // This prevents .dylib or 'root/lib' entries from being packaged into the AAB
-            excludes += listOf("**/*.dylib", "root/**", "lib/**")
+            // Keep native Tor/Arti libs: DO NOT exclude lib/** or root/**
+            excludes += listOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1",
+                "**/*.dylib"
+            )
+            // Resolve duplicate merge for multi-release jars (bcprov/jspecify)
+            pickFirsts += listOf(
+                "paymentrequest.proto",
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+            )
         }
-
-        // Use modern jni packaging (avoid legacy packaging putting files into reserved paths)
         jniLibs {
             useLegacyPackaging = false
         }
@@ -81,7 +101,7 @@ android {
     }
 }
 
-// Force consistent bitcoinj across dependency graph so we don't have two versions
+// Keep bitcoinj consistent across the graph
 configurations.all {
     resolutionStrategy {
         force("org.bitcoinj:bitcoinj-core:$bitcoinjVersion")
@@ -89,83 +109,99 @@ configurations.all {
 }
 
 dependencies {
-    // ---- Compose BOM & UI ----
-    implementation(platform("androidx.compose:compose-bom:2024.05.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended:1.6.0")
-    implementation("androidx.compose.runtime:runtime-livedata")
-    debugImplementation("androidx.compose.ui:ui-tooling")
+    // ---- Compose BOM ----
+    implementation(platform(libs.androidx.compose.bom))
+
+    // ---- Compose UI (via catalog + BOM) ----
+    implementation(libs.bundles.compose)
+    implementation(libs.androidx.compose.foundation)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 
     // ---- AndroidX Core / Lifecycle / Navigation ----
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.activity:activity-compose:1.9.0")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.appcompat)
+
+    // Lifecycle
+    implementation(libs.bundles.lifecycle)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
 
     // ---- Hilt + Navigation ----
     implementation("com.google.dagger:hilt-android:2.51.1")
-    ksp("com.google.dagger:hilt-compiler:2.51.1")
+    // Use KAPT for Hilt to avoid KSP NonExistentClass issues
+    kapt("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // ---- Permissions (Accompanist) ----
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+    implementation(libs.accompanist.permissions)
 
     // ---- Material / ConstraintLayout ----
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.2.0")
+    implementation(libs.material)
+    implementation(libs.constraintlayout)
 
     // ---- Bluetooth (Nordic) ----
-    implementation("no.nordicsemi.android:ble:2.7.2")
+    implementation(libs.nordic.ble)
 
     // ---- Coroutines ----
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation(libs.kotlinx.coroutines.android)
 
-    // ---- Security / Crypto ----
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.81")
+    // ---- Security / Cryptography ----
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.bundles.cryptography)
 
     // ---- JSON ----
-    implementation("com.google.code.gson:gson:2.10.1")
+    implementation(libs.gson)
+
+    // ---- ZXing ----
+    implementation(libs.zxing.core)
 
     // ---- Logging ----
-    implementation("org.slf4j:slf4j-api:2.0.7")
-    implementation("org.slf4j:slf4j-simple:2.0.7")
+    implementation(libs.slf4j.api)
+    implementation(libs.slf4j.simple)
 
-    // Local libdohj 0.16 SNAPSHOT (built and included this jar)
+    // ---- Dogecoin (libdohj snapshot jar + bitcoinj 0.16.1) ----
+    // Ensure this file exists: app/libs/libdohj-core-0.16-SNAPSHOT.jar
     implementation(files("libs/libdohj-core-0.16-SNAPSHOT.jar"))
-    implementation("com.lambdaworks:scrypt:1.4.0")
 
-    // Ensure bitcoinj version matches libdohj (0.16.1)
+    // bitcoinj must match libdohj's target; exclude its older bcprov
     implementation("org.bitcoinj:bitcoinj-core:$bitcoinjVersion") {
-        // exclude bcprov from bitcoinj since we provide a newer bcprov
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
     }
 
-    // Add direct dependencies libdohj-core expects at runtime
-    implementation("com.google.protobuf:protobuf-javalite:3.18.0")
+    // libdohj runtime deps
+    implementation(libs.scrypt)
+    implementation(libs.protobuf.javalite)
 
-    // ---- WebSocket / HTTP (upstream uses OkHttp). 3.14.x still fine. ----
-    implementation("com.squareup.okhttp3:okhttp:3.14.9")
+    // ---- Networking ----
+    implementation(libs.okhttp)
 
-    // Arti (Tor in Rust) Android bridge - use published AAR with native libs
-    implementation("info.guardianproject:arti-mobile-ex:1.2.3")
+    // ---- Tor stacks ----
+    // Arti (Rust-based Tor)
+    implementation(libs.arti.mobile.ex)
 
-    // ---- Google Play Services Location (for geohash features) ----
-    implementation("com.google.android.gms:play-services-location:21.2.0")
+    // ---- Location ----
+    implementation(libs.gms.location)
 
     // ---- Compression ----
-    implementation("org.lz4:lz4-java:1.8.0")
+    implementation(libs.lz4)
 
     // ---- Testing ----
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.05.00"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    testImplementation(libs.bundles.testing)
+
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.bundles.compose.testing)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+
+    // If you enabled desugaring above, add:
+    // coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+}
+
+// KAPT configuration for Hilt
+kapt {
+    correctErrorTypes = true
 }

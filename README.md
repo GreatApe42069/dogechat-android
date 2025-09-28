@@ -12,9 +12,16 @@ A secure, Đecentralized, peer-to-peer messaging app that works over Bluetooth m
 
 This is the **Android port** of the original [bitchat iOS app](https://github.com/jackjackdoges/bitchat), and fork of the [original bitchat-android repository](https://github.com/permissionlesstech/bitchat-android) maintaining 100% protocol compatibility for cross-platform communication.
 
-## Install Đogechat
+## 🐶 Install Đogechat
+
+To download, click the Google Play image below:
+
+[<img alt="Get it on Google Play" height="60" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"/>](https://play.google.com/store/apps/details?id=com.dogechat.android)
+
+Or
 
 You can download the latest version of Đogechat for Android from the [GitHub Releases page](https://github.com/GreatApe42069/dogechat-android/releases).
+
 
 **Instructions:**
 

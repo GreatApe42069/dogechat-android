@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
 import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.parsing.ParsedDogeToken
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -31,9 +32,16 @@ import com.dogechat.android.model.DogechatMessage
  * - SidebarComponents: Navigation drawer with channels and people
  * - AboutSheet: App info and password prompts
  * - ChatUIUtils: Utility functions for formatting and colors
+ * - Keeps the exact working main-branch UI (no regressions).
+ * - Added wallet icon and integration hooks (DOGE receive/send using libdohj).
  */
 @Composable
-fun ChatScreen(viewModel: ChatViewModel) {
+fun ChatScreen(
+    viewModel: ChatViewModel,
+    onWalletClick: (ParsedDogeToken?) -> Unit = {},
+    onDogeReceive: (ParsedDogeToken) -> Unit = {},
+    onDogeSend: (ParsedDogeToken) -> Unit = {}
+) {
     val colorScheme = MaterialTheme.colorScheme
     val messages by viewModel.messages.observeAsState(emptyList())
     val connectedPeers by viewModel.connectedPeers.observeAsState(emptyList())
@@ -62,7 +70,6 @@ fun ChatScreen(viewModel: ChatViewModel) {
     var selectedMessageForSheet by remember { mutableStateOf<DogechatMessage?>(null) }
     var forceScrollToBottom by remember { mutableStateOf(false) }
     var isScrolledUp by remember { mutableStateOf(false) }
-
     // Show password dialog when needed
     LaunchedEffect(showPasswordPrompt) {
         showPasswordDialog = showPasswordPrompt
@@ -71,13 +78,23 @@ fun ChatScreen(viewModel: ChatViewModel) {
     val isConnected by viewModel.isConnected.observeAsState(false)
     val passwordPromptChannel by viewModel.passwordPromptChannel.observeAsState(null)
 
-    // Determine what messages to show
+    // Get location channel info for timeline switching
+    val selectedLocationChannel by viewModel.selectedLocationChannel.observeAsState()
+
+    // Determine what messages to show based on current context (unified timelines)
     val displayMessages = when {
         selectedPrivatePeer != null -> privateChats[selectedPrivatePeer] ?: emptyList()
         currentChannel != null -> channelMessages[currentChannel] ?: emptyList()
-        else -> messages
+        else -> {
+            val locationChannel = selectedLocationChannel
+            if (locationChannel is com.dogechat.android.geohash.ChannelID.Location) {
+                val geokey = "geo:${locationChannel.channel.geohash}"
+                channelMessages[geokey] ?: emptyList()
+            } else {
+                messages // Mesh timeline
+            }
+        }
     }
-
     // Use WindowInsets to handle keyboard properly
     Box(
         modifier = Modifier
@@ -85,7 +102,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
             .background(colorScheme.background) // Extend background to fill entire screen including status bar
     ) {
         val headerHeight = 42.dp
-        
+
         // Main content area that responds to keyboard/window insets
         Column(
             modifier = Modifier
@@ -111,11 +128,8 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 onNicknameClick = { fullSenderName ->
                     // Single click - mention user in text input
                     val currentText = messageText.text
-                    
-                    // Extract base nickname and hash suffix from full sender name
                     val (baseName, hashSuffix) = splitSuffix(fullSenderName)
-                    
-                    // Check if we're in a geohash channel to include hash suffix
+                    // Extract base nickname and hash suffix from full sender name
                     val selectedLocationChannel = viewModel.selectedLocationChannel.value
                     val mentionText = if (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location && hashSuffix.isNotEmpty()) {
                         // In geohash chat - include the hash suffix from the full display name
@@ -124,13 +138,13 @@ fun ChatScreen(viewModel: ChatViewModel) {
                         // Regular chat - just the base nickname
                         "@$baseName"
                     }
-                    
+
                     val newText = when {
                         currentText.isEmpty() -> "$mentionText "
                         currentText.endsWith(" ") -> "$currentText$mentionText "
                         else -> "$currentText $mentionText "
                     }
-                    
+
                     messageText = TextFieldValue(
                         text = newText,
                         selection = TextRange(newText.length)
@@ -143,8 +157,11 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     selectedUserForSheet = baseName
                     selectedMessageForSheet = message
                     showUserSheet = true
-                }
+                },
+                onDogeReceive = { parsedToken -> onWalletClick(parsedToken) },
+                onDogeSend = { parsedToken -> onDogeSend(parsedToken) }
             )
+
             // Input area - stays at bottom
             ChatInputSection(
                 messageText = messageText,
@@ -196,7 +213,8 @@ fun ChatScreen(viewModel: ChatViewModel) {
             onSidebarToggle = { viewModel.showSidebar() },
             onShowAppInfo = { viewModel.showAppInfo() },
             onPanicClear = { viewModel.panicClearAllData() },
-            onLocationChannelsClick = { showLocationChannelsSheet = true }
+            onLocationChannelsClick = { showLocationChannelsSheet = true },
+            onWalletClick = { onWalletClick(null) }
         )
 
         // Divider under header - positioned after status bar + header height
@@ -209,6 +227,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
             color = colorScheme.outline.copy(alpha = 0.3f)
         )
 
+        // Sidebar overlay
         val alpha by animateFloatAsState(
             targetValue = if (showSidebar) 0.5f else 0f,
             animationSpec = tween(
@@ -257,6 +276,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
             }
         }
 
+        // Sidebar slide
         AnimatedVisibility(
             visible = showSidebar,
             enter = slideInHorizontally(
@@ -301,7 +321,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
         showLocationChannelsSheet = showLocationChannelsSheet,
         onLocationChannelsSheetDismiss = { showLocationChannelsSheet = false },
         showUserSheet = showUserSheet,
-        onUserSheetDismiss = { 
+        onUserSheetDismiss = {
             showUserSheet = false
             selectedMessageForSheet = null // Reset message when dismissing
         },
@@ -380,7 +400,8 @@ private fun ChatFloatingHeader(
     onSidebarToggle: () -> Unit,
     onShowAppInfo: () -> Unit,
     onPanicClear: () -> Unit,
-    onLocationChannelsClick: () -> Unit
+    onLocationChannelsClick: () -> Unit,
+    onWalletClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -405,7 +426,8 @@ private fun ChatFloatingHeader(
                     onSidebarClick = onSidebarToggle,
                     onTripleClick = onPanicClear,
                     onShowAppInfo = onShowAppInfo,
-                    onLocationChannelsClick = onLocationChannelsClick
+                    onLocationChannelsClick = onLocationChannelsClick,
+                    onWalletClick = onWalletClick
                 )
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -445,10 +467,19 @@ private fun ChatDialogs(
     )
 
     // About sheet
+    var showDebugSheet by remember { mutableStateOf(false) }
     AboutSheet(
         isPresented = showAppInfo,
-        onDismiss = onAppInfoDismiss
+        onDismiss = onAppInfoDismiss,
+        onShowDebug = { showDebugSheet = true }
     )
+    if (showDebugSheet) {
+        com.dogechat.android.ui.debug.DebugSettingsSheet(
+            isPresented = showDebugSheet,
+            onDismiss = { showDebugSheet = false },
+            meshService = viewModel.meshService
+        )
+    }
     
     // Location channels sheet
     if (showLocationChannelsSheet) {

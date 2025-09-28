@@ -27,14 +27,19 @@ gradle-wrapper.jar
 gradle-wrapper.properties
 gradle.properties
 
-
-# APK/AAB and intermediates
+# Gradle/APK/AAB and intermediates
+/build/
+/.gradle/
+/captures/
+*.apk
 *.aab
 *.ap_
 *.dex
 
+
 # Local config
 local.properties
+captures/
 *.log
 *.lock
 *.tmp
@@ -77,3 +82,25 @@ pom.xml.versionsBackup
 pom.xml.next
 release.properties
 dependency-reduced-pom.xml
+
+
+# Linters
+.lint/
+
+# Other
+*.log
+.cxx/
+*build/
+out/
+gen/
+*~
+*.swp
+*.lock
+.goosehints
+
+# Google services
+google-services.json
+
+# Keystore files
+*.jks
+*.keystore

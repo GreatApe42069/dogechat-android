@@ -452,7 +452,9 @@ class MessageHandler(private val myPeerID: String) {
             if (noiseKey != null) {
                 com.dogechat.android.favorites.FavoritesPersistenceService.shared.updatePeerFavoritedUs(noiseKey, isFavorite)
                 if (npub != null) {
+                                        // Index by noise key and current mesh peerID for fast Nostr routing
                     com.dogechat.android.favorites.FavoritesPersistenceService.shared.updateNostrPublicKey(noiseKey, npub)
+                    com.dogechat.android.favorites.FavoritesPersistenceService.shared.updateNostrPublicKeyForPeerID(fromPeerID, npub)
                 }
 
                 // Determine iOS-style guidance text

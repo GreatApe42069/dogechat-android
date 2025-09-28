@@ -59,7 +59,8 @@ data class DogechatMessage(
     val channel: String? = null,
     val encryptedContent: ByteArray? = null,
     val isEncrypted: Boolean = false,
-    val deliveryStatus: DeliveryStatus? = null
+    val deliveryStatus: DeliveryStatus? = null,
+    val powDifficulty: Int? = null
 ) : Parcelable {
 
     /**
@@ -341,4 +342,3 @@ data class DogechatMessage(
         return result
     }
 }
-
