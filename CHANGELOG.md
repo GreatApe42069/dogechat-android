@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.2] - 2025-09-27
+## [1.0.1] - 2025-09-27
 ** All commits up to this point have been merged Commits on Sep 15, 2025
 remove the noise handshake if peer goes offline (permissionlesstech#435)
 Commit 1178fc254a81e660fde509dbc9130f4c4940be68 and all prior
