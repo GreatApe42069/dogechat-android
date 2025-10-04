@@ -292,7 +292,9 @@ private fun getPermissionEmoji(permissionType: PermissionType): String {
         PermissionType.PRECISE_LOCATION -> "📍"
         PermissionType.NOTIFICATIONS -> "🔔"
         PermissionType.BATTERY_OPTIMIZATION -> "🔋"
+        PermissionType.MEDIA_ACCESS -> "🖼️"
         PermissionType.MICROPHONE -> "🎙️"
+        PermissionType.CAMERA -> "📷"
         PermissionType.OTHER -> "🔧"
     }
 }
@@ -303,7 +305,9 @@ private fun getPermissionIconColor(permissionType: PermissionType): Color {
         PermissionType.PRECISE_LOCATION -> Color(0xFFFFD700) // Gold
         PermissionType.NOTIFICATIONS -> Color(0xFFFFD700) // Gold
         PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
+        PermissionType.MEDIA_ACCESS -> Color(0xFF8BC34A) // Light Green
         PermissionType.MICROPHONE -> Color(0xFFFF9800) // Orange
+        PermissionType.CAMERA -> Color(0xFF4CAF50) // Green
         PermissionType.OTHER -> Color(0xFF9C27B0) // Purple
     }
 }

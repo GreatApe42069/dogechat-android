@@ -22,7 +22,7 @@ android {
         targetSdk = libs.versions.targetSdk.get().toInt()
 
         versionCode = 13
-        versionName = "1.1.3"
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -40,9 +40,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("dogechat-release-key.jks")
-            storePassword = "MichaelHailey0608!"  // Replace with your actual keystore password
+            storePassword = "Your_Keystore_pass_goes_Here"  // Replace with your actual keystore password
             keyAlias = "dogechat-key"
-            keyPassword = "MichaelHailey0608!"  // Replace with your actual key password
+            keyPassword = "Your_Key_Pass_goes_Here"  // Replace with your actual key password
         }
     }
 
