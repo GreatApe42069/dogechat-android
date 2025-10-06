@@ -22,6 +22,16 @@ import com.dogechat.android.features.voice.AudioWaveformExtractor
 import com.dogechat.android.features.voice.VoiceWaveformCache
 import com.dogechat.android.features.voice.resampleWave
 
+// Doge theme colors (added without removing any original code)
+// Provided theme reference:
+// val dogeGold = Color(0xFFFFD700)      // Dogecoin Gold during playback
+// val BrandAccent = Color(0xFFFFFF00)   // Bright yellow accent when sending
+// Color(0xFFEBCA66) // jasmine gold for base color or is empty
+private val dogeGold = Color(0xFFFFD700)      // Dogecoin Gold during playback
+private val BrandAccent = Color(0xFFFFFF00)   // Bright yellow accent when sending
+private val JasmineGold = Color(0xFFEBCA66)   // Jasmine gold base / empty
+private val JasmineGoldFaint = Color(0x22EBCA66) // Faint jasmine (alpha-matched from original 0x22 green)
+
 @Composable
 fun ScrollingWaveformRecorder(
     modifier: Modifier = Modifier,
@@ -41,7 +51,13 @@ fun ScrollingWaveformRecorder(
             kotlinx.coroutines.delay(80)
         }
     }
-    WaveformCanvas(modifier = modifier, samples = samples, fillProgress = 1f, baseColor = Color(0xFF444444), fillColor = Color(0xFF00FF7F))
+    WaveformCanvas(
+        modifier = modifier,
+        samples = samples,
+        fillProgress = 1f,
+        baseColor = Color(0xFF444444),
+        fillColor = BrandAccent // replaced former green (0xFF00FF7F) with BrandAccent
+    )
 }
 
 @Composable
@@ -74,10 +90,10 @@ fun WaveformPreview(
         modifier = modifier,
         samples = stateSamples,
         fillProgress = if (stateSamples.isEmpty()) 0f else progress,
-        baseColor = Color(0x2200FF7F),
+        baseColor = JasmineGoldFaint, // replaced former semi-transparent green (0x2200FF7F)
         fillColor = when {
-            sendProgress != null -> Color(0xFF1E88E5) // blue while sending
-            else -> Color(0xFF00C851) // green during playback
+            sendProgress != null -> BrandAccent // Bright yellow accent when sending
+            else -> dogeGold // green during playback (Dogecoin Gold)
         },
         onSeek = onSeek
     )

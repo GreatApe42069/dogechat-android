@@ -55,9 +55,9 @@ fun formatMessageAsAnnotatedString(
                  message.sender.startsWith("$currentUserNickname#")
     
     if (message.sender != "system") {
-        // Get base color for this peer (iOS-style color assignment)
+        // Get base color for this peer (iOS-style color assignment) (updated: Dogecoin Gold for self)
         val baseColor = if (isSelf) {
-            Color(0xFFFF9500) // Orange for self (iOS orange)
+            Color(0xFFFFD700) // Dogecoin Gold for self (was iOS orange #FF9500)
         } else {
             getPeerColor(message, isDark)
         }
@@ -174,7 +174,7 @@ fun formatMessageHeaderAnnotatedString(
             message.sender.startsWith("$currentUserNickname#")
 
     if (message.sender != "system") {
-        val baseColor = if (isSelf) Color(0xFFFF9500) else getPeerColor(message, isDark)
+        val baseColor = if (isSelf) Color(0xFFFFD700) else getPeerColor(message, isDark) // Dogecoin Gold for self (was iOS orange #FF9500)
         val (baseName, suffix) = splitSuffix(message.sender)
 
         // "<@"
@@ -257,7 +257,7 @@ fun formatMessageHeaderAnnotatedString(
 
 /**
  * iOS-style peer color assignment using djb2 hash algorithm
- * Avoids orange (~30°) reserved for self messages
+ * Avoids Dogecoin Gold (~51°) reserved for self messages (was orange ~30°)
  */
 fun getPeerColor(message: DogechatMessage, isDark: Boolean): Color {
     // Create seed from peer identifier (prioritizing stable keys)
@@ -295,10 +295,10 @@ fun colorForPeerSeed(seed: String, isDark: Boolean): Color {
     
     var hue = (hash % 360UL).toDouble() / 360.0
     
-    // Avoid orange (~30°) reserved for self (matches iOS logic)
-    val orange = 30.0 / 360.0
-    if (kotlin.math.abs(hue - orange) < 0.05) {
-        hue = (hue + 0.12) % 1.0
+    // Avoid Dogecoin Gold (~51°) reserved for self (updated from avoiding orange ~30°)
+    val dogeGold = 51.0 / 360.0
+    if (kotlin.math.abs(hue - dogeGold) < 0.05) { // same 0.05 tolerance window as original
+        hue = (hue + 0.12) % 1.0 // shift away (kept original shift logic)
     }
     
     val saturation = if (isDark) 0.50 else 0.70
@@ -442,7 +442,7 @@ private fun appendIOSFormattedContent(
                 
                 // Check if this mention targets current user
                 val isMentionToMe = mBase == currentUserNickname
-                val mentionColor = if (isMentionToMe) Color(0xFFFF9500) else baseColor
+                val mentionColor = if (isMentionToMe) Color(0xFFFFD700) else baseColor // Dogecoin Gold highlight for self-mention
                 
                 // "@" symbol
                 builder.pushStyle(SpanStyle(
