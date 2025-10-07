@@ -96,12 +96,14 @@ class GeohashMessageHandler(
                 )
                 withContext(Dispatchers.Main) { messageManager.addChannelMessage("geo:$subscribedGeohash", msg) }
                 
-                // Save message to local retention if channel is bookmarked
-                try {
-                    val retentionService = com.dogechat.android.services.MessageRetentionService.getInstance(application)
-                    retentionService.saveMessage(msg, forChannel = subscribedGeohash)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to save message to retention: ${e.message}")
+                // Save message to local retention if channel is bookmarked (in IO context since it's a suspend function)
+                withContext(Dispatchers.IO) {
+                    try {
+                        val retentionService = com.dogechat.android.services.MessageRetentionService.getInstance(application)
+                        retentionService.saveMessage(msg, forChannel = subscribedGeohash)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to save message to retention: ${e.message}")
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "onEvent error: ${e.message}")

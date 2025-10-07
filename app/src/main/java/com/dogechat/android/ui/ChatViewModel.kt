@@ -540,11 +540,16 @@ class ChatViewModel(
 
             // Case 1: Nostr-only peer (geohash DM) - peerID format: "nostr_<16hex>"
             if (peerID.startsWith("nostr_")) {
+                Log.d(TAG, "Detected nostr-only peer: $peerID")
+                
                 // Get full nostr pubkey from GeohashAliasRegistry or GeohashViewModel mapping
                 nostrPubkeyHex = com.dogechat.android.nostr.GeohashAliasRegistry.get(peerID)
+                Log.d(TAG, "GeohashAliasRegistry lookup: $nostrPubkeyHex")
+                
                 if (nostrPubkeyHex == null) {
                     // Try repository mapping as fallback
                     nostrPubkeyHex = geohashViewModel.getNostrKeyMapping()[peerID]
+                    Log.d(TAG, "Repository mapping lookup: $nostrPubkeyHex")
                 }
                 
                 if (nostrPubkeyHex != null) {
@@ -554,12 +559,19 @@ class ChatViewModel(
                         val nostrBytes = nostrPubkeyHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
                         if (nostrBytes.size >= 32) {
                             noiseKey = nostrBytes.take(32).toByteArray()
+                            Log.d(TAG, "Created synthetic noise key from nostr pubkey")
+                        } else {
+                            Log.w(TAG, "Nostr pubkey too short: ${nostrBytes.size} bytes")
                         }
-                    } catch (_: Exception) { }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to create synthetic noise key: ${e.message}")
+                    }
                     
                     // Get nickname from geohash display name
                     nickname = geohashViewModel.displayNameForNostrPubkeyUI(nostrPubkeyHex)
                     Log.d(TAG, "Nostr-only peer favorited: $peerID -> $nostrPubkeyHex, nickname: $nickname")
+                } else {
+                    Log.w(TAG, "Could not find nostr pubkey for peerID: $peerID")
                 }
             } 
             // Case 2: Live mesh peer with known info

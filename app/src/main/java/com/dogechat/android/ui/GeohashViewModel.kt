@@ -271,6 +271,10 @@ class GeohashViewModel(
     fun startGeohashDM(pubkeyHex: String, onStartPrivateChat: (String) -> Unit) {
         val convKey = "nostr_${pubkeyHex.take(16)}"
         repo.putNostrKeyMapping(convKey, pubkeyHex)
+        
+        // Also register in GeohashAliasRegistry so favoriting works immediately
+        com.dogechat.android.nostr.GeohashAliasRegistry.put(convKey, pubkeyHex)
+        
         val current = state.selectedLocationChannel.value
         val gh = (current as? com.dogechat.android.geohash.ChannelID.Location)?.channel?.geohash
         if (!gh.isNullOrEmpty()) {
