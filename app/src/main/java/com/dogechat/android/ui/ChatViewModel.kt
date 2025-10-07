@@ -536,21 +536,43 @@ class ChatViewModel(
         try {
             var noiseKey: ByteArray? = null
             var nickname: String = meshService.getPeerNicknames()[peerID] ?: peerID
+            var nostrPubkeyHex: String? = null
 
-            // Case 1: Live mesh peer with known info
-            val peerInfo = meshService.getPeerInfo(peerID)
-            if (peerInfo?.noisePublicKey != null) {
-                noiseKey = peerInfo.noisePublicKey
-                nickname = peerInfo.nickname
-            } else {
-                // Case 2: Offline favorite entry using 64-hex noise public key as peerID
-                if (peerID.length == 64 && peerID.matches(Regex("^[0-9a-fA-F]+$"))) {
+            // Case 1: Nostr-only peer (geohash DM) - peerID format: "nostr_<16hex>"
+            if (peerID.startsWith("nostr_")) {
+                // Get full nostr pubkey from GeohashAliasRegistry or GeohashViewModel mapping
+                nostrPubkeyHex = com.dogechat.android.nostr.GeohashAliasRegistry.get(peerID)
+                if (nostrPubkeyHex != null) {
+                    // For nostr-only peers, we don't have a noise key, but we can create a synthetic one
+                    // by using the nostr pubkey bytes (take first 32 bytes)
                     try {
-                        noiseKey = peerID.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-                        // Prefer nickname from favorites store if available
-                        val rel = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey!!)
-                        if (rel != null) nickname = rel.peerNickname
+                        val nostrBytes = nostrPubkeyHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+                        if (nostrBytes.size >= 32) {
+                            noiseKey = nostrBytes.take(32).toByteArray()
+                        }
                     } catch (_: Exception) { }
+                    
+                    // Get nickname from geohash display name
+                    nickname = geohashViewModel.displayNameForNostrPubkeyUI(nostrPubkeyHex)
+                    Log.d(TAG, "Nostr-only peer favorited: $peerID -> $nostrPubkeyHex, nickname: $nickname")
+                }
+            } 
+            // Case 2: Live mesh peer with known info
+            else {
+                val peerInfo = meshService.getPeerInfo(peerID)
+                if (peerInfo?.noisePublicKey != null) {
+                    noiseKey = peerInfo.noisePublicKey
+                    nickname = peerInfo.nickname
+                } else {
+                    // Case 3: Offline favorite entry using 64-hex noise public key as peerID
+                    if (peerID.length == 64 && peerID.matches(Regex("^[0-9a-fA-F]+$"))) {
+                        try {
+                            noiseKey = peerID.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+                            // Prefer nickname from favorites store if available
+                            val rel = com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(noiseKey!!)
+                            if (rel != null) nickname = rel.peerNickname
+                        } catch (_: Exception) { }
+                    }
                 }
             }
 
@@ -563,15 +585,23 @@ class ChatViewModel(
                 com.dogechat.android.favorites.FavoritesPersistenceService.shared.updateFavoriteStatus(
                     noisePublicKey = noiseKey!!,
                     nickname = nickname,
-                    isFavorite = isNowFavorite
+                    isFavorite = isNowFavorite,
+                    nostrPubkey = nostrPubkeyHex // Pass nostr pubkey if available
                 )
 
                 // Send favorite notification via mesh or Nostr with our npub if available
                 try {
                     val myNostr = com.dogechat.android.nostr.NostrIdentityBridge.getCurrentNostrIdentity(getApplication())
                     val announcementContent = if (isNowFavorite) "[FAVORITED]:${myNostr?.npub ?: ""}" else "[UNFAVORITED]:${myNostr?.npub ?: ""}"
+                    
+                    // For nostr-only peers, send via Nostr transport
+                    if (peerID.startsWith("nostr_") && nostrPubkeyHex != null) {
+                        val nostrTransport = com.dogechat.android.nostr.NostrTransport.getInstance(getApplication())
+                        nostrTransport.senderPeerID = meshService.myPeerID
+                        nostrTransport.sendFavoriteNotification(peerID, isNowFavorite)
+                    }
                     // Prefer mesh if session established, else try Nostr
-                    if (meshService.hasEstablishedSession(peerID)) {
+                    else if (meshService.hasEstablishedSession(peerID)) {
                         // Reuse existing private message path for notifications
                         meshService.sendPrivateMessage(
                             announcementContent,
@@ -585,6 +615,8 @@ class ChatViewModel(
                         nostrTransport.sendFavoriteNotification(peerID, isNowFavorite)
                     }
                 } catch (_: Exception) { }
+            } else {
+                Log.w(TAG, "Could not determine noise key for peerID: $peerID - favorite not persisted")
             }
         } catch (_: Exception) { }
 
