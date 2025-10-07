@@ -22,11 +22,7 @@ import com.dogechat.android.features.voice.AudioWaveformExtractor
 import com.dogechat.android.features.voice.VoiceWaveformCache
 import com.dogechat.android.features.voice.resampleWave
 
-// Doge theme colors (added without removing any original code)
-// Provided theme reference:
-// val dogeGold = Color(0xFFFFD700)      // Dogecoin Gold during playback
-// val BrandAccent = Color(0xFFFFFF00)   // Bright yellow accent when sending
-// Color(0xFFEBCA66) // jasmine gold for base color or is empty
+
 private val dogeGold = Color(0xFFFFD700)      // Dogecoin Gold during playback
 private val BrandAccent = Color(0xFFFFFF00)   // Bright yellow accent when sending
 private val JasmineGold = Color(0xFFEBCA66)   // Jasmine gold base / empty
@@ -93,7 +89,7 @@ fun WaveformPreview(
         baseColor = JasmineGoldFaint, // replaced former semi-transparent green (0x2200FF7F)
         fillColor = when {
             sendProgress != null -> BrandAccent // Bright yellow accent when sending
-            else -> dogeGold // green during playback (Dogecoin Gold)
+            else -> dogeGold // Dogecoin Gold during playback (Dogecoin Gold)
         },
         onSeek = onSeek
     )

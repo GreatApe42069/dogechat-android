@@ -297,8 +297,8 @@ Files:
 - Displayed with a header (nickname + timestamp) then the waveform + controls row.
 - Waveform
   - A 120‑bin static waveform is rendered per file, identical for sender and receiver, extracted from the actual audio file.
-  - During send, the waveform fills left→right in blue based on fragment progress.
-  - During playback, the waveform fills left→right in green based on player progress.
+  - During send, the waveform fills left→right in bright yellow based on fragment progress.
+  - During playback, the waveform fills left→right in Doge Gold based on player progress.
 - Controls
   - Play/Pause toggle to the left of the waveform; duration text to the right.
 - Cancel sending

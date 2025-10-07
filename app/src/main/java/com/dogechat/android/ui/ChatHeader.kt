@@ -405,7 +405,7 @@ private fun PrivateChatHeader(
                     imageVector = Icons.Outlined.Public,
                     contentDescription = "Nostr reachable",
                     modifier = Modifier.size(14.dp),
-                    tint = Color(0xFFFFD700) // dogeGold
+                    tint = Color(0xFFFFFF00) // Standard yellow
                 )
             } else {
                 NoiseSessionIcon(

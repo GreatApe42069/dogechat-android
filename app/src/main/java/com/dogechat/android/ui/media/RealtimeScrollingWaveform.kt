@@ -16,6 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 
+private val dogeGold = Color(0xFFFFD700)      // Dogecoin Gold (playback / highlight)
+private val BrandAccent = Color(0xFFFFFF00)   // Bright Yellow Accent (recording live bars)
+private val JasmineGold = Color(0xFFEBCA66)   // Jasmine Gold base
+private val JasmineGoldFaint = Color(0x22EBCA66) // Faint Jasmine (alpha similar to other faint bases)
+
 /**
  * Real-time scrolling waveform for recording: maintains a dense sliding window of bars.
  * Pass in normalized amplitude [0f..1f]; the component handles sampling and drawing.
@@ -25,8 +30,8 @@ fun RealtimeScrollingWaveform(
     modifier: Modifier = Modifier,
     amplitudeNorm: Float,
     bars: Int = 240,
-    barColor: Color = Color(0xFF00FF7F),
-    baseColor: Color = Color(0xFF444444)
+    barColor: Color = BrandAccent,             // replaced former green (0xFF00FF7F) with Doge Brand Accent
+    baseColor: Color = JasmineGoldFaint        // themed base (was 0xFF444444; original param retained for ref but not used below)
 ) {
     val latestAmp by rememberUpdatedState(amplitudeNorm)
     val samples: SnapshotStateList<Float> = remember {
@@ -76,4 +81,3 @@ fun RealtimeScrollingWaveform(
         }
     }
 }
-
