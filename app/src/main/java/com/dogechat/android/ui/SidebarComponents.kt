@@ -490,16 +490,30 @@ fun PeopleSection(
             appendedOfflineIds.add(favPeerID)
         }
 
-        // NOTE: Do NOT append Nostr-only (nostr_*) conversations to the mesh people list.
-        // Geohash DMs should appear in the GeohashPeople list for the active geohash, not in mesh offline contacts.
-        // We intentionally remove previously-added behavior that mixed geohash DMs into mesh sidebar.
-        // If you need to surface non-geohash offline mesh conversations in the future, do it here for 64-hex noise IDs only.
-        /*
+        // Show offline mesh conversations (64-hex noise IDs) and favorited nostr conversations
+        // Non-favorited nostr conversations appear in GeohashPeople list for active geohash only
         val alreadyShownIds = connectedIds + appendedOfflineIds
         privateChats.keys
             .filter { key ->
-                // Only include 64-hex noise IDs (mesh identities); exclude any nostr_* aliases
-                hex64Regex.matches(key) &&
+                // Include 64-hex noise IDs (mesh identities) OR favorited nostr_* aliases
+                val isMeshIdentity = hex64Regex.matches(key)
+                val isNostrConversation = key.startsWith("nostr_")
+                val isFavoritedNostr = if (isNostrConversation) {
+                    // Check if this nostr conversation is favorited
+                    try {
+                        val nostrPubkey = com.dogechat.android.nostr.GeohashAliasRegistry.get(key)
+                        if (nostrPubkey != null) {
+                            // Create synthetic noise key to check favorite status
+                            val nostrBytes = nostrPubkey.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+                            if (nostrBytes.size >= 32) {
+                                val syntheticKey = nostrBytes.take(32).toByteArray()
+                                com.dogechat.android.favorites.FavoritesPersistenceService.shared.getFavoriteStatus(syntheticKey) != null
+                            } else false
+                        } else false
+                    } catch (_: Exception) { false }
+                } else false
+                
+                (isMeshIdentity || (isNostrConversation && isFavoritedNostr)) &&
                 !alreadyShownIds.contains(key) &&
                 // Skip if this key maps to a connected peer via noiseHex mapping
                 !noiseHexByPeerID.values.any { it.equals(key, ignoreCase = true) }
@@ -510,13 +524,16 @@ fun PeopleSection(
                 val dn = peerNicknames[convKey] ?: (lastSender ?: convKey.take(12))
                 val (bName, _) = com.dogechat.android.ui.splitSuffix(dn)
                 val showHash = (baseNameCounts[bName] ?: 0) > 1
+                
+                // Check if this is a nostr conversation for globe icon
+                val isNostrConv = convKey.startsWith("nostr_")
 
                 PeerItem(
                     peerID = convKey,
                     displayName = dn,
                     isDirect = false,
                     isSelected = convKey == selectedPrivatePeer,
-                    isFavorite = false,
+                    isFavorite = isNostrConv, // Nostr convs shown here are favorited
                     hasUnreadDM = hasUnreadPrivateMessages.contains(convKey),
                     colorScheme = colorScheme,
                     viewModel = viewModel,
@@ -525,12 +542,10 @@ fun PeopleSection(
                     unreadCount = privateChats[convKey]?.count { msg ->
                         msg.sender != nickname && hasUnreadPrivateMessages.contains(convKey)
                     } ?: if (hasUnreadPrivateMessages.contains(convKey)) 1 else 0,
-                    showNostrGlobe = false,
+                    showNostrGlobe = isNostrConv, // Show globe for nostr conversations
                     showHashSuffix = showHash
                 )
             }
-        */
-        // End intentional removal
         
     }
 }
