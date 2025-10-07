@@ -175,7 +175,7 @@ class FavoritesPersistenceService private constructor(private val context: Conte
     }
 
     /** Update favorite status */
-    fun updateFavoriteStatus(noisePublicKey: ByteArray, nickname: String, isFavorite: Boolean, nostrPubkey: String? = null) {
+    fun updateFavoriteStatus(noisePublicKey: ByteArray, nickname: String, isFavorite: Boolean) {
         val keyHex = noisePublicKey.joinToString("") { "%02x".format(it) }
 
         val existing = favorites[keyHex]
@@ -183,7 +183,6 @@ class FavoritesPersistenceService private constructor(private val context: Conte
         val updated = if (existing != null) {
             existing.copy(
                 peerNickname = nickname,
-                peerNostrPublicKey = nostrPubkey ?: existing.peerNostrPublicKey, // Update nostr pubkey if provided
                 isFavorite = isFavorite,
                 lastUpdated = Date(),
                 favoritedAt = if (isFavorite && !existing.isFavorite) Date() else existing.favoritedAt
@@ -191,7 +190,7 @@ class FavoritesPersistenceService private constructor(private val context: Conte
         } else {
             FavoriteRelationship(
                 peerNoisePublicKey = noisePublicKey,
-                peerNostrPublicKey = nostrPubkey, // Store nostr pubkey if provided
+                peerNostrPublicKey = null,
                 peerNickname = nickname,
                 isFavorite = isFavorite,
                 theyFavoritedUs = false,

@@ -593,12 +593,7 @@ private fun MainHeader(
                             modifier = Modifier
                                 .padding(start = 1.dp) // minimal gap between geohash and bookmark
                                 .size(20.dp)
-                                .clickable { 
-                                    bookmarksStore.toggle(currentGeohash)
-                                    // Also toggle message retention for this channel
-                                    val retentionService = com.dogechat.android.services.MessageRetentionService.getInstance(context)
-                                    retentionService.toggleFavoriteChannel(currentGeohash)
-                                },
+                                .clickable { bookmarksStore.toggle(currentGeohash) },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
