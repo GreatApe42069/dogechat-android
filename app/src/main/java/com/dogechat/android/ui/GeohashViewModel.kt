@@ -345,6 +345,23 @@ class GeohashViewModel(
                     if (teleported) repo.markTeleported(identity.publicKeyHex)
                 }.onFailure { Log.w(TAG, "Failed identity setup: ${it.message}") }
 
+                // Load cached messages if channel is bookmarked
+                viewModelScope.launch {
+                    try {
+                        val retentionService = com.dogechat.android.services.MessageRetentionService.getInstance(getApplication())
+                        val cachedMessages = retentionService.loadMessagesForChannel(channel.channel.geohash)
+                        if (cachedMessages.isNotEmpty()) {
+                            Log.d(TAG, "📦 Loaded ${cachedMessages.size} cached messages for ${channel.channel.geohash}")
+                            // Add cached messages to channel (they will be deduplicated by MessageManager)
+                            cachedMessages.forEach { msg ->
+                                messageManager.addChannelMessage("geo:${channel.channel.geohash}", msg)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to load cached messages: ${e.message}")
+                    }
+                }
+
                 startGeoParticipantsTimer()
 
                 viewModelScope.launch {

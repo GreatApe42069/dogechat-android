@@ -776,6 +776,14 @@ class ChatViewModel(
                 val store = com.dogechat.android.geohash.GeohashBookmarksStore.getInstance(getApplication())
                 store.clearAll()
             } catch (_: Exception) { }
+            
+            // Clear all message retention service data (cached messages and bookmarks)
+            try {
+                val retentionService = com.dogechat.android.services.MessageRetentionService.getInstance(getApplication())
+                viewModelScope.launch {
+                    retentionService.deleteAllStoredMessages()
+                }
+            } catch (_: Exception) { }
 
             geohashViewModel.panicReset()
         } catch (e: Exception) {
