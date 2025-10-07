@@ -350,7 +350,12 @@ fun LocationChannelsSheet(
                                 titleColor = standardYellow,
                                 titleBold = highlight,
                                 trailingContent = {
-                                    IconButton(onClick = { bookmarksStore.toggle(channel.geohash) }) {
+                                    IconButton(onClick = { 
+                                        bookmarksStore.toggle(channel.geohash)
+                                        // Also toggle message retention for this channel
+                                        val retentionService = com.dogechat.android.services.MessageRetentionService.getInstance(context)
+                                        retentionService.toggleFavoriteChannel(channel.geohash)
+                                    }) {
                                         Icon(
                                             imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                             contentDescription = if (isBookmarked) "Unbookmark" else "Bookmark",
@@ -413,7 +418,12 @@ fun LocationChannelsSheet(
                                 titleColor = null,
                                 titleBold = participantCount > 0,
                                 trailingContent = {
-                                    IconButton(onClick = { bookmarksStore.toggle(gh) }) {
+                                    IconButton(onClick = { 
+                                        bookmarksStore.toggle(gh)
+                                        // Also toggle message retention for this channel
+                                        val retentionService = com.dogechat.android.services.MessageRetentionService.getInstance(context)
+                                        retentionService.toggleFavoriteChannel(gh)
+                                    }) {
                                         Icon(
                                             imageVector = Icons.Filled.Bookmark,
                                             contentDescription = "Remove bookmark",
