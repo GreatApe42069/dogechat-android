@@ -1,0 +1,1 @@
+I, GreatApe42069, creator of dogechat for android, owner of the copyright claims, and owner of the official dogechat android repository (https://github.com/GreatApe42069/dogechat-android), hereby authorize Verse Communication PBC to publish dogechat (com.dogechat.doid) on the Google Play Store.

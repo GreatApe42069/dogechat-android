@@ -1,0 +1,112 @@
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+
+# Build & Gradle
+build/
+.gradle/
+captures/
+.externalNativeBuild/
+.cxx/
+out/
+gen/
+*build/
+!*/build/filtered-manifest/
+!*/build/generated/
+!*/build/intermediates/
+
+# Release keystore
+dogechat-release-key.jks
+
+# Gradle wrapper & daemon files
+gradle-app.setting
+gradlew.bat
+gradlew
+gradle-wrapper.jar
+gradle-wrapper.properties
+gradle.properties
+
+# Gradle/APK/AAB and intermediates
+/build/
+/.gradle/
+/captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+
+# Local config
+local.properties
+captures/
+*.log
+*.lock
+*.tmp
+
+# Logs
+*.log
+dogechat_logs.txt
+
+# Kotlin build cache
+.kotlin/
+
+# Keystore
+*.jks
+*.keystore
+debug.keystore
+debug_keystore/
+
+# Google/Firebase
+google-services.json
+crashlytics/
+fabric/
+
+# Compose preview snapshots
+compose-snapshots/
+
+# Navigation & cache
+.navigation/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+
+# Linters
+.lint/
+
+# Other
+*.log
+.cxx/
+*build/
+out/
+gen/
+*~
+*.swp
+*.lock
+.goosehints
+
+# Google services
+google-services.json
+
+# Keystore files
+*.jks
+*.keystore
+
+# Media files (recordings, temp files)
+/app/files/incoming/
+/app/cache/recordings/
+/app/cache/temp/
+

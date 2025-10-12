@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>dogechat Child Safety Policy</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dogechat Child Safety Policy — protecting children in a decentralized messaging app.">
+
+  <!-- Icons / manifest -->
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+
+  <style>
+  :root {
+    --bg-color: #ffffff;
+    --text-color: #1a1a1a;
+    --link-color: #FFCE00; /* Dogecoin yellow */
+    --warning-bg: #FFF8DC; /* Light Dogecoin yellow */
+    --warning-border: #FFD700; /* Gold Dogecoin yellow */
+    --warning-text: #DAA520; /* Darker Dogecoin yellow */
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-color: #0a0a0a;
+      --text-color: #f0f0f0;
+      --link-color: #FFCE00; /* Dogecoin yellow */
+      --warning-bg: #332900; /* Darker Dogecoin yellow background */
+      --warning-border: #FFD700; /* Gold Dogecoin yellow */
+      --warning-text: #FFCE00; /* Brighter Dogecoin yellow text */
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  a { color: var(--link-color); text-decoration: underline; }
+  a:hover { color: var(--link-color); text-decoration: none; }
+
+  .warning-box {
+    background-color: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    color: var(--warning-text);
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 5px;
+  }
+
+  .warning-box p { margin: 0; }
+
+  hr { border: none; border-top: 1px solid var(--text-color); opacity: 0.3; }
+
+  small { opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <h1>dogechat Child Safety Policy</h1>
+  <p><em>Last updated: August 2025</em></p>
+
+  <h2>Our Commitment to Child Safety</h2>
+  <p>DogeChat is committed to protecting children and preventing child sexual abuse and exploitation (CSAE). As a decentralized, peer-to-peer (P2P) chat application using Bluetooth LE mesh networking, DogeChat operates without central servers or content moderation. We enforce a strict zero-tolerance policy for child sexual abuse material (CSAM) or any content that endangers minors. This policy outlines our practices to ensure child safety and comply with Google Play’s Child Safety Standards.</p>
+
+  <h2>Child Safety Practices</h2>
+  <h3>Zero-Tolerance for CSAM</h3>
+  <p>DogeChat prohibits any content or behavior related to child sexual abuse or exploitation. Users found sharing, promoting, or engaging in CSAM will be banned from public rooms, and we strongly encourage immediate reporting to relevant authorities.</p>
+
+  <h3>Reporting</h3>
+  <p>DogeChat provides instructions here to report concerns directly to authorities, including links to:</p>
+  <ul>
+    <li><strong>United States</strong>: National Center for Missing and Exploited Children (NCMEC) at <a href="https://www.missingkids.org/gethelpnow">www.missingkids.org/gethelpnow</a></li>
+    <li><strong>United Kingdom</strong>: Child Exploitation and Online Protection Command (CEOP) at <a href="https://www.ceop.police.uk/safety-centre">www.ceop.police.uk/safety-centre</a></li>
+    <li><strong>Other regions</strong>: Your local law enforcement or child protection agency (e.g., search for “report child abuse [your country]”)</li>
+  </ul>
+  <p><strong>Note:</strong> Due to our decentralized architecture and end-to-end encryption, reports are handled by users contacting authorities directly, as we cannot access or moderate content.</p>
+
+  <h3>Decentralized Architecture</h3>
+  <p>DogeChat uses Bluetooth LE mesh networking and end-to-end encryption (X25519 for key exchange, AES-256-GCM for messages, Ed25519 for signatures, and Argon2id for password-protected rooms). This ensures privacy but means:</p>
+  <ul>
+    <li>We cannot access or monitor message content.</li>
+    <li>We rely on users to report CSAM or child safety violations to authorities.</li>
+    <li>Our open-source code (<a href="https://github.com/GreatApe42069/dogechat-android">https://github.com/GreatApe42069/dogechat-android</a>) is available for public verification of these practices.</li>
+  </ul>
+
+  <h3>User Responsibility</h3>
+  <p>All DogeChat users must comply with local, regional, and national child safety laws. Users are responsible for promptly reporting any CSAM or child safety concerns they encounter. For example:</p>
+  <ul>
+    <li>In the US, submit a report to NCMEC’s CyberTipline at <a href="https://www.missingkids.org/gethelpnow">www.missingkids.org/gethelpnow</a>.</li>
+    <li>In the UK, report to CEOP at <a href="https://www.ceop.police.uk/safety-centre">www.ceop.police.uk/safety-centre</a>.</li>
+    <li>In other regions, contact your local law enforcement or child protection agency.</li>
+  </ul>
+
+  <h3>No Accounts or Age Verification</h3>
+  <p>DogeChat collects no personal data (no names, emails, or accounts), so we do not implement age verification. We encourage parents and guardians to supervise minors’ use of the app to ensure safe interactions.</p>
+
+  <h3>Emergency Data Wipe</h3>
+  <p>Users can instantly delete all local data (messages, identity keys, and favorites) by triple-tapping the app logo. This feature helps limit exposure to harmful content and protects user privacy.</p>
+
+  <h3>Security Transparency</h3>
+  <p>DogeChat’s code is open source, allowing public audits. However, no external security review has been conducted. We advise caution for sensitive communications until a third-party audit is completed.</p>
+
+  <h2>Compliance with Child Safety Laws</h2>
+  <p>DogeChat complies with all relevant child safety laws by:</p>
+  <ul>
+    <li>Not collecting personal data from any users, including children.</li>
+    <li>Providing an in-app reporting tool to flag CSAM and direct users to authorities.</li>
+    <li>Enforcing a zero-tolerance policy for CSAM through our terms of use.</li>
+    <li>Maintaining transparency via open-source code and public policies.</li>
+  </ul>
+
+  <h2>Reporting CSAM</h2>
+  <p>If you encounter CSAM or other child safety concerns in DogeChat:</p>
+  <ol>
+    <li>Follow the following dialog, which provides links to report to authorities:
+      <ul>
+        <li><strong>United States</strong>: NCMEC CyberTipline at <a href="https://www.missingkids.org/gethelpnow">www.missingkids.org/gethelpnow</a></li>
+        <li><strong>United Kingdom</strong>: CEOP at <a href="https://www.ceop.police.uk/safety-centre">www.ceop.police.uk/safety-centre</a></li>
+        <li><strong>Other regions</strong>: Contact your local law enforcement or child protection agency (e.g., search for “report child abuse [your country]”)</li>
+      </ul>
+    </li>
+    <li>Submit a report to the relevant authority as directed. Include any relevant details, such as the nickname of the user or the nature of the content.</li>
+  </ol>
+  <p><strong>Note:</strong> Due to end-to-end encryption, we cannot access or act on message content, so user reports to authorities are critical.</p>
+
+  <h2>Contact</h2>
+  <p>For questions about our child safety practices:</p>
+  <ul>
+    <li>Email: <a href="mailto:GreatApe42069@proton.me">GreatApe42069@proton.me</a></li>
+    <li>Open an issue on GitHub: <a href="https://github.com/GreatApe42069/dogechat-android">https://github.com/GreatApe42069/dogechat-android</a></li>
+    <li>Review our open-source code for transparency.</li>
+    <li>For CSAM concerns, please report directly to authorities like NCMEC or CEOP.</li>
+  </ul>
+
+  <h2>Changes to This Policy</h2>
+  <p>If we update this policy:</p>
+  <ul>
+    <li>The "Last updated" date will change.</li>
+    <li>The updated policy will be included in the app and hosted at <a href="https://greatape42069.github.io/dogechat-android/docs/csindex.html">https://greatape42069.github.io/dogechat-android/docs/csindex.html</a>.</li>
+    <li>No retroactive changes can affect data, as we collect none.</li>
+  </ul>
+
+  <hr>
+  <small>This policy is released into the public domain under The Unlicense, just like DogeChat itself.</small>
+</body>
+</html>
