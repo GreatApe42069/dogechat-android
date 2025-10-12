@@ -74,33 +74,14 @@ class PermissionManager(private val context: Context) {
 
     /**
      * Get optional permissions that improve the experience but aren't required.
-     * Currently includes POST_NOTIFICATIONS on Android 13+ and media permissions.
+     * Currently includes POST_NOTIFICATIONS on Android 13+.
      */
     fun getOptionalPermissions(): List<String> {
         val optional = mutableListOf<String>()
-        
-        // Notification permission (Android 13+)
+        // Notifications on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             optional.add(Manifest.permission.POST_NOTIFICATIONS)
         }
-        
-        // Media permissions for file sharing
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            optional.addAll(listOf(
-                Manifest.permission.READ_MEDIA_IMAGES,
-                Manifest.permission.READ_MEDIA_VIDEO,
-                Manifest.permission.READ_MEDIA_AUDIO
-            ))
-        } else {
-            optional.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-        
-        // Audio recording for voice messages (optional)
-        optional.add(Manifest.permission.RECORD_AUDIO)
-        
-        // Camera for photo capture (optional)
-        optional.add(Manifest.permission.CAMERA)
-        
         return optional
     }
 
@@ -209,48 +190,7 @@ class PermissionManager(private val context: Context) {
             )
         }
 
-        // Media access category (optional)
-        val mediaPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            listOf(
-                Manifest.permission.READ_MEDIA_IMAGES,
-                Manifest.permission.READ_MEDIA_VIDEO,
-                Manifest.permission.READ_MEDIA_AUDIO
-            )
-        } else {
-            listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-        
-        categories.add(
-            PermissionCategory(
-                type = PermissionType.MEDIA_ACCESS,
-                description = "Optional: Access photos, videos, and audio files for sharing in chats",
-                permissions = mediaPermissions,
-                isGranted = mediaPermissions.all { isPermissionGranted(it) },
-                systemDescription = "Allow dogechat to access your media files"
-            )
-        )
-
-        // Microphone category (optional)
-        categories.add(
-            PermissionCategory(
-                type = PermissionType.MICROPHONE,
-                description = "Optional: Record voice messages to share in chats",
-                permissions = listOf(Manifest.permission.RECORD_AUDIO),
-                isGranted = isPermissionGranted(Manifest.permission.RECORD_AUDIO),
-                systemDescription = "Allow dogechat to record audio"
-            )
-        )
-
-        // Camera category (optional)
-        categories.add(
-            PermissionCategory(
-                type = PermissionType.CAMERA,
-                description = "Optional: Take photos to share in chats",
-                permissions = listOf(Manifest.permission.CAMERA),
-                isGranted = isPermissionGranted(Manifest.permission.CAMERA),
-                systemDescription = "Allow dogechat to take pictures"
-            )
-        )
+        // Microphone category removed from onboarding
 
         // Battery optimization category (if applicable)
         if (isBatteryOptimizationSupported()) {
@@ -320,10 +260,8 @@ data class PermissionCategory(
 enum class PermissionType(val nameValue: String) {
     NEARBY_DEVICES("Nearby Devices"),
     PRECISE_LOCATION("Precise Location"),
+    MICROPHONE("Microphone"),
     NOTIFICATIONS("Notifications"),
     BATTERY_OPTIMIZATION("Battery Optimization"),
-    MEDIA_ACCESS("Media Access"),
-    MICROPHONE("Microphone"),
-    CAMERA("Camera"),
     OTHER("Other")
 }
