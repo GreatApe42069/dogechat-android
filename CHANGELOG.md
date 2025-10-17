@@ -11,6 +11,7 @@ This release introduces initial File, Image, and Voice support. Also adds Transl
 ### Added
 
 - Bump version v1.4.0
+* 106 files changed with 10,720 additions and 610 deletions.
 
 Initial File, Image, and Voice support with Media transfers (permissionlesstech Commit 633a506)
 * tor voice wip
