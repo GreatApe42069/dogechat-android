@@ -42,6 +42,8 @@ import com.dogechat.android.geohash.GeohashChannelLevel
 import com.dogechat.android.geohash.LocationChannelManager
 import com.dogechat.android.geohash.GeohashBookmarksStore
 import com.dogechat.android.ui.theme.BASE_FONT_SIZE
+import androidx.compose.ui.res.stringResource
+import com.dogechat.android.R
 import com.dogechat.android.ui.theme.ThemeColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -210,7 +212,7 @@ fun LocationChannelsSheet(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "#Location Channels",
+                                text = stringResource(R.string.location_channels_title),
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
@@ -218,7 +220,7 @@ fun LocationChannelsSheet(
                             )
 
                             Text(
-                                text = "Much chat with Shibes near you using Many Geohash channels. Only a coarse Geohash is shared, never exact gps.",
+                                text = stringResource(R.string.location_channels_desc),
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
@@ -257,7 +259,7 @@ fun LocationChannelsSheet(
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Text(
-                                                text = "Such Grant Much Location Permissions",
+                                                text = stringResource(R.string.grant_location_permission),
                                                 fontSize = 12.sp,
                                                 fontFamily = FontFamily.Monospace
                                             )
@@ -267,7 +269,7 @@ fun LocationChannelsSheet(
                                     LocationChannelManager.PermissionState.RESTRICTED -> {
                                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(
-                                                text = "⚠️ Location Permission So Đenied. Very enable in settings to use Many location channels",
+                                                text = stringResource(R.string.location_permission_denied),
                                                 fontSize = 11.sp,
                                                 fontFamily = FontFamily.Monospace,
                                                 color = Color.Red.copy(alpha = 0.8f)
@@ -281,7 +283,7 @@ fun LocationChannelsSheet(
                                                 }
                                             ) {
                                                 Text(
-                                                    text = "open settings",
+                                                    text = stringResource(R.string.open_settings),
                                                     fontSize = 11.sp,
                                                     fontFamily = FontFamily.Monospace
                                                 )
@@ -290,7 +292,7 @@ fun LocationChannelsSheet(
                                     }
                                     LocationChannelManager.PermissionState.AUTHORIZED -> {
                                         Text(
-                                            text = "✓ Location Permissions Much Granted",
+                                            text = stringResource(R.string.location_permission_granted),
                                             fontSize = 11.sp,
                                             fontFamily = FontFamily.Monospace,
                                             color = standardYellow
@@ -303,7 +305,7 @@ fun LocationChannelsSheet(
                                         ) {
                                             CircularProgressIndicator(modifier = Modifier.size(12.dp))
                                             Text(
-                                                text = "checking permissions...",
+                                                text = stringResource(R.string.checking_permissions),
                                                 fontSize = 11.sp,
                                                 fontFamily = FontFamily.Monospace,
                                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -319,7 +321,7 @@ fun LocationChannelsSheet(
                     item(key = "mesh") {
                         ChannelRow(
                             title = meshTitleWithCount(viewModel),
-                            subtitle = "#bluetooth • ${bluetoothRangeString()}",
+                            subtitle = stringResource(R.string.location_bluetooth_subtitle, bluetoothRangeString()),
                             isSelected = selectedChannel is ChannelID.Mesh,
                             titleColor = standardBlue,
                             titleBold = meshCount(viewModel) > 0,
@@ -353,7 +355,7 @@ fun LocationChannelsSheet(
                                     IconButton(onClick = { bookmarksStore.toggle(channel.geohash) }) {
                                         Icon(
                                             imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                            contentDescription = if (isBookmarked) "Unbookmark" else "Bookmark",
+                                            contentDescription = if (isBookmarked) stringResource(R.string.cd_remove_bookmark) else stringResource(R.string.cd_add_bookmark),
                                             tint = dogeGold,
                                         )
                                     }
@@ -374,7 +376,7 @@ fun LocationChannelsSheet(
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp))
                                 Text(
-                                    text = "Finding Many Nearby Channels…",
+                                    text = stringResource(R.string.finding_nearby_channels),
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
@@ -386,7 +388,7 @@ fun LocationChannelsSheet(
                     if (bookmarks.isNotEmpty()) {
                         item(key = "bookmarked_header") {
                             Text(
-                                text = "bookmarked",
+                                text = stringResource(R.string.bookmarked),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontFamily = FontFamily.Monospace,
                                 color = dogeGold,
@@ -416,7 +418,7 @@ fun LocationChannelsSheet(
                                     IconButton(onClick = { bookmarksStore.toggle(gh) }) {
                                         Icon(
                                             imageVector = Icons.Filled.Bookmark,
-                                            contentDescription = "Remove bookmark",
+                                            contentDescription = stringResource(R.string.cd_remove_bookmark),
                                             tint = dogeGold,
                                         )
                                     }
@@ -454,7 +456,7 @@ fun LocationChannelsSheet(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "#",
+                                    text = stringResource(R.string.hash_symbol),
                                     fontSize = BASE_FONT_SIZE.sp,
                                     fontFamily = FontFamily.Monospace,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -497,7 +499,7 @@ fun LocationChannelsSheet(
                                     decorationBox = { innerTextField ->
                                         if (customGeohash.isEmpty()) {
                                             Text(
-                                                text = "geohash",
+                                                text = stringResource(R.string.geohash_placeholder),
                                                 fontSize = BASE_FONT_SIZE.sp,
                                                 fontFamily = FontFamily.Monospace,
                                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
@@ -523,7 +525,7 @@ fun LocationChannelsSheet(
                                 }) {
                                     Icon(
                                         imageVector = Icons.Filled.Map,
-                                        contentDescription = "Open map",
+                                        contentDescription = stringResource(R.string.cd_open_map),
                                         tint = mapTint
                                     )
                                 }
@@ -541,7 +543,7 @@ fun LocationChannelsSheet(
                                             locationManager.select(ChannelID.Location(channel))
                                             onDismiss()
                                         } else {
-                                            customError = "invalid geohash"
+                                            customError = context.getString(R.string.invalid_geohash)
                                         }
                                     },
                                     enabled = isValid,
@@ -555,14 +557,14 @@ fun LocationChannelsSheet(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "teleport",
+                                            text = stringResource(R.string.teleport),
                                             fontSize = BASE_FONT_SIZE.sp,
                                             fontFamily = FontFamily.Monospace
                                         )
                                         // iOS has a face.dashed icon, use closest Material equivalent
                                         Icon(
                                             imageVector = Icons.Filled.PinDrop,
-                                            contentDescription = "Teleport",
+                                            contentDescription = stringResource(R.string.cd_teleport),
                                             modifier = Modifier.size(14.dp),
                                             tint = dogeGold
                                         )
@@ -625,11 +627,7 @@ fun LocationChannelsSheet(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = if (locationServicesEnabled) {
-                                        "Such disable location services"
-                                    } else {
-                                        "Much enable location services"
-                                    },
+                                    text = if (locationServicesEnabled) stringResource(R.string.disable_location_services) else stringResource(R.string.enable_location_services),
                                     fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
@@ -653,7 +651,7 @@ fun LocationChannelsSheet(
                             .padding(horizontal = 16.dp)
                     ) {
                         Text(
-                            text = "Close",
+                            text = stringResource(R.string.close_plain),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             color = dogeGold
                         )
@@ -763,7 +761,7 @@ private fun ChannelRow(
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Filled.Check,
-                        contentDescription = "Selected",
+                        contentDescription = stringResource(R.string.cd_selected),
                         tint = ThemeColors.BrandAccent, // app bright yellow
                         modifier = Modifier.size(20.dp)
                     )
@@ -790,10 +788,13 @@ private fun splitTitleAndCount(title: String): Pair<String, String?> {
     }
 }
 
+@Composable
 private fun meshTitleWithCount(viewModel: ChatViewModel): String {
     val meshCount = meshCount(viewModel)
-    val noun = if (meshCount == 1) "person" else "people"
-    return "mesh [$meshCount $noun]"
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val peopleText = ctx.resources.getQuantityString(com.dogechat.android.R.plurals.people_count, meshCount, meshCount)
+    val meshLabel = stringResource(com.dogechat.android.R.string.mesh_label)
+    return "$meshLabel [$peopleText]"
 }
 
 private fun meshCount(viewModel: ChatViewModel): Int {
@@ -803,14 +804,25 @@ private fun meshCount(viewModel: ChatViewModel): Int {
     } ?: 0
 }
 
+@Composable
 private fun geohashTitleWithCount(channel: GeohashChannel, participantCount: Int): String {
-    val noun = if (participantCount == 1) "person" else "people"
-    return "${channel.level.displayName.lowercase()} [$participantCount $noun]"
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val peopleText = ctx.resources.getQuantityString(com.dogechat.android.R.plurals.people_count, participantCount, participantCount)
+    val levelName = when (channel.level) {
+        com.dogechat.android.geohash.GeohashChannelLevel.BLOCK -> stringResource(com.dogechat.android.R.string.location_level_block)
+        com.dogechat.android.geohash.GeohashChannelLevel.NEIGHBORHOOD -> stringResource(com.dogechat.android.R.string.location_level_neighborhood)
+        com.dogechat.android.geohash.GeohashChannelLevel.CITY -> stringResource(com.dogechat.android.R.string.location_level_city)
+        com.dogechat.android.geohash.GeohashChannelLevel.PROVINCE -> stringResource(com.dogechat.android.R.string.location_level_province)
+        com.dogechat.android.geohash.GeohashChannelLevel.REGION -> stringResource(com.dogechat.android.R.string.location_level_region)
+    }
+    return "$levelName [$peopleText]"
 }
 
+@Composable
 private fun geohashHashTitleWithCount(geohash: String, participantCount: Int): String {
-    val noun = if (participantCount == 1) "person" else "people"
-    return "#$geohash [$participantCount $noun]"
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val peopleText = ctx.resources.getQuantityString(com.dogechat.android.R.plurals.people_count, participantCount, participantCount)
+    return "#$geohash [$peopleText]"
 }
 
 private fun isChannelSelected(channel: GeohashChannel, selectedChannel: ChannelID?): Boolean {

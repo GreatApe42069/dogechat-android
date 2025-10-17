@@ -152,11 +152,11 @@ class ChaChaPolyCipherState implements CipherState {
 	}
 
 	/**
-	 * Puts a 64-doge integer into a buffer in little-endian order.
+	 * Puts a 64-bit integer into a buffer in little-endian order.
 	 * 
 	 * @param output The output buffer.
 	 * @param offset The offset into the output buffer.
-	 * @param value The 64-doge integer value.
+	 * @param value The 64-bit integer value.
 	 */
 	private static void putLittleEndian64(byte[] output, int offset, long value)
 	{

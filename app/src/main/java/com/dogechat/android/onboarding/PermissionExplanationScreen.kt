@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.dogechat.android.R
 
 /**
  * Permission explanation screen shown before requesting permissions
@@ -48,7 +50,7 @@ fun PermissionExplanationScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Welcome to Đogechat",
+                    text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -60,7 +62,7 @@ fun PermissionExplanationScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Đecentralized mesh messaging over Bluetooth",
+                    text = stringResource(R.string.about_tagline),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.7f)
@@ -93,7 +95,7 @@ fun PermissionExplanationScreen(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Your Privacy is Protected",
+                            text = stringResource(R.string.cd_privacy_protected),
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFFFFF00)
@@ -102,10 +104,7 @@ fun PermissionExplanationScreen(
                     }
 
                     Text(
-                        text = "• Đogechat doesn't track you or collect any personal data\n" +
-                                "• Bluetooth mesh chats are fully offline and require no internet\n" +
-                                "• Geohash chats use the internet but your location is generalized\n" +
-                                "• Your messages stay locally on your device and peer devices only",
+                        text = stringResource(R.string.privacy_bullets),
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -117,7 +116,7 @@ fun PermissionExplanationScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "To work properly, Đogechat needs Such permissions:",
+                text = stringResource(R.string.permissions_header),
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFFFFD700)
@@ -205,7 +204,7 @@ fun PermissionExplanationScreen(
                 )
             ) {
                 Text(
-                    text = "Grant Permissions",
+                    text = stringResource(R.string.grant_permissions),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -274,7 +273,7 @@ private fun PermissionCategoryCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Đogechat does NOT track your location",
+                        text = stringResource(R.string.location_tracking_warning),
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Medium,

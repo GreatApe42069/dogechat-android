@@ -20,9 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.dogechat.android.R
 import com.dogechat.android.features.file.FileUtils
 import com.dogechat.android.model.DogechatFilePacket
 import kotlinx.coroutines.launch
@@ -54,7 +56,7 @@ fun FileViewerDialog(
             ) {
                 // File received header
                 Text(
-                    text = "📎 File Received",
+                    text = stringResource(R.string.file_viewer_title),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -65,17 +67,17 @@ fun FileViewerDialog(
                     horizontalAlignment = Alignment.Start
                 ) {
                     Text(
-                        text = "📄 ${packet.fileName}",
+                        text = stringResource(R.string.file_viewer_name, packet.fileName),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                     )
                     Text(
-                        text = "📏 Size: ${FileUtils.formatFileSize(packet.fileSize)}",
+                        text = stringResource(R.string.file_viewer_size, FileUtils.formatFileSize(packet.fileSize)),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "🏷️ Type: ${packet.mimeType}",
+                        text = stringResource(R.string.file_viewer_type, packet.mimeType),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -108,7 +110,7 @@ fun FileViewerDialog(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Text("📂 Open / Save")
+                        Text(stringResource(R.string.file_viewer_open_save))
                     }
 
                     // Dismiss button
@@ -119,7 +121,7 @@ fun FileViewerDialog(
                             containerColor = MaterialTheme.colorScheme.secondary
                         )
                     ) {
-                        Text("❌ Close")
+                        Text(stringResource(R.string.close_with_emoji))
                     }
                 }
             }

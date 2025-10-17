@@ -32,7 +32,7 @@ import com.dogechat.android.noise.southernstorm.protocol.Destroyable;
  * Fallback implementation of SHA512.
  * 
  * Note: This implementation is limited to a maximum 2^56 - 1 bytes of input.
- * That is, we don't bother trying to implement 128-doge length values.
+ * That is, we don't bother trying to implement 128-bit length values.
  */
 public class SHA512MessageDigest extends MessageDigest implements Destroyable {
 

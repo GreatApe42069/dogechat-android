@@ -19,6 +19,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dogechat.android.features.file.FileUtils
 import com.dogechat.android.model.DogechatFilePacket
@@ -63,7 +66,7 @@ fun FileMessageItem(
             // File icon
             Icon(
                 imageVector = Icons.Filled.Description,
-                contentDescription = "File",
+                contentDescription = stringResource(com.dogechat.android.R.string.cd_file),
                 tint = getFileIconColor(packet.fileName),
                 modifier = Modifier.size(32.dp)
             )

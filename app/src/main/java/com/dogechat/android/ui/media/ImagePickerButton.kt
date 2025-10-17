@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dogechat.android.features.media.ImageUtils
 
@@ -35,7 +36,7 @@ fun ImagePickerButton(
     ) {
         Icon(
             imageVector = Icons.Filled.Photo,
-            contentDescription = "Pick image",
+            contentDescription = stringResource(com.dogechat.android.R.string.pick_image),
             tint = Color(0xFFFFD700),
             modifier = Modifier.size(26.dp)
         )

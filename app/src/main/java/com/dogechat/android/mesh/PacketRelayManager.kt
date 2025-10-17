@@ -109,7 +109,7 @@ class PacketRelayManager(private val myPeerID: String) {
         
         // Small networks always relay to ensure connectivity
         if (networkSize <= 3) {
-             Log.d(TAG, "Small network (${networkSize} peers), relaying")
+            Log.d(TAG, "Small network (${networkSize} peers), relaying")
             return true
         }
         

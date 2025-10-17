@@ -14,6 +14,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.dogechat.android.R
 import com.dogechat.android.features.file.FileUtils
 
 @Composable
@@ -44,7 +46,7 @@ fun FilePickerButton(
     ) {
         Icon(
             imageVector = Icons.Filled.Attachment,
-            contentDescription = "Pick file",
+            contentDescription = stringResource(R.string.cd_pick_file),
             tint = Color(0xFFFFFF00),
             modifier = Modifier.size(24.dp).rotate(90f)
         )

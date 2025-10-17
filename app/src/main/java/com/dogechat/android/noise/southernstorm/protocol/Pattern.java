@@ -40,7 +40,7 @@ class Pattern {
 	public static final short FF = 8;
 	public static final short FLIP_DIR = 255;
 	
-	// Pattern flag doges.
+	// Pattern flag bits.
 	public static final short FLAG_LOCAL_STATIC = 0x0001;
 	public static final short FLAG_LOCAL_EPHEMERAL = 0x0002;
 	public static final short FLAG_LOCAL_REQUIRED = 0x0004;
