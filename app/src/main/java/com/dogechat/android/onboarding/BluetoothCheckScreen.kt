@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.dogechat.android.R
 
 /**
  * Screen shown when checking Bluetooth status or requesting Bluetooth enable
@@ -71,13 +73,13 @@ private fun BluetoothDisabledContent(
         // Bluetooth icon - using Bluetooth outlined icon in app's yellow color
         Icon(
             imageVector = Icons.Outlined.Bluetooth,
-            contentDescription = "Bluetooth",
+            contentDescription = stringResource(R.string.cd_bluetooth),
             modifier = Modifier.size(64.dp),
             tint = Color(0xFFFFFF00) // App's main yellow color
         )
 
         Text(
-            text = "Bluetooth Required",
+            text = stringResource(R.string.bluetooth_required),
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -98,7 +100,7 @@ private fun BluetoothDisabledContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Đogechat needs Bluetooth to:",
+                    text = stringResource(R.string.bluetooth_needs_for),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFFFFFF00)
@@ -108,10 +110,7 @@ private fun BluetoothDisabledContent(
                 )
                 
                 Text(
-                    text = "• Điscover Nearby Shibes\n" +
-                            "• Create Much Mesh Network Connections\n" +
-                            "• Such Send and Receive messages\n" +
-                            "• Very Work without internet, servers, or sim cards",
+                    text = stringResource(R.string.bluetooth_needs_bullets),
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -135,7 +134,7 @@ private fun BluetoothDisabledContent(
                     )
                 ) {
                     Text(
-                        text = "Much Enable Bluetooth",
+                        text = stringResource(R.string.enable_bluetooth),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -179,14 +178,14 @@ private fun BluetoothNotSupportedContent(
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Text(
-                text = "❌",
+                text = stringResource(R.string.warning_emoji),
                 style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.padding(16.dp)
             )
         }
 
         Text(
-            text = "Bluetooth Not Supported",
+            text = stringResource(R.string.bluetooth_not_supported),
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -203,7 +202,7 @@ private fun BluetoothNotSupportedContent(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Text(
-                text = "So Sad... This device doesn't support Bluetooth Low Energy (BLE), which is required for dogechat to function.\n\ndogechat needs BLE to create mesh networks and communicate with nearby devices without internet.",
+                text = stringResource(R.string.bluetooth_unsupported_explanation),
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     color = colorScheme.onSurface
@@ -224,7 +223,7 @@ private fun BluetoothCheckingContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Đogechat",
+            text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -236,7 +235,7 @@ private fun BluetoothCheckingContent(
         BluetoothLoadingIndicator()
 
         Text(
-            text = "Such Checking Much Bluetooth status...",
+            text = stringResource(R.string.checking_bluetooth_status),
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 color = colorScheme.onSurface.copy(alpha = 0.7f)

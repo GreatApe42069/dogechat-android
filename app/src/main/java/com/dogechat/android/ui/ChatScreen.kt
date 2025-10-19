@@ -1,4 +1,8 @@
 package com.dogechat.android.ui
+// [Goose] Bridge file share events to ViewModel via dispatcher is installed in ChatScreen composition
+
+// [Goose] Installing FileShareDispatcher handler in ChatScreen to forward file sends to ViewModel
+
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -15,13 +19,15 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
 import com.dogechat.android.model.DogechatMessage
-import com.dogechat.android.parsing.ParsedDogeToken
+import com.dogechat.android.ui.media.FullScreenImageViewer
+
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -32,16 +38,9 @@ import com.dogechat.android.parsing.ParsedDogeToken
  * - SidebarComponents: Navigation drawer with channels and people
  * - AboutSheet: App info and password prompts
  * - ChatUIUtils: Utility functions for formatting and colors
- * - Keeps the exact working main-branch UI (no regressions).
- * - Added wallet icon and integration hooks (DOGE receive/send using libdohj).
  */
 @Composable
-fun ChatScreen(
-    viewModel: ChatViewModel,
-    onWalletClick: (ParsedDogeToken?) -> Unit = {},
-    onDogeReceive: (ParsedDogeToken) -> Unit = {},
-    onDogeSend: (ParsedDogeToken) -> Unit = {}
-) {
+fun ChatScreen(viewModel: ChatViewModel) {
     val colorScheme = MaterialTheme.colorScheme
     val messages by viewModel.messages.observeAsState(emptyList())
     val connectedPeers by viewModel.connectedPeers.observeAsState(emptyList())
@@ -68,8 +67,12 @@ fun ChatScreen(
     var showUserSheet by remember { mutableStateOf(false) }
     var selectedUserForSheet by remember { mutableStateOf("") }
     var selectedMessageForSheet by remember { mutableStateOf<DogechatMessage?>(null) }
+    var showFullScreenImageViewer by remember { mutableStateOf(false) }
+    var viewerImagePaths by remember { mutableStateOf(emptyList<String>()) }
+    var initialViewerIndex by remember { mutableStateOf(0) }
     var forceScrollToBottom by remember { mutableStateOf(false) }
     var isScrolledUp by remember { mutableStateOf(false) }
+
     // Show password dialog when needed
     LaunchedEffect(showPasswordPrompt) {
         showPasswordDialog = showPasswordPrompt
@@ -95,6 +98,7 @@ fun ChatScreen(
             }
         }
     }
+
     // Use WindowInsets to handle keyboard properly
     Box(
         modifier = Modifier
@@ -102,7 +106,7 @@ fun ChatScreen(
             .background(colorScheme.background) // Extend background to fill entire screen including status bar
     ) {
         val headerHeight = 42.dp
-
+        
         // Main content area that responds to keyboard/window insets
         Column(
             modifier = Modifier
@@ -128,8 +132,11 @@ fun ChatScreen(
                 onNicknameClick = { fullSenderName ->
                     // Single click - mention user in text input
                     val currentText = messageText.text
-                    val (baseName, hashSuffix) = splitSuffix(fullSenderName)
+                    
                     // Extract base nickname and hash suffix from full sender name
+                    val (baseName, hashSuffix) = splitSuffix(fullSenderName)
+                    
+                    // Check if we're in a geohash channel to include hash suffix
                     val selectedLocationChannel = viewModel.selectedLocationChannel.value
                     val mentionText = if (selectedLocationChannel is com.dogechat.android.geohash.ChannelID.Location && hashSuffix.isNotEmpty()) {
                         // In geohash chat - include the hash suffix from the full display name
@@ -138,13 +145,13 @@ fun ChatScreen(
                         // Regular chat - just the base nickname
                         "@$baseName"
                     }
-
+                    
                     val newText = when {
                         currentText.isEmpty() -> "$mentionText "
                         currentText.endsWith(" ") -> "$currentText$mentionText "
                         else -> "$currentText $mentionText "
                     }
-
+                    
                     messageText = TextFieldValue(
                         text = newText,
                         selection = TextRange(newText.length)
@@ -158,30 +165,52 @@ fun ChatScreen(
                     selectedMessageForSheet = message
                     showUserSheet = true
                 },
-                onDogeReceive = { parsedToken -> onWalletClick(parsedToken) },
-                onDogeSend = { parsedToken -> onDogeSend(parsedToken) }
+                onCancelTransfer = { msg ->
+                    viewModel.cancelMediaSend(msg.id)
+                },
+                onImageClick = { currentPath, allImagePaths, initialIndex ->
+                    viewerImagePaths = allImagePaths
+                    initialViewerIndex = initialIndex
+                    showFullScreenImageViewer = true
+                }
             )
-
             // Input area - stays at bottom
-            ChatInputSection(
-                messageText = messageText,
-                onMessageTextChange = { newText: TextFieldValue ->
-                    messageText = newText
-                    viewModel.updateCommandSuggestions(newText.text)
-                    viewModel.updateMentionSuggestions(newText.text)
-                },
-                onSend = {
-                    if (messageText.text.trim().isNotEmpty()) {
-                        viewModel.sendMessage(messageText.text.trim())
-                        messageText = TextFieldValue("")
-                        forceScrollToBottom = !forceScrollToBottom // Toggle to trigger scroll
-                    }
-                },
-                showCommandSuggestions = showCommandSuggestions,
-                commandSuggestions = commandSuggestions,
-                showMentionSuggestions = showMentionSuggestions,
-                mentionSuggestions = mentionSuggestions,
-                onCommandSuggestionClick = { suggestion: CommandSuggestion ->
+        // Bridge file share from lower-level input to ViewModel
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        com.dogechat.android.ui.events.FileShareDispatcher.setHandler { peer, channel, path ->
+            viewModel.sendFileNote(peer, channel, path)
+        }
+    }
+
+    ChatInputSection(
+        messageText = messageText,
+        onMessageTextChange = { newText: TextFieldValue ->
+            messageText = newText
+            viewModel.updateCommandSuggestions(newText.text)
+            viewModel.updateMentionSuggestions(newText.text)
+        },
+        onSend = {
+            if (messageText.text.trim().isNotEmpty()) {
+                viewModel.sendMessage(messageText.text.trim())
+                messageText = TextFieldValue("")
+                forceScrollToBottom = !forceScrollToBottom // Toggle to trigger scroll
+            }
+        },
+        onSendVoiceNote = { peer, onionOrChannel, path ->
+            viewModel.sendVoiceNote(peer, onionOrChannel, path)
+        },
+        onSendImageNote = { peer, onionOrChannel, path ->
+            viewModel.sendImageNote(peer, onionOrChannel, path)
+        },
+        onSendFileNote = { peer, onionOrChannel, path ->
+            viewModel.sendFileNote(peer, onionOrChannel, path)
+        },
+        
+        showCommandSuggestions = showCommandSuggestions,
+        commandSuggestions = commandSuggestions,
+        showMentionSuggestions = showMentionSuggestions,
+        mentionSuggestions = mentionSuggestions,
+        onCommandSuggestionClick = { suggestion: CommandSuggestion ->
                     val commandText = viewModel.selectCommandSuggestion(suggestion)
                     messageText = TextFieldValue(
                         text = commandText,
@@ -213,8 +242,7 @@ fun ChatScreen(
             onSidebarToggle = { viewModel.showSidebar() },
             onShowAppInfo = { viewModel.showAppInfo() },
             onPanicClear = { viewModel.panicClearAllData() },
-            onLocationChannelsClick = { showLocationChannelsSheet = true },
-            onWalletClick = { onWalletClick(null) }
+            onLocationChannelsClick = { showLocationChannelsSheet = true }
         )
 
         // Divider under header - positioned after status bar + header height
@@ -227,7 +255,6 @@ fun ChatScreen(
             color = colorScheme.outline.copy(alpha = 0.3f)
         )
 
-        // Sidebar overlay
         val alpha by animateFloatAsState(
             targetValue = if (showSidebar) 0.5f else 0f,
             animationSpec = tween(
@@ -269,14 +296,13 @@ fun ChatScreen(
                 IconButton(onClick = { forceScrollToBottom = !forceScrollToBottom }) {
                     Icon(
                         imageVector = Icons.Filled.ArrowDownward,
-                        contentDescription = "Scroll to bottom",
+                        contentDescription = stringResource(com.dogechat.android.R.string.cd_scroll_to_bottom),
                         tint = Color(0xFFFFFF00)
                     )
                 }
             }
         }
 
-        // Sidebar slide
         AnimatedVisibility(
             visible = showSidebar,
             enter = slideInHorizontally(
@@ -295,6 +321,15 @@ fun ChatScreen(
                 modifier = Modifier.fillMaxSize()
             )
         }
+    }
+
+    // Full-screen image viewer - separate from other sheets to allow image browsing without navigation
+    if (showFullScreenImageViewer) {
+        FullScreenImageViewer(
+            imagePaths = viewerImagePaths,
+            initialIndex = initialViewerIndex,
+            onClose = { showFullScreenImageViewer = false }
+        )
     }
 
     // Dialogs and Sheets
@@ -321,7 +356,7 @@ fun ChatScreen(
         showLocationChannelsSheet = showLocationChannelsSheet,
         onLocationChannelsSheetDismiss = { showLocationChannelsSheet = false },
         showUserSheet = showUserSheet,
-        onUserSheetDismiss = {
+        onUserSheetDismiss = { 
             showUserSheet = false
             selectedMessageForSheet = null // Reset message when dismissing
         },
@@ -336,6 +371,9 @@ private fun ChatInputSection(
     messageText: TextFieldValue,
     onMessageTextChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
+    onSendVoiceNote: (String?, String?, String) -> Unit,
+    onSendImageNote: (String?, String?, String) -> Unit,
+    onSendFileNote: (String?, String?, String) -> Unit,
     showCommandSuggestions: Boolean,
     commandSuggestions: List<CommandSuggestion>,
     showMentionSuggestions: Boolean,
@@ -360,10 +398,8 @@ private fun ChatInputSection(
                     onSuggestionClick = onCommandSuggestionClick,
                     modifier = Modifier.fillMaxWidth()
                 )
-
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
             }
-            
             // Mention suggestions box
             if (showMentionSuggestions && mentionSuggestions.isNotEmpty()) {
                 MentionSuggestionsBox(
@@ -371,14 +407,15 @@ private fun ChatInputSection(
                     onSuggestionClick = onMentionSuggestionClick,
                     modifier = Modifier.fillMaxWidth()
                 )
-
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.2f))
             }
-
             MessageInput(
                 value = messageText,
                 onValueChange = onMessageTextChange,
                 onSend = onSend,
+                onSendVoiceNote = onSendVoiceNote,
+                onSendImageNote = onSendImageNote,
+                onSendFileNote = onSendFileNote,
                 selectedPrivatePeer = selectedPrivatePeer,
                 currentChannel = currentChannel,
                 nickname = nickname,
@@ -387,7 +424,6 @@ private fun ChatInputSection(
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatFloatingHeader(
@@ -400,8 +436,7 @@ private fun ChatFloatingHeader(
     onSidebarToggle: () -> Unit,
     onShowAppInfo: () -> Unit,
     onPanicClear: () -> Unit,
-    onLocationChannelsClick: () -> Unit,
-    onWalletClick: () -> Unit
+    onLocationChannelsClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -426,8 +461,7 @@ private fun ChatFloatingHeader(
                     onSidebarClick = onSidebarToggle,
                     onTripleClick = onPanicClear,
                     onShowAppInfo = onShowAppInfo,
-                    onLocationChannelsClick = onLocationChannelsClick,
-                    onWalletClick = onWalletClick
+                    onLocationChannelsClick = onLocationChannelsClick
                 )
             },
             colors = TopAppBarDefaults.topAppBarColors(

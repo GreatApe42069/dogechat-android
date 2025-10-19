@@ -17,7 +17,6 @@ import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 import java.text.SimpleDateFormat
 import java.util.*
 
-
 /**
  * Utility functions for ChatScreen UI components
  * Extracted from ChatScreen.kt for better organization
@@ -56,9 +55,9 @@ fun formatMessageAsAnnotatedString(
                  message.sender.startsWith("$currentUserNickname#")
     
     if (message.sender != "system") {
-        // Get base color for this peer (iOS-style color assignment)
+        // Get base color for this peer (iOS-style color assignment) (updated: Dogecoin Gold for self)
         val baseColor = if (isSelf) {
-            Color(0xFFFFFF00) // Yellow for self (doge yellow)
+            Color(0xFFFFD700) // Dogecoin Gold for self (was iOS orange #FF9500)
         } else {
             getPeerColor(message, isDark)
         }
@@ -158,8 +157,107 @@ fun formatMessageAsAnnotatedString(
 }
 
 /**
+ * Build only the nickname + timestamp header line for a message, matching styles of normal messages.
+ */
+fun formatMessageHeaderAnnotatedString(
+    message: DogechatMessage,
+    currentUserNickname: String,
+    meshService: BluetoothMeshService,
+    colorScheme: ColorScheme,
+    timeFormatter: SimpleDateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+): AnnotatedString {
+    val builder = AnnotatedString.Builder()
+    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
+
+    val isSelf = message.senderPeerID == meshService.myPeerID ||
+            message.sender == currentUserNickname ||
+            message.sender.startsWith("$currentUserNickname#")
+
+    if (message.sender != "system") {
+        val baseColor = if (isSelf) Color(0xFFFFD700) else getPeerColor(message, isDark) // Dogecoin Gold for self (was iOS orange #FF9500)
+        val (baseName, suffix) = splitSuffix(message.sender)
+
+        // "<@"
+        builder.pushStyle(SpanStyle(
+            color = baseColor,
+            fontSize = BASE_FONT_SIZE.sp,
+            fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
+        ))
+        builder.append("<@")
+        builder.pop()
+
+        // Base name (clickable when not self)
+        builder.pushStyle(SpanStyle(
+            color = baseColor,
+            fontSize = BASE_FONT_SIZE.sp,
+            fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
+        ))
+        val nicknameStart = builder.length
+        builder.append(truncateNickname(baseName))
+        val nicknameEnd = builder.length
+        if (!isSelf) {
+            builder.addStringAnnotation(
+                tag = "nickname_click",
+                annotation = (message.originalSender ?: message.sender),
+                start = nicknameStart,
+                end = nicknameEnd
+            )
+        }
+        builder.pop()
+
+        // Hashtag suffix
+        if (suffix.isNotEmpty()) {
+            builder.pushStyle(SpanStyle(
+                color = baseColor.copy(alpha = 0.6f),
+                fontSize = BASE_FONT_SIZE.sp,
+                fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
+            ))
+            builder.append(suffix)
+            builder.pop()
+        }
+
+        // Sender suffix ">"
+        builder.pushStyle(SpanStyle(
+            color = baseColor,
+            fontSize = BASE_FONT_SIZE.sp,
+            fontWeight = if (isSelf) FontWeight.Bold else FontWeight.Medium
+        ))
+        builder.append(">")
+        builder.pop()
+
+        // Timestamp and optional PoW bits, matching normal message appearance
+        builder.pushStyle(SpanStyle(
+            color = Color.Gray.copy(alpha = 0.7f),
+            fontSize = (BASE_FONT_SIZE - 4).sp
+        ))
+        builder.append("  [${timeFormatter.format(message.timestamp)}]")
+        message.powDifficulty?.let { bits ->
+            if (bits > 0) builder.append(" ⛨${bits}b")
+        }
+        builder.pop()
+    } else {
+        // System message header (should rarely apply to voice)
+        builder.pushStyle(SpanStyle(
+            color = Color.Gray,
+            fontSize = (BASE_FONT_SIZE - 2).sp,
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+        ))
+        builder.append("* ${message.content} *")
+        builder.pop()
+        builder.pushStyle(SpanStyle(
+            color = Color.Gray.copy(alpha = 0.5f),
+            fontSize = (BASE_FONT_SIZE - 4).sp
+        ))
+        builder.append(" [${timeFormatter.format(message.timestamp)}]")
+        builder.pop()
+    }
+
+    return builder.toAnnotatedString()
+}
+
+/**
  * iOS-style peer color assignment using djb2 hash algorithm
- * Avoids orange (~30°) reserved for self messages
+ * Avoids Dogecoin Gold (~51°) reserved for self messages (was orange ~30°)
  */
 fun getPeerColor(message: DogechatMessage, isDark: Boolean): Color {
     // Create seed from peer identifier (prioritizing stable keys)
@@ -197,10 +295,10 @@ fun colorForPeerSeed(seed: String, isDark: Boolean): Color {
     
     var hue = (hash % 360UL).toDouble() / 360.0
     
-    // Avoid orange (~30°) reserved for self (matches iOS logic)
-    val orange = 30.0 / 360.0
-    if (kotlin.math.abs(hue - orange) < 0.05) {
-        hue = (hue + 0.12) % 1.0
+    // Avoid Dogecoin Gold (~51°) reserved for self (updated from avoiding orange ~30°)
+    val dogeGold = 51.0 / 360.0
+    if (kotlin.math.abs(hue - dogeGold) < 0.05) { // same 0.05 tolerance window as original
+        hue = (hue + 0.12) % 1.0 // shift away (kept original shift logic)
     }
     
     val saturation = if (isDark) 0.50 else 0.70
@@ -344,7 +442,7 @@ private fun appendIOSFormattedContent(
                 
                 // Check if this mention targets current user
                 val isMentionToMe = mBase == currentUserNickname
-                val mentionColor = if (isMentionToMe) Color(0xFFFF9500) else baseColor
+                val mentionColor = if (isMentionToMe) Color(0xFFFFD700) else baseColor // Dogecoin Gold highlight for self-mention
                 
                 // "@" symbol
                 builder.pushStyle(SpanStyle(

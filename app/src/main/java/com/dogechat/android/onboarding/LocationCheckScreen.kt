@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.dogechat.android.R
 
 /**
  * Screen shown when checking location services status or requesting location services enable
@@ -69,13 +71,13 @@ private fun LocationDisabledContent(
     ) {
         Icon(
             imageVector = Icons.Outlined.LocationOn,
-            contentDescription = "Location Services",
+            contentDescription = stringResource(R.string.cd_location_services),
             modifier = Modifier.size(64.dp),
             tint = Color(0xFFFFD700)
         )
 
         Text(
-            text = "Location Services Required",
+            text = stringResource(R.string.location_services_required),
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -101,13 +103,13 @@ private fun LocationDisabledContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Security,
-                        contentDescription = "Privacy",
+                        contentDescription = stringResource(R.string.cd_privacy),
                         tint = Color(0xFFFFD700),
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Privacy First",
+                        text = stringResource(R.string.privacy_first),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFFFFF00)
@@ -116,7 +118,7 @@ private fun LocationDisabledContent(
                 }
 
                 Text(
-                    text = "Đogechat does NOT track your location.\n\nLocation services are required for Bluetooth scanning and for the Geohash chat feature.",
+                    text = stringResource(R.string.location_explanation),
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -126,7 +128,7 @@ private fun LocationDisabledContent(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Đogechat needs Much location services for:",
+                    text = stringResource(R.string.location_needs_for),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFFFFFF00)
@@ -136,10 +138,7 @@ private fun LocationDisabledContent(
                 )
 
                 Text(
-                    text = "• Bluetooth device Such Scanning\n" +
-                            "• Điscovering nearby Shibes on the mesh network\n" +
-                            "• Geohash chat feature\n" +
-                            "• No tracking of shibes or location collection",
+                    text = stringResource(R.string.location_needs_bullets),
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         color = colorScheme.onSurface.copy(alpha = 0.8f)
@@ -166,7 +165,7 @@ private fun LocationDisabledContent(
                     )
                 ) {
                     Text(
-                        text = "Open Location Settings",
+                        text = stringResource(R.string.open_location_settings),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -180,7 +179,7 @@ private fun LocationDisabledContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Check Again",
+                        text = stringResource(R.string.check_again),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace
                         ),
@@ -202,13 +201,13 @@ private fun LocationNotAvailableContent(
     ) {
         Icon(
             imageVector = Icons.Filled.ErrorOutline,
-            contentDescription = "Error",
+            contentDescription = stringResource(R.string.cd_error),
             modifier = Modifier.size(64.dp),
             tint = colorScheme.error
         )
 
         Text(
-            text = "Location Services Unavailable",
+            text = stringResource(R.string.location_services_unavailable),
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -225,7 +224,7 @@ private fun LocationNotAvailableContent(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Text(
-                text = "Location services are not available on this device. This is unusual as location services are standard on Android devices.\n\nĐogechat needs Much location services for Bluetooth scanning to work properly (Android requirement). Without this, the app cannot discover nearby users.",
+                text = stringResource(R.string.location_unavailable_explanation),
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     color = colorScheme.onSurface
@@ -246,7 +245,7 @@ private fun LocationCheckingContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Đogechat",
+            text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -258,7 +257,7 @@ private fun LocationCheckingContent(
         LocationLoadingIndicator()
 
         Text(
-            text = "Checking location services...",
+            text = stringResource(R.string.checking_location_services),
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 color = colorScheme.onSurface.copy(alpha = 0.7f)
@@ -269,6 +268,7 @@ private fun LocationCheckingContent(
 
 @Composable
 private fun LocationLoadingIndicator() {
+    // Animated rotation for the loading indicator
     val infiniteTransition = rememberInfiniteTransition(label = "location_loading")
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,

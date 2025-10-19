@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,6 +33,8 @@ import androidx.compose.ui.unit.sp
 import com.dogechat.android.nostr.NostrProofOfWork
 import com.dogechat.android.nostr.PoWPreferenceManager
 import com.dogechat.android.ui.debug.DebugSettingsSheet
+import androidx.compose.ui.res.stringResource
+import com.dogechat.android.R
 import com.dogechat.android.wallet.WalletManager
 import com.dogechat.android.wallet.WalletManager.Companion.SpvController
 import com.dogechat.android.wallet.logging.AppLog
@@ -134,7 +137,7 @@ fun AboutSheet(
                                 verticalAlignment = Alignment.Bottom
                             ) {
                                 Text(
-                                    text = "Đogechat",
+                                    text = stringResource(R.string.app_name),
                                     style = TextStyle(
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold,
@@ -144,7 +147,7 @@ fun AboutSheet(
                                 )
 
                                 Text(
-                                    text = "v$versionName",
+                                    text = stringResource(R.string.version_prefix, versionName?:""),
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     color = colorScheme.onBackground.copy(alpha = 0.5f),
@@ -178,7 +181,7 @@ fun AboutSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Bluetooth,
-                                contentDescription = "Offline Mesh Chat",
+                                contentDescription = stringResource(R.string.cd_offline_mesh_chat),
                                 tint = Color(0xFF007AFF), // Bluetooth icon color as requested
                                 modifier = Modifier
                                     .padding(top = 2.dp)
@@ -187,7 +190,7 @@ fun AboutSheet(
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
-                                    text = "Offline Mesh Chat",
+                                    text = stringResource(R.string.about_offline_mesh_title),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = brandAccent
@@ -210,7 +213,7 @@ fun AboutSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Public,
-                                contentDescription = "Online Geohash Channels",
+                                contentDescription = stringResource(R.string.cd_online_geohash_channels),
                                 tint = standardGreen, // Geohash icon -> standardGreen
                                 modifier = Modifier
                                     .padding(top = 2.dp)
@@ -219,7 +222,7 @@ fun AboutSheet(
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
-                                    text = "Online Geohash Channels",
+                                    text = stringResource(R.string.about_online_geohash_title),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = brandAccent
@@ -302,7 +305,7 @@ fun AboutSheet(
                     // Appearance Section
                     item(key = "appearance_section") {
                         Text(
-                            text = "Appearance",
+                            text = stringResource(R.string.about_appearance),
                             style = MaterialTheme.typography.labelLarge,
                             color = brandAccent, // requested section title color
                             modifier = Modifier
@@ -323,7 +326,7 @@ fun AboutSheet(
                                         com.dogechat.android.ui.theme.ThemePreference.System
                                     )
                                 },
-                                label = { Text("system", fontFamily = FontFamily.Monospace) }
+                                label = { Text(stringResource(R.string.about_system), fontFamily = FontFamily.Monospace) }
                             )
                             FilterChip(
                                 selected = themePref.isLight,
@@ -589,6 +592,7 @@ fun AboutSheet(
                                     label = {
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("spv off", fontFamily = FontFamily.Monospace)
+                                            // Only show red when OFF is selected AND the service is confirmed stopped
                                             if (!spvEnabled && !spvStatus.running) {
                                                 Surface(color = Color.Red, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
@@ -606,12 +610,13 @@ fun AboutSheet(
                                     label = {
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("spv on", fontFamily = FontFamily.Monospace)
-                                            val indColor = when {
-                                                !spvStatus.running -> Color.Red
-                                                spvStatus.syncPercent < 100 -> warnOrange
-                                                else -> standardGreen
-                                            }
+                                            // Show indicator only when ON is selected
                                             if (spvEnabled) {
+                                                val indColor = when {
+                                                    !spvStatus.running -> Color.Red // Red only if ON selected but not running
+                                                    spvStatus.syncPercent < 100 -> warnOrange // Orange for syncing
+                                                    else -> standardGreen // Green for fully synced
+                                                }
                                                 Surface(color = indColor, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
                                                 }
@@ -686,6 +691,7 @@ fun AboutSheet(
                                     label = {
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("wallet tor off", fontFamily = FontFamily.Monospace)
+                                            // Only show red when OFF is selected AND the service is confirmed stopped
                                             if (walletTorMode == com.dogechat.android.net.TorMode.OFF && !walletTorStatus.running) {
                                                 Surface(color = Color.Red, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
@@ -712,12 +718,13 @@ fun AboutSheet(
                                     label = {
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("wallet tor on", fontFamily = FontFamily.Monospace)
-                                            val indColor = when {
-                                                !walletTorStatus.running -> Color.Red
-                                                walletTorStatus.bootstrapPercent < 100 -> warnOrange
-                                                else -> standardGreen
-                                            }
+                                            // Show indicator only when ON is selected
                                             if (walletTorMode == com.dogechat.android.net.TorMode.ON) {
+                                                val indColor = when {
+                                                    !walletTorStatus.running -> Color.Red // Red only if ON selected but not running
+                                                    walletTorStatus.bootstrapPercent < 100 -> warnOrange // Orange for bootstrapping
+                                                    else -> standardGreen // Green for fully connected
+                                                }
                                                 Surface(color = indColor, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
                                                 }
@@ -852,7 +859,7 @@ fun AboutSheet(
                             .padding(horizontal = 16.dp)
                     ) {
                         Text(
-                            text = "Close",
+                            text = stringResource(R.string.close_plain),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                         )
                     }
@@ -899,7 +906,7 @@ fun PasswordPromptDialog(
                     OutlinedTextField(
                         value = passwordInput,
                         onValueChange = onPasswordChange,
-                        label = { Text("Password", style = MaterialTheme.typography.bodyMedium) },
+                        label = { Text(stringResource(R.string.pwd_label), style = MaterialTheme.typography.bodyMedium) },
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace
                         ),
@@ -913,7 +920,7 @@ fun PasswordPromptDialog(
             confirmButton = {
                 TextButton(onClick = onConfirm) {
                     Text(
-                        text = "Join",
+                        text = stringResource(R.string.join),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colorScheme.primary
                     )
@@ -922,7 +929,7 @@ fun PasswordPromptDialog(
             dismissButton = {
                 TextButton(onClick = onDismiss) {
                     Text(
-                        text = "Cancel",
+                        text = stringResource(R.string.cancel),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colorScheme.onSurface
                     )

@@ -5,65 +5,213 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.1] - 2025-09-27
-** All commits up to this point have been merged Commits on Sep 15, 2025
-remove the noise handshake if peer goes offline (permissionlesstech#435)
-Commit 1178fc254a81e660fde509dbc9130f4c4940be68 and all prior
-Verified by Greatape42069
-
-
-* remove the noise handshake if peer goes offline
-* fix: bookmark removal persistence
-* lock to tor
-* bootstrap state
-* fix remove peer on disconnect
-* feat(geohash): add in-app Geohash Picker map with quadrant drill-down and Activity integration
-
-- New GeohashPickerActivity hosting a WebView with Leaflet-based picker
-- Adds map icon next to custom geohash input in LocationChannelsSheet
-- Picker allows quadrant selection and subquadrant drill-down; returns selected geohash
-- Register activity in AndroidManifest
-
-perf(picker): improve map performance and correctness
-- Use LayerGroup and clearLayers() on redraw to avoid stale overlays
-- Use Leaflet canvas renderer for rectangles to reduce DOM and improve perf
-- Make labels non-interactive and pointer-events: none to avoid gesture overhead
-- Fix initial mega-label artifact by grouping and clearing labels with cells
-- added asset geohash_picker.html with minimal geohash helpers (pulse,activity,pts,heatmap)
-
-* fixed mismatches in files
-
-* fix some issues
-
-* better geohash labels on map
-
-* design wip
-
-* countries green
-
-* wip
-
-* geohashpicker: pan + zoom; start from current geohash channel, heatmap, activity, #d0ge icon centered on start
-
-* better ui
-
-* ui elements
-
-* better readability
-
-## [0.9.6] - 2025-09-17
-This release introduces initial Dogecoin wallet support and also syncs with upstream changes through permissionlesstech/bitchat-android commit 1178fc254a81e660fde509dbc9130f4c4940be68.
+## [1.4.0] - 2025-10-17
+This release introduces initial File, Image, and Voice support. Also adds Translations and Strings, and fully syncs with upstream changes through last update permissionlesstech/bitchat-android commit e8862d5128cf2045231630023a19e1ec92e6f006
 
 ### Added
-- Dogecoin wallet integration start (alpha)
-  - Wallet screen and navigation from ChatHeader to side bar component.
+
+- Bump version v1.4.0
+* 106 files changed with 10,720 additions and 610 deletions.
+
+Initial File, Image, and Voice support with Media transfers (permissionlesstech Commit 633a506)
+* tor voice wip
+
+* worky BLE a bit
+
+* can send sound and images in Mesh
+
+* remove tor
+
+* ui cleanup
+
+* recording time
+
+* progress bar color
+
+* nicknames for audio
+
+* onboarding permissions no microphone
+
+* fix destination
+
+* extend
+
+* refactor voice input component
+
+* fix keyboard collapse issue
+
+* send images
+
+* wip image open
+
+* image sending works
+
+* wip waveforms
+
+* better animation
+
+* fix cursor for sending audio
+
+* image sending animation
+
+* full screen image viewer
+
+* gossip sync for fragments too
+
+* reduce delays
+
+* fix keyboard focus
+
+* use v2 for file transfers
+
+* do not sync fragments
+
+* scrollable image viewer
+
+* ui adjustments
+
+* nicer animation
+
+* seek through audio
+
+* add spec
+
+* add more details to documentation
+
+* File sharing E2E:
+- Add TLV DogechatFilePacket, FileSharingManager
+- Implement sendFileNote in ChatViewModel
+- File receive path: save to files/incoming and render [file] messages with FileMessageItem or FileSendingAnimation during transfer
+- SAF FilePickerButton and dispatcher wiring; image/file choice to follow in MediaPickerOptions
+- Add FileViewerDialog with system open/save, FileProvider and file_paths
+- Hook transfer progress to file sending UI
+- Manifest: READ_MEDIA_* and FileProvider
+- Fix MessageHandler saving and prefix for non-image payloads
+- Add helper utils (FileUtils)
+
+* kinda wip
+
+* fix buttons
+
+* files half working i did add a file button an most support
+
+* wip file transfer
+
+* file packet has 2-byte TLV and chunks. it wokrs but it sucks
+
+* clean
+
+* remove gossip sync for fragments
+
+* fix audio and image rendering
+
+* adjust FILE_SIZE TLV size too
+
+* cleanup
+
+* haptic
+
+* private messages media
+
+* read receipts for media
+
+* use enum for message type not string
+
+* delivery ack checks dont push content
+
+* check
+
+* animation fix
+
+* refactor
+
+* ui adjustments
+
+* comments
+
+* refactor
+
+* fix crash on send and receive of the same file
+
+* refactor notifications
+
+* update tests
+
+
+- Extract constants (permissionlesstech Commit 1486121)
+* extract constants
+
+* refactor constants
+
+
+- Remove ghost sync (permissionlesstech Commit c61347d)
+* delete stale peers and messages from sync manager
+
+* ignore old announcenements
+
+
+- Translations (permissionlesstech Commit ad28cc7)
+* english and other languages done
+
+* more extraction
+
+* wip strings done
+
+* translations done
+
+* remove unneeded translations
+
+* remove notification message
+
+* add more new languages
+
+
+### Fixed:
+
+- Fixed Bluetooth Connection Tracker
+
+- Changed southernstorm to correct reference "bit, bits, Bit, etc."
+
+- Removed the noise handshake if peer goes offline
+
+- fixed: clear channel messages on reset (permissionlesstech Commit 4030396)
+When `clearMessages` is called, it now also clears the `channelMessages` in the state, ensuring that messages from specific channels are also removed.
+
+- Resolve debug settings bottom sheet crash on some devices (permissionlesstech#474)
+
+Commit c4966b9 remove from all languages causing crash: <string name="debug_rssi_fmt">%1$s • RSSI: %2$s</string>
+
+Commit fc3a00b fix: Resolve debug settings bottom sheet crash on some devices (permissionlesstech#474)
+Fixes permissionlesstech#472 - App crashing in debug settings
+The issue was in ui/debug/DebugSettingsSheet.kt:
+- Line 304: Code was pre-formatting double value with String.format() then passing
+  to string resource that expected raw double parameter
+- Line 307: Numeric values weren't properly converted to strings for string resource
+  that expected string parameters
+Changes made:
+- Changed stringResource(R.string.debug_target_fpr_fmt, String.format("%.2f", gcsFpr))
+  to stringResource(R.string.debug_target_fpr_fmt, gcsFpr) - passes raw double value
+- Changed stringResource(R.string.debug_derived_p_fmt, p, nmax)
+  to stringResource(R.string.debug_derived_p_fmt, p.toString(), nmax.toString()) -
+  properly converts numeric values to strings
+This resolves the IllegalFormatConversionException: f != java.lang.String crash
+when scrolling through the debug settings bottom sheet.
+
+
+
+## [0.9.6] - 2025-09-17
+This release introduces initial Dogecoin wallet support, and syncs with upstream changes through permissionlesstech/bitchat-android commit 1178fc254a81e660fde509dbc9130f4c4940be68.
+
+### Added
+- Dogecoin wallet (alpha)
+  - Wallet screen and navigation from ChatHeader.
   - DNS seed peer discovery for Dogecoin; connects to peers without Tor.
   - Initial transaction fetch logic and detailed SPV logs for troubleshooting.
   - WIF import support and private key display/backup action.
   - Triple-tap emergency wallet data wipe from header for quick reset.
   - About screen controls for starting the SPV node (exposed entry point for wallet/SPV controls).
 - Tor separation for wallet
-  - Early support to start wallet/SPV connectivity separately from main app Tor controls; added extensive logging to aid validation (Wallet not functional).
+  - Early support to start wallet/SPV connectivity separately from main app Tor controls; added extensive logging to aid validation.
 
 ### Changed
 - UI/Theming

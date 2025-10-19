@@ -105,7 +105,7 @@ private fun BatteryOptimizationEnabledContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Đogechat",
+                    text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -115,7 +115,7 @@ private fun BatteryOptimizationEnabledContent(
                 )
 
                 Text(
-                    text = "Such Battery Optimization Đetected",
+                    text = stringResource(R.string.battery_optimization_detected_title),
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     color = colorScheme.onBackground.copy(alpha = 0.7f)
@@ -138,7 +138,7 @@ private fun BatteryOptimizationEnabledContent(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Power,
-                            contentDescription = "Battery Optimization",
+                            contentDescription = stringResource(R.string.cd_battery_optimization),
                             tint = colorScheme.primary,
                             modifier = Modifier
                                 .padding(top = 2.dp)
@@ -146,14 +146,14 @@ private fun BatteryOptimizationEnabledContent(
                         )
                         Column {
                             Text(
-                                text = "Battery Optimization Enabled",
+                                text = stringResource(R.string.battery_optimization_enabled_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = Color (0xFFFFFF00)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Đogechat needs to run in the background to maintain mesh connections. battery optimization can interrupt these connections.",
+                                text = stringResource(R.string.battery_optimization_explanation_short),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = colorScheme.onBackground.copy(alpha = 0.8f)
                             )
@@ -178,7 +178,7 @@ private fun BatteryOptimizationEnabledContent(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = "Benefits",
+                            contentDescription = stringResource(R.string.cd_benefits),
                             tint = Color(0xFF00FF00),
                             modifier = Modifier
                                 .padding(top = 2.dp)
@@ -186,14 +186,14 @@ private fun BatteryOptimizationEnabledContent(
                         )
                         Column {
                             Text(
-                                text = "Benefits of Disabling",
+                                text = stringResource(R.string.benefits_of_disabling),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFFFFFF00)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "• reliable message delivery\n• maintains mesh connectivity\n• prevents connection drops",
+                                text = stringResource(R.string.battery_benefits_short),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = colorScheme.onBackground.copy(alpha = 0.8f)
                             )
@@ -240,7 +240,7 @@ private fun BatteryOptimizationEnabledContent(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 Text(
-                    text = "Disable Battery Optimization",
+                    text = stringResource(R.string.disable_battery_optimization),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
@@ -258,7 +258,7 @@ private fun BatteryOptimizationEnabledContent(
                     enabled = !isLoading
                 ) {
                     Text(
-                        text = "Check Again",
+                        text = stringResource(R.string.check_again),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace
                         )
@@ -274,7 +274,7 @@ private fun BatteryOptimizationEnabledContent(
                     enabled = !isLoading
                 ) {
                     Text(
-                        text = "Skip for Now",
+                        text = stringResource(R.string.battery_optimization_skip),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace
                         )
@@ -301,7 +301,7 @@ private fun BatteryOptimizationCheckingContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Đogechat",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -311,7 +311,7 @@ private fun BatteryOptimizationCheckingContent(
             )
 
             Text(
-                text = "battery optimization disabled",
+                text = stringResource(R.string.battery_optimization_disabled_title),
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 color = colorScheme.onBackground.copy(alpha = 0.7f)
@@ -331,7 +331,7 @@ private fun BatteryOptimizationCheckingContent(
 
         Icon(
             imageVector = Icons.Filled.BatteryFull,
-            contentDescription = "Checking Battery Optimization",
+            contentDescription = stringResource(R.string.cd_checking_battery_optimization),
             modifier = Modifier
                 .size(64.dp)
                 .rotate(rotation),
@@ -339,7 +339,7 @@ private fun BatteryOptimizationCheckingContent(
         )
 
         Text(
-            text = "Đogechat can run reliably in the background",
+            text = stringResource(R.string.battery_optimization_success_message),
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily = FontFamily.Monospace,
                 color = colorScheme.onBackground.copy(alpha = 0.8f)
@@ -366,7 +366,7 @@ private fun BatteryOptimizationNotSupportedContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Đogechat",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -376,7 +376,7 @@ private fun BatteryOptimizationNotSupportedContent(
             )
 
             Text(
-                text = "battery optimization not required",
+                text = stringResource(R.string.battery_optimization_not_required),
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
                 color = colorScheme.onBackground.copy(alpha = 0.7f)
@@ -385,13 +385,13 @@ private fun BatteryOptimizationNotSupportedContent(
 
         Icon(
             imageVector = Icons.Filled.CheckCircle,
-            contentDescription = "Battery Optimization Not Supported",
+            contentDescription = stringResource(R.string.cd_not_supported_battery_optimization),
             modifier = Modifier.size(64.dp),
             tint = colorScheme.primary
         )
 
         Text(
-            text = "your device doesn't require battery optimization settings. Đogechat will run normally.",
+            text = stringResource(R.string.battery_optimization_not_supported_message),
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily = FontFamily.Monospace,
                 color = colorScheme.onBackground.copy(alpha = 0.8f)
@@ -407,7 +407,7 @@ private fun BatteryOptimizationNotSupportedContent(
             )
         ) {
             Text(
-                text = "Continue",
+                text = stringResource(R.string.continue_btn),
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold

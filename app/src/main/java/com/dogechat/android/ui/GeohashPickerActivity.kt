@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -35,9 +37,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.res.stringResource
+import com.dogechat.android.R
 import androidx.core.view.updateLayoutParams
 import com.dogechat.android.geohash.Geohash
 import com.dogechat.android.geohash.GeohashBookmarksStore
@@ -236,6 +241,29 @@ class GeohashPickerActivity : ComponentActivity() {
                             }
                         )
 
+                        // Floating info pill
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 60.dp)
+                                .fillMaxWidth(0.39f),
+                            color = Color.Black.copy(alpha = 0.80f),
+                            shape = RoundedCornerShape(12.dp),
+                            tonalElevation = 3.dp,
+                            shadowElevation = 6.dp
+                        ) {
+                            Text(
+                                text = stringResource(R.string.pan_zoom_instruction),
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
+                                fontFamily = FontFamily.Monospace,
+                                color = dogeGold,
+                                modifier = Modifier
+                                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                            )
+                        }
+
+
                         // Bottom controls - Black & Gold styling
                         Column(
                             modifier = Modifier
@@ -266,7 +294,12 @@ class GeohashPickerActivity : ComponentActivity() {
                                 )
                             }
 
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            // Button row
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Decrease precision
                                 Button(
                                     onClick = {
                                         precision = (precision - 1).coerceAtLeast(1)
@@ -277,11 +310,10 @@ class GeohashPickerActivity : ComponentActivity() {
                                         contentColor = dogeGold
                                     )
                                 ) {
-                                    androidx.compose.material3.Icon(
-                                        Icons.Filled.Remove,
-                                        contentDescription = "Decrease precision"
-                                    )
-                                }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.cd_decrease_precision))
+                                    }
+                                 }
 
                                 Button(
                                     onClick = {
@@ -293,11 +325,10 @@ class GeohashPickerActivity : ComponentActivity() {
                                         contentColor = dogeGold
                                     )
                                 ) {
-                                    androidx.compose.material3.Icon(
-                                        Icons.Filled.Add,
-                                        contentDescription = "Increase precision"
-                                    )
-                                }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_increase_precision))
+                                    }
+                                 }
 
                                 Button(
                                     onClick = {
@@ -314,13 +345,10 @@ class GeohashPickerActivity : ComponentActivity() {
                                     )
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        androidx.compose.material3.Icon(
-                                            Icons.Filled.Check,
-                                            contentDescription = "Select geohash"
-                                        )
+                                        Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.cd_select_geohash))
                                         Spacer(Modifier.width(6.dp))
                                         Text(
-                                            text = "select",
+                                            text = stringResource(R.string.select),
                                             fontSize = (BASE_FONT_SIZE - 2).sp,
                                             fontFamily = FontFamily.Monospace
                                         )

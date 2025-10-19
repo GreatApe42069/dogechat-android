@@ -263,7 +263,7 @@ fun ChannelsSection(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Leave channel",
+                        contentDescription = stringResource(com.dogechat.android.R.string.cd_leave_channel),
                         modifier = Modifier.size(14.dp),
                         tint = colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -578,26 +578,26 @@ private fun PeerItem(
             // Show mail icon for unread DMs (iOS orange)
             Icon(
                 imageVector = Icons.Filled.Email,
-                contentDescription = "Unread message",
+                contentDescription = stringResource(com.dogechat.android.R.string.cd_unread_message),
                 modifier = Modifier.size(16.dp),
                 tint = Color(0xFFFF9500) // iOS orange
             )
         } else {
             // Connection indicator icons
             if (showNostrGlobe) {
-                // Purple globe to indicate Nostr availability
+                // Yellow globe to indicate Nostr availability
                 Icon(
                     imageVector = Icons.Filled.Public,
-                    contentDescription = "Reachable via Nostr",
+                    contentDescription = stringResource(com.dogechat.android.R.string.cd_reachable_via_nostr),
                     modifier = Modifier.size(16.dp),
-                    tint = Color(0xFF9C27B0) // Purple
+                    tint = Color(0xFFFFFF00) // Bright yellow accent
                 )
             } else if (!isDirect && isFavorite) {
                 // Offline favorited user: show outlined circle icon
                 Icon(
                     //painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_offline_favorite),
                     imageVector = Icons.Outlined.Circle,
-                    contentDescription = "Offline favorite",
+                    contentDescription = stringResource(com.dogechat.android.R.string.cd_offline_favorite),
                     modifier = Modifier.size(16.dp),
                     tint = Color.Gray
                 )
@@ -653,7 +653,7 @@ private fun PeerItem(
                 imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
                 contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
                 modifier = Modifier.size(16.dp),
-                tint = if (isFavorite) Color(0xFFFFD700) else Color(0xFF4CAF50)
+                tint = if (isFavorite) Color(0xFFFFD700) else Color(0xFFEBCA66)
             )
         }
     }

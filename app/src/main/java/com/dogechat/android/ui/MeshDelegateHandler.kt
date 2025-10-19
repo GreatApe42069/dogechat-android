@@ -1,6 +1,7 @@
 package com.dogechat.android.ui
 
 import com.dogechat.android.mesh.BluetoothMeshDelegate
+import com.dogechat.android.ui.NotificationTextUtils
 import com.dogechat.android.mesh.BluetoothMeshService
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.DeliveryStatus
@@ -55,10 +56,11 @@ class MeshDelegateHandler(
                 message.senderPeerID?.let { senderPeerID ->
                     // Use nickname if available, fall back to sender or senderPeerID
                     val senderNickname = message.sender.takeIf { it != senderPeerID } ?: senderPeerID
+                    val preview = NotificationTextUtils.buildPrivateMessagePreview(message)
                     notificationManager.showPrivateMessageNotification(
-                        senderPeerID = senderPeerID, 
-                        senderNickname = senderNickname, 
-                        messageContent = message.content
+                        senderPeerID = senderPeerID,
+                        senderNickname = senderNickname,
+                        messageContent = preview
                     )
                 }
             } else if (message.channel != null) {
@@ -285,4 +287,5 @@ class MeshDelegateHandler(
     fun getPeerInfo(peerID: String): com.dogechat.android.mesh.PeerInfo? {
         return getMeshService().getPeerInfo(peerID)
     }
+
 }

@@ -8,6 +8,8 @@ import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.protocol.SpecialRecipients
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.OptIn
+import kotlin.ExperimentalStdlibApi
 
 /**
  * Gossip-based synchronization manager using on-demand GCS filters.
@@ -31,7 +33,9 @@ class GossipSyncManager(
         fun gcsTargetFpr(): Double // percent -> 0.0..1.0
     }
 
-    companion object { private const val TAG = "GossipSyncManager" }
+    companion object {
+        private const val TAG = "GossipSyncManager"
+    }
 
     var delegate: Delegate? = null
 
@@ -46,6 +50,7 @@ class GossipSyncManager(
     private val latestAnnouncementByPeer = ConcurrentHashMap<String, Pair<String, DogechatPacket>>()
 
     private var periodicJob: Job? = null
+    private var cleanupJob: Job? = null
     fun start() {
         periodicJob?.cancel()
         periodicJob = scope.launch(Dispatchers.IO) {
@@ -57,10 +62,23 @@ class GossipSyncManager(
                 catch (e: Exception) { Log.e(TAG, "Periodic sync error: ${e.message}") }
             }
         }
+
+        // Start periodic cleanup of stale announcements and messages
+        cleanupJob?.cancel()
+        cleanupJob = scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                try {
+                    delay(com.dogechat.android.util.AppConstants.Sync.CLEANUP_INTERVAL_MS)
+                    pruneStaleAnnouncements()
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) { Log.e(TAG, "Periodic cleanup error: ${e.message}") }
+            }
+        }
     }
 
     fun stop() {
         periodicJob?.cancel(); periodicJob = null
+        cleanupJob?.cancel(); cleanupJob = null
     }
 
     fun scheduleInitialSync(delayMs: Long = 5_000L) {
@@ -98,6 +116,13 @@ class GossipSyncManager(
                 }
             }
         } else if (isAnnouncement) {
+            // Ignore stale announcements older than STALE_PEER_TIMEOUT
+            val now = System.currentTimeMillis()
+            val age = now - packet.timestamp.toLong()
+            if (age > com.dogechat.android.util.AppConstants.Mesh.STALE_PEER_TIMEOUT_MS) {
+                Log.d(TAG, "Ignoring stale ANNOUNCE (age=${age}ms > ${com.dogechat.android.util.AppConstants.Mesh.STALE_PEER_TIMEOUT_MS}ms)")
+                return
+            }
             // senderID is fixed-size 8 bytes; map to hex string for key
             val sender = packet.senderID.joinToString("") { b -> "%02x".format(b) }
             latestAnnouncementByPeer[sender] = id to packet
@@ -118,7 +143,7 @@ class GossipSyncManager(
             senderID = hexStringToByteArray(myPeerID),
             timestamp = System.currentTimeMillis().toULong(),
             payload = payload,
-            ttl = 0u // neighbors only
+            ttl = com.dogechat.android.util.AppConstants.SYNC_TTL_HOPS // neighbors only
         )
         // Sign and broadcast
         val signed = delegate?.signPacketForBroadcast(packet) ?: packet
@@ -134,7 +159,7 @@ class GossipSyncManager(
             recipientID = hexStringToByteArray(peerID),
             timestamp = System.currentTimeMillis().toULong(),
             payload = payload,
-            ttl = 0u // neighbor only
+            ttl = com.dogechat.android.util.AppConstants.SYNC_TTL_HOPS // neighbor only
         )
         Log.d(TAG, "Sending sync request to $peerID (${payload.size} bytes)")
         // Sign and send directly to peer
@@ -163,7 +188,7 @@ class GossipSyncManager(
             val idBytes = hexToBytes(id)
             if (!mightContain(idBytes)) {
                 // Send original packet unchanged to requester only (keep local TTL)
-                val toSend = pkt.copy(ttl = 0u)
+                val toSend = pkt.copy(ttl = com.dogechat.android.util.AppConstants.SYNC_TTL_HOPS)
                 delegate?.sendPacketToPeer(fromPeerID, toSend)
                 Log.d(TAG, "Sent sync announce: Type ${toSend.type} from ${toSend.senderID.toHexString()} to $fromPeerID packet id ${idBytes.toHexString()}")
             }
@@ -174,7 +199,7 @@ class GossipSyncManager(
         for (pkt in toSendMsgs) {
             val idBytes = PacketIdUtil.computeIdBytes(pkt)
             if (!mightContain(idBytes)) {
-                val toSend = pkt.copy(ttl = 0u)
+                val toSend = pkt.copy(ttl = com.dogechat.android.util.AppConstants.SYNC_TTL_HOPS)
                 delegate?.sendPacketToPeer(fromPeerID, toSend)
                 Log.d(TAG, "Sent sync message: Type ${toSend.type} to $fromPeerID packet id ${idBytes.toHexString()}")
             }
@@ -206,6 +231,7 @@ class GossipSyncManager(
         return out
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     private fun buildGcsPayload(): ByteArray {
         // Collect candidates: latest announcement per peer + recent broadcast messages
         val list = ArrayList<DogechatPacket>()
@@ -236,6 +262,42 @@ class GossipSyncManager(
         return RequestSyncPacket(p = params.p, m = mVal, data = params.data).encode()
     }
 
+    // Periodically remove stale announcements and all their messages
+    private fun pruneStaleAnnouncements() {
+        val now = System.currentTimeMillis()
+        val stalePeers = mutableListOf<String>()
+
+        // Identify stale announcements by age
+        for ((peerID, pair) in latestAnnouncementByPeer.entries) {
+            val pkt = pair.second
+            val age = now - pkt.timestamp.toLong()
+            if (age > com.dogechat.android.util.AppConstants.Mesh.STALE_PEER_TIMEOUT_MS) {
+                stalePeers.add(peerID)
+            }
+        }
+
+        if (stalePeers.isEmpty()) return
+
+        // Remove announcements and their messages
+        var totalPrunedMsgs = 0
+        for (peerID in stalePeers) {
+            // Count messages to be pruned for logging
+            val toRemove = mutableListOf<String>()
+            synchronized(messages) {
+                for ((id, message) in messages) {
+                    val sender = message.senderID.joinToString("") { b -> "%02x".format(b) }
+                    if (sender == peerID) toRemove.add(id)
+                }
+            }
+            totalPrunedMsgs += toRemove.size
+
+            // Reuse existing removal which also clears announcement entry
+            removeAnnouncementForPeer(peerID)
+        }
+
+        Log.d(TAG, "Pruned ${stalePeers.size} stale announcements and $totalPrunedMsgs messages")
+    }
+
     // Explicitly remove stored announcement for a given peer (hex ID)
     fun removeAnnouncementForPeer(peerID: String) {
         val key = peerID.lowercase()
@@ -245,16 +307,20 @@ class GossipSyncManager(
 
         // Collect IDs to remove first to avoid modifying collection while iterating
         val idsToRemove = mutableListOf<String>()
-        for ((id, message) in messages) {
-            val sender = message.senderID.joinToString("") { b -> "%02x".format(b) }
-            if (sender == key) {
-                idsToRemove.add(id)
+        synchronized(messages) {
+            for ((id, message) in messages) {
+                val sender = message.senderID.joinToString("") { b -> "%02x".format(b) }
+                if (sender == key) {
+                    idsToRemove.add(id)
+                }
             }
         }
         
         // Now remove the collected IDs
-        for (id in idsToRemove) {
-            messages.remove(id)
+        synchronized(messages) {
+            for (id in idsToRemove) {
+                messages.remove(id)
+            }
         }
         
         if (idsToRemove.isNotEmpty()) {
