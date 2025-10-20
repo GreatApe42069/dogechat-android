@@ -12,6 +12,7 @@ enum class DogechatMessageType : Parcelable {
     Message,
     Audio,
     Image,
+    Video,
     File
 }
 

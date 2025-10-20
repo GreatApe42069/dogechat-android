@@ -48,6 +48,7 @@ fun FileMessageItem(
     modifier: Modifier = Modifier
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Card(
         modifier = modifier
@@ -107,10 +108,8 @@ fun FileMessageItem(
         FileViewerDialog(
             packet = packet,
             onDismiss = { showDialog = false },
-            onSaveToDevice = { content, fileName ->
-                // In a real implementation, this would save to Downloads
-                // For now, just log that file was "saved"
-                android.util.Log.d("FileSharing", "Would save file: $fileName")
+            onOpenFile = {
+                tryOpenFile(context, packet)
             }
         )
     }

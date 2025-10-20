@@ -1,9 +1,12 @@
 package com.dogechat.android.ui.media
 
 import android.content.ActivityNotFoundException
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,17 +20,15 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.dogechat.android.R
 import com.dogechat.android.features.file.FileUtils
 import com.dogechat.android.model.DogechatFilePacket
-import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -37,10 +38,9 @@ import java.io.File
 fun FileViewerDialog(
     packet: DogechatFilePacket,
     onDismiss: () -> Unit,
-    onSaveToDevice: (ByteArray, String) -> Unit
+    onOpenFile: () -> Unit
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
 
     Dialog(onDismissRequest = onDismiss) {
         androidx.compose.material3.Card(
@@ -90,20 +90,15 @@ fun FileViewerDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Open/Save button
+                    // Open/Save button with smart logic
                     Button(
                         onClick = {
-                            coroutineScope.launch {
-                                // Try to save to Downloads first
-                                try {
-                                    onSaveToDevice(packet.content, packet.fileName)
-                                    onDismiss()
-                                } catch (e: Exception) {
-                                    // If save fails, try to open directly
-                                    tryOpenFile(context, packet)
-                                    onDismiss()
-                                }
+                            if (FileUtils.isFileViewable(packet.fileName)) {
+                                onOpenFile()
+                            } else {
+                                saveFileToDownloads(context, packet)
                             }
+                            onDismiss()
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
@@ -130,23 +125,64 @@ fun FileViewerDialog(
 }
 
 /**
- * Attempts to open a file using system viewers or save to device
+ * Saves a file packet's content to the device's public "Downloads" directory.
  */
-private fun tryOpenFile(context: Context, packet: DogechatFilePacket) {
-    try {
-        // First try to save to temp file and open
-        val tempFile = File.createTempFile("dogechat_", ".${packet.fileName.substringAfterLast(".")}", context.cacheDir)
-        tempFile.writeBytes(packet.content)
-        tempFile.deleteOnExit()
+private fun saveFileToDownloads(context: Context, packet: DogechatFilePacket) {
+    runCatching {
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, packet.fileName)
+            put(MediaStore.Downloads.MIME_TYPE, packet.mimeType)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+        }
 
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+
+        if (uri != null) {
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                outputStream.write(packet.content)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
+                resolver.update(uri, contentValues, null, null)
+            }
+            Toast.makeText(context, context.getString(R.string.toast_file_saved, packet.fileName), Toast.LENGTH_SHORT).show()
+        } else {
+            throw Exception("Content resolver returned a null URI")
+        }
+    }.onFailure {
+        Toast.makeText(context, context.getString(R.string.toast_failed_to_save_file), Toast.LENGTH_SHORT).show()
+        android.util.Log.e("FileViewerDialog", "Failed to save file to downloads", it)
+    }
+}
+
+
+/**
+ * Attempts to open a file using system viewers.
+ * It saves the file to a temporary location and uses a FileProvider to grant access.
+ */
+fun tryOpenFile(context: Context, packet: DogechatFilePacket) {
+    try {
+        // Save the file to a temporary file in the cache directory
+        val tempFile = File.createTempFile("dogechat_share_", ".${FileUtils.getExtension(packet.fileName)}", context.cacheDir).apply {
+            writeBytes(packet.content)
+            deleteOnExit() // Ensure the file is cleaned up when the app closes
+        }
+
+        // Get a content URI for the temp file using the FileProvider
         val uri = androidx.core.content.FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
             tempFile
         )
 
+        // Create an Intent to view the file
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, packet.mimeType)
+            // Grant read permission to the app that handles the intent
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
@@ -154,10 +190,12 @@ private fun tryOpenFile(context: Context, packet: DogechatFilePacket) {
         try {
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
-            // No app can handle this file type - just show a message
-            // In a real app, you'd show a toast or snackbar
+            // No app can handle this file type, fallback to saving it
+            android.util.Log.w("FileViewerDialog", "No activity found to handle file type: ${packet.mimeType}. Saving instead.")
+            saveFileToDownloads(context, packet)
         }
     } catch (e: Exception) {
-        // Handle any errors gracefully
+        // Handle any other errors gracefully
+        android.util.Log.e("FileViewerDialog", "Failed to open file", e)
     }
 }
