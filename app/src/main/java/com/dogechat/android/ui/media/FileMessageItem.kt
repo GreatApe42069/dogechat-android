@@ -154,6 +154,7 @@ private fun getFileIconColor(fileName: String): Color {
         "mp3", "wav", "m4a" -> Color(0xFFEA580C) // Orange
         "mp4", "avi", "mov" -> Color(0xFFDC2626) // Red
         "zip", "rar", "7z" -> Color(0xFF7C2D12) // Brown
+        "apk", "aab", "bin" -> Color(0xFFFFD700) // dogeGold
         else -> Color(0xFF6B7280) // Gray
     }
 }

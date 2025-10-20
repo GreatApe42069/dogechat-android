@@ -5,7 +5,6 @@ import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import androidx.core.content.FileProvider
-import com.dogechat.android.model.DogechatMessageType
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -186,7 +185,7 @@ object FileUtils {
         return getExtension(fileName) in listOf(
             "pdf", "txt", "json", "xml", "html", "htm", "csv",
             "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg",
-            "mp4", "mov", "avi", "mp3", "wav", "m4a"
+            "mp4", "mov", "avi"
         )
     }
 
@@ -286,10 +285,10 @@ object FileUtils {
     fun messageTypeForMime(mime: String): com.dogechat.android.model.DogechatMessageType {
         val lower = mime.lowercase()
         return when {
-            lower.startsWith("image/") -> DogechatMessageType.Image
-            lower.startsWith("audio/") -> DogechatMessageType.Audio
-            lower.startsWith("video/") -> DogechatMessageType.Video
-            else -> DogechatMessageType.File
+            lower.startsWith("image/") -> com.dogechat.android.model.DogechatMessageType.Image
+            lower.startsWith("audio/") -> com.dogechat.android.model.DogechatMessageType.Audio
+            lower.startsWith("video/") -> com.dogechat.android.model.DogechatMessageType.Video
+            else -> com.dogechat.android.model.DogechatMessageType.File
         }
     }
 }

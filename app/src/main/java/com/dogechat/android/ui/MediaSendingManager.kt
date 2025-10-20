@@ -143,8 +143,11 @@ class MediaSendingManager(
             )
             Log.d(TAG, "📦 Created file packet successfully")
 
-            val messageType = com.dogechat.android.features.file.FileUtils.messageTypeForMime(mimeType)
-
+            val messageType = when {
+                mimeType.lowercase().startsWith("image/") -> DogechatMessageType.Image
+                mimeType.lowercase().startsWith("audio/") -> DogechatMessageType.Audio
+                else -> DogechatMessageType.File
+            }
             if (toPeerIDOrNull != null) {
                 sendPrivateFile(toPeerIDOrNull, filePacket, filePath, messageType)
             } else {
