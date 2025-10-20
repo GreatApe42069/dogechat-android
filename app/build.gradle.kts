@@ -22,7 +22,7 @@ android {
         targetSdk = libs.versions.targetSdk.get().toInt()
 
         versionCode = 14
-        versionName = "1.4.0"
+        versionName = "1.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -187,6 +187,9 @@ dependencies {
 
     // ---- Compression ----
     implementation(libs.lz4)
+
+    // ---- EXIF orientation handling for images ----
+    implementation("androidx.exifinterface:exifinterface:1.3.7")    
 
     // ---- Testing ----
     testImplementation(libs.bundles.testing)
