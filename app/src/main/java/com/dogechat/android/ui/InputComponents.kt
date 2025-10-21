@@ -42,6 +42,7 @@ import com.dogechat.android.features.voice.normalizeAmplitudeSample
 import com.dogechat.android.features.voice.AudioWaveformExtractor
 import com.dogechat.android.ui.media.RealtimeScrollingWaveform
 import com.dogechat.android.ui.media.ImagePickerButton
+import com.dogechat.android.ui.media.CameraPickerButton
 import com.dogechat.android.ui.media.FilePickerButton
 
 /**
@@ -255,32 +256,37 @@ fun MessageInput(
         // Voice File, and image buttons when no text (always visible for mesh + channels + private)
         if (value.text.isEmpty()) {
             // Hold-to-record microphone
-            val bg = if (colorScheme.background == Color.Black) Color(0xFFFFFF00).copy(alpha = 0.75f) else Color(0xFFE6B800).copy(alpha = 0.75f)
+            val bg = if (colorScheme.background == Color.Black) Color(0xFFFFD700).copy(alpha = 0.75f) else Color(0xFFE6B800).copy(alpha = 0.85f)
 
             // Ensure latest values are used when finishing recording
             val latestSelectedPeer = rememberUpdatedState(selectedPrivatePeer)
             val latestChannel = rememberUpdatedState(currentChannel)
             val latestOnSendVoiceNote = rememberUpdatedState(onSendVoiceNote)
 
-            // Image button (image picker) - hide during recording
+            // Image and File attachment buttons - hide during recording
             if (!isRecording) {
-                // Revert to original separate buttons: round File button (left) and the old Image plus button (right)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    
                     // FILE PICKER
                     FilePickerButton(
                         onFileReady = { path ->
                             onSendFileNote(latestSelectedPeer.value, latestChannel.value, path)
                         }
                     )
+                    // IMAGE PICKER
                     ImagePickerButton(
+                        onImageReady = { outPath ->
+                            onSendImageNote(latestSelectedPeer.value, latestChannel.value, outPath)
+                        }
+                    )
+                    // CAMERA PICKER
+                    CameraPickerButton(
                         onImageReady = { outPath ->
                             onSendImageNote(latestSelectedPeer.value, latestChannel.value, outPath)
                         }
                     )
                 }
             }
-
-            Spacer(Modifier.width(1.dp))
 
             VoiceRecordButton(
                 backgroundColor = bg,

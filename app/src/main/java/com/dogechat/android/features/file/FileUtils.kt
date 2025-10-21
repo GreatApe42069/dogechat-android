@@ -130,7 +130,7 @@ object FileUtils {
      * Get MIME type for a file based on extension
      */
     fun getMimeTypeFromExtension(fileName: String): String {
-        return when (fileName.substringAfterLast(".", "").lowercase()) {
+        return when (getExtension(fileName)) {
             "pdf" -> "application/pdf"
             "doc" -> "application/msword"
             "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -158,6 +158,8 @@ object FileUtils {
             "zip" -> "application/zip"
             "rar" -> "application/vnd.rar"
             "7z" -> "application/x-7z-compressed"
+            "apk" -> "application/vnd.android.package-archive"
+            "aab" -> "application/vnd.android.package-archive"
             else -> "application/octet-stream"
         }
     }
@@ -180,11 +182,18 @@ object FileUtils {
      * Check if file is viewable in system viewer
      */
     fun isFileViewable(fileName: String): Boolean {
-        val extension = fileName.substringAfterLast(".", "").lowercase()
-        return extension in listOf(
+        return getExtension(fileName) in listOf(
             "pdf", "txt", "json", "xml", "html", "htm", "csv",
-            "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"
+            "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg",
+            "mp4", "mov", "avi"
         )
+    }
+
+    /**
+     * Get the extension from a filename.
+     */
+    fun getExtension(fileName: String): String {
+        return fileName.substringAfterLast(".", "").lowercase(Locale.getDefault())
     }
 
     /**
@@ -197,22 +206,32 @@ object FileUtils {
     ): String {
         val lowerMime = file.mimeType.lowercase()
         val isImage = lowerMime.startsWith("image/")
+        val isVideo = lowerMime.startsWith("video/")
+        val isAudio = lowerMime.startsWith("audio/")
+
+        val subdir = when {
+            isImage -> "images/incoming"
+            isVideo -> "videos/incoming"
+            isAudio -> "audio/incoming"
+            else -> "files/incoming"
+        }
         val baseDir = context.filesDir
-        val subdir = if (isImage) "images/incoming" else "files/incoming"
         val dir = java.io.File(baseDir, subdir).apply { mkdirs() }
 
         fun extFromMime(m: String): String = when (m.lowercase()) {
             "image/jpeg", "image/jpg" -> ".jpg"
             "image/png" -> ".png"
             "image/webp" -> ".webp"
+            "video/mp4" -> ".mp4"
+            "audio/mp4" -> ".m4a"
             "application/pdf" -> ".pdf"
             "text/plain" -> ".txt"
-            else -> if (isImage) ".jpg" else ".bin"
+            else -> ".bin"
         }
 
         // Prefer transmitted original name; ensure uniqueness to avoid overwrites
         val baseName = (file.fileName.takeIf { it.isNotBlank() }
-            ?: (if (isImage) "img" else "file"))
+            ?: "file")
             .replace(Regex("[^A-Za-z0-9._-]"), "_")
         val ext = extFromMime(lowerMime)
         var safeName = if (baseName.contains('.')) baseName else baseName + ext
@@ -253,7 +272,7 @@ object FileUtils {
                 out.outputStream().use { it.write(file.content) }
                 out.absolutePath
             } catch (_: Exception) {
-                val tmp = java.io.File.createTempFile(if (isImage) "img_" else "file_", if (isImage) ".jpg" else ".bin")
+                val tmp = java.io.File.createTempFile("file_", ".bin")
                 tmp.writeBytes(file.content)
                 tmp.absolutePath
             }
@@ -268,6 +287,7 @@ object FileUtils {
         return when {
             lower.startsWith("image/") -> com.dogechat.android.model.DogechatMessageType.Image
             lower.startsWith("audio/") -> com.dogechat.android.model.DogechatMessageType.Audio
+            lower.startsWith("video/") -> com.dogechat.android.model.DogechatMessageType.Video
             else -> com.dogechat.android.model.DogechatMessageType.File
         }
     }

@@ -21,8 +21,8 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
 
-        versionCode = 14
-        versionName = "1.4.0"
+        versionCode = 15
+        versionName = "1.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -45,6 +45,7 @@ android {
             keyPassword = "Your_Key_Pass_goes_Here"  // Replace with your actual key password
         }
     }
+
 
     buildTypes {
         release {
@@ -129,6 +130,10 @@ dependencies {
     // Navigation
     implementation(libs.androidx.navigation.compose)
 
+    // ---- Media3 (ExoPlayer) for video playback ----
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+
     // ---- Hilt + Navigation ----
     implementation("com.google.dagger:hilt-android:2.51.1")
     // Use KAPT for Hilt to avoid KSP NonExistentClass issues
@@ -187,6 +192,9 @@ dependencies {
 
     // ---- Compression ----
     implementation(libs.lz4)
+
+    // ---- EXIF orientation handling for images ----
+    implementation("androidx.exifinterface:exifinterface:1.3.7")    
 
     // ---- Testing ----
     testImplementation(libs.bundles.testing)

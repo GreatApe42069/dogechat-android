@@ -48,6 +48,7 @@ fun FileMessageItem(
     modifier: Modifier = Modifier
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Card(
         modifier = modifier
@@ -107,10 +108,8 @@ fun FileMessageItem(
         FileViewerDialog(
             packet = packet,
             onDismiss = { showDialog = false },
-            onSaveToDevice = { content, fileName ->
-                // In a real implementation, this would save to Downloads
-                // For now, just log that file was "saved"
-                android.util.Log.d("FileSharing", "Would save file: $fileName")
+            onOpenFile = {
+                tryOpenFile(context, packet)
             }
         )
     }
@@ -155,6 +154,7 @@ private fun getFileIconColor(fileName: String): Color {
         "mp3", "wav", "m4a" -> Color(0xFFEA580C) // Orange
         "mp4", "avi", "mov" -> Color(0xFFDC2626) // Red
         "zip", "rar", "7z" -> Color(0xFF7C2D12) // Brown
+        "apk", "aab", "bin" -> Color(0xFFFFD700) // dogeGold
         else -> Color(0xFF6B7280) // Gray
     }
 }

@@ -148,7 +148,6 @@ class MediaSendingManager(
                 mimeType.lowercase().startsWith("audio/") -> DogechatMessageType.Audio
                 else -> DogechatMessageType.File
             }
-
             if (toPeerIDOrNull != null) {
                 sendPrivateFile(toPeerIDOrNull, filePacket, filePath, messageType)
             } else {
@@ -275,6 +274,9 @@ class MediaSendingManager(
         if (transferId != null) {
             val cancelled = meshService.cancelFileTransfer(transferId)
             if (cancelled) {
+                // Try to remove cached local file for this message (if any)
+                runCatching { findMessagePathById(messageId)?.let { java.io.File(it).delete() } }
+
                 // Remove the message from chat upon explicit cancel
                 messageManager.removeMessageById(messageId)
                 synchronized(transferMessageMap) {
@@ -283,6 +285,20 @@ class MediaSendingManager(
                 }
             }
         }
+    }
+
+    private fun findMessagePathById(messageId: String): String? {
+        // Search main timeline
+        state.getMessagesValue().firstOrNull { it.id == messageId }?.content?.let { return it }
+        // Search private chats
+        state.getPrivateChatsValue().values.forEach { list ->
+            list.firstOrNull { it.id == messageId }?.content?.let { return it }
+        }
+        // Search channel messages
+        state.getChannelMessagesValue().values.forEach { list ->
+            list.firstOrNull { it.id == messageId }?.content?.let { return it }
+        }
+        return null
     }
 
     /**

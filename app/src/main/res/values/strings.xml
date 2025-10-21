@@ -18,7 +18,7 @@
     <string name="no_one_connected">No one connected</string>
     <string name="emergency_clear_hint">Such tip: Triple tap the app title to clear all data, including,keys, and settings...Very Wiped</string>
     <string name="your_network">Network</string>
-    
+
     <!-- Battery Optimization Strings -->
     <string name="battery_optimization_detected">Battery Optimization Detected</string>
     <string name="battery_optimization_disabled">Battery Optimization Disabled</string>
@@ -37,7 +37,7 @@
     <string name="battery_optimization_continue">Continue</string>
     <string name="retry">Retry</string>
   <string name="skip">Skip</string>
-  
+
   <!-- Notifications -->
   <string name="notification_summary_more">and %1$d more</string>
   <string name="notification_messages_from_people">%1$d messages from %2$d people</string>
@@ -94,8 +94,12 @@
   <string name="cd_close">Close</string>
   <string name="toast_image_saved">Image saved to Downloads</string>
   <string name="toast_failed_to_save_image">Failed to save image</string>
+  <string name="toast_file_saved">File saved to Downloads: %s</string>
+  <string name="toast_failed_to_save_file">Failed to save file</string>
   <string name="cd_image_index_of">Image %1$d of %2$d</string>
   <string name="cd_pick_file">Pick file</string>
+  <string name="cd_video_thumbnail">Video thumbnail</string>
+  <string name="cd_play_video">Play video</string>
 
   <!-- About sheet -->
   <string name="about_tagline">Đecentralized mesh messaging with end-to-end encryption</string>
