@@ -21,7 +21,7 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
 
-        versionCode = 14
+        versionCode = 15
         versionName = "1.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -45,6 +45,7 @@ android {
             keyPassword = "Your_Key_Pass_goes_Here"  // Replace with your actual key password
         }
     }
+
 
     buildTypes {
         release {
