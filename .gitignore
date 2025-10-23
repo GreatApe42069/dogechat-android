@@ -19,12 +19,8 @@ gen/
 # Release keystore
 dogechat-release-key.jks
 
-# Gradle wrapper & daemon files
+# Gradle daemon files
 gradle-app.setting
-gradlew.bat
-gradlew
-gradle-wrapper.jar
-gradle-wrapper.properties
 gradle.properties
 
 # Gradle/APK/AAB and intermediates
