@@ -16,12 +16,15 @@
 -keep class com.dogechat.android.nostr.** { *; }
 -keep class com.dogechat.android.identity.** { *; }
 
-# Tor / Arti
+# Keep Tor implementation (always included)
+-keep class com.dogechat.android.net.RealTorProvider { *; }
+
+# Arti (Custom Tor implementation in Rust) ProGuard rules
 -keep class info.guardianproject.arti.** { *; }
--keep class org.torproject.jni.** { *; }
--keepnames class org.torproject.jni.**
+-keep class org.torproject.arti.** { *; }
+-keepnames class org.torproject.arti.**
 -dontwarn info.guardianproject.arti.**
--dontwarn org.torproject.jni.**
+-dontwarn org.torproject.arti.**
 
 # GSON models
 -keepclassmembers class com.dogechat.android.** {
