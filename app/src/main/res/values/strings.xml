@@ -61,6 +61,11 @@
   <string name="notification_more_locations">and %1$d more locations</string>
   <string name="notification_and_more">and %1$d more</string>
 
+  <!-- Mesh Service Foreground Notification -->
+  <string name="mesh_service_channel_name">Mesh Background Service</string>
+  <string name="mesh_service_channel_desc">Keeps the Bluetooth mesh running in the background</string>
+  <string name="mesh_service_notification_content">Mesh running — %1$d users connected</string>
+
   <!-- Favorites accessibility -->
   <string name="cd_add_favorite">Add to favorites</string>
   <string name="cd_remove_favorite">Remove from favorites</string>
@@ -73,6 +78,7 @@
   <string name="cd_nostr_reachable">Nostr reachable</string>
   <string name="cd_unread_private_messages">Unread private messages</string>
   <string name="cd_toggle_bookmark">Toggle bookmark</string>
+  <string name="cd_location_notes">Location notes</string>
   <string name="cd_teleported">Teleported</string>
   <string name="cd_tor_status">Tor status</string>
   <string name="cd_connected_peers">Connected peers</string>
@@ -155,6 +161,9 @@
   <string name="cd_remove_bookmark">Remove bookmark</string>
   <string name="cd_teleport">Teleport</string>
   <string name="cd_selected">Selected</string>
+  <string name="notification_action_quit_dogechat">Quit dogechat</string>
+  <string name="about_background_title">run in background</string>
+  <string name="about_background_desc">keep mesh active when app is closed (foreground service)</string>
   <string name="cd_leave_channel">Leave channel</string>
   <string name="cd_reachable_via_nostr">Reachable via Nostr</string>
   <string name="cd_offline_favorite">Offline favorite</string>
@@ -219,6 +228,21 @@
   <string name="location_level_city">city</string>
   <string name="location_level_province">province</string>
   <string name="location_level_region">region</string>
+
+  <!-- Location notes sheet -->
+  <plurals name="location_notes_title">
+    <item quantity="one">#%1$s ± 1 • %2$d note</item>
+    <item quantity="other">#%1$s ± 1 • %2$d notes</item>
+  </plurals>
+  <string name="location_notes_description">add short permanent notes to this location for other visitors to find.</string>
+  <string name="location_notes_relays_unavailable">geo relays unavailable; notes paused</string>
+  <string name="location_notes_no_relays_title">no geo relays nearby</string>
+  <string name="location_notes_no_relays_desc">notes rely on geo relays. check connection and try again.</string>
+  <string name="loading_location_notes">loading notes…</string>
+  <string name="location_notes_empty_title">no notes yet</string>
+  <string name="location_notes_empty_desc">be the first to add one for this spot.</string>
+  <string name="dismiss">dismiss</string>
+  <string name="location_notes_input_placeholder">add a note for this place</string>
 
   <!-- Debug / Diagnostics -->
   <string name="debug_tools">debug tools</string>
@@ -366,6 +390,7 @@
   <string name="pwd_label">Password</string>
   <string name="join">Join</string>
   <string name="cancel">Cancel</string>
+    <string name="tor_not_available_in_this_build">Tor not available in this build</string>
 
   <!-- Plurals -->
   <plurals name="notification_and_more">
