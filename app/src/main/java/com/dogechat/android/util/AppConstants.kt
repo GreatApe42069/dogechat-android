@@ -1,5 +1,7 @@
 package com.dogechat.android.util
 
+import java.util.UUID
+
 /**
  * Centralized application-wide constants.
  */
@@ -22,6 +24,12 @@ object AppConstants {
 
         // GATT client RSSI updates
         const val RSSI_UPDATE_INTERVAL_MS: Long = 5_000L
+
+        object Gatt {
+            val SERVICE_UUID: UUID = UUID.fromString("F47B5E2D-4A9E-4C5A-9B3F-8E1D2C3A4B5C")
+            val CHARACTERISTIC_UUID: UUID = UUID.fromString("A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D")
+            val DESCRIPTOR_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        }
     }
 
     object Sync {
@@ -72,8 +80,8 @@ object AppConstants {
         const val SCAN_ON_DURATION_ULTRA_LOW_MS: Long = 1_000L
         const val SCAN_OFF_DURATION_ULTRA_LOW_MS: Long = 10_000L
         const val MAX_CONNECTIONS_NORMAL: Int = 8
-        const val MAX_CONNECTIONS_POWER_SAVE: Int = 4
-        const val MAX_CONNECTIONS_ULTRA_LOW: Int = 2
+        const val MAX_CONNECTIONS_POWER_SAVE: Int = 8
+        const val MAX_CONNECTIONS_ULTRA_LOW: Int = 4
     }
 
     object Nostr {
