@@ -3,7 +3,6 @@ package com.dogechat.android
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,7 +14,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.repeatOnLifecycle
@@ -39,6 +37,7 @@ import com.dogechat.android.onboarding.PermissionExplanationScreen
 import com.dogechat.android.onboarding.PermissionManager
 import com.dogechat.android.ui.ChatScreen
 import com.dogechat.android.ui.ChatViewModel
+import com.dogechat.android.ui.OrientationAwareActivity
 import com.dogechat.android.ui.theme.DogechatTheme
 import com.dogechat.android.nostr.PoWPreferenceManager
 import kotlinx.coroutines.delay
@@ -52,7 +51,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.dogechat.android.geohash.LocationChannelManager
 
-class MainActivity : ComponentActivity() {
+class MainActivity : OrientationAwareActivity() {
     
     private lateinit var permissionManager: PermissionManager
     private lateinit var onboardingCoordinator: OnboardingCoordinator
