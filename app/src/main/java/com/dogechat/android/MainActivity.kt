@@ -394,7 +394,7 @@ class MainActivity : OrientationAwareActivity() {
         checkLocationAndProceed()
     }
 
-    // ADDED: force-lock location channels immediately (mirror bitchat behavior)
+    // ADDED: force-lock location channels immediately (intentionally does not mirror bitchat behavior)
     private fun lockLocationNow() {
         runCatching {
             val mgr = LocationChannelManager.getInstance(this)
@@ -657,7 +657,7 @@ class MainActivity : OrientationAwareActivity() {
                     return@launch
                 }
 
-                // >>> Location WARM-UP INSERTED HERE (bitchat parity) <<<
+                // >>> Location WARM-UP INSERTED HERE <<<
                 // Make LocationChannelManager hot immediately after permissions are granted
                 runCatching {
                     val lcm = LocationChannelManager.getInstance(this@MainActivity)

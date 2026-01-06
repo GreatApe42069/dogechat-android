@@ -93,7 +93,7 @@ if [ -z "${ANDROID_NDK_HOME:-}" ]; then
 fi
 export ANDROID_NDK_HOME
 
-# Min SDK version (must match bitchat-android minSdk)
+# Min SDK version (must match dogechat-android minSdk)
 MIN_SDK_VERSION=26
 
 # Parse arguments

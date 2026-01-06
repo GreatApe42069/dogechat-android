@@ -99,7 +99,7 @@
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.bitchat.android.action.NOTIFICATION_PERMISSION_GRANTED" />
+                <action android:name="com.dogechat.android.action.NOTIFICATION_PERMISSION_GRANTED" />
             </intent-filter>
         </receiver>
 
