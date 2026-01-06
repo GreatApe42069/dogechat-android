@@ -13,11 +13,15 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.NetworkCheck
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -32,9 +36,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dogechat.android.nostr.NostrProofOfWork
 import com.dogechat.android.nostr.PoWPreferenceManager
-import com.dogechat.android.ui.debug.DebugSettingsSheet
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dogechat.android.R
+import com.dogechat.android.core.ui.component.button.CloseButton
+import com.dogechat.android.net.TorMode
+import com.dogechat.android.net.TorPreferenceManager
+import com.dogechat.android.net.ArtiTorManager
 import com.dogechat.android.wallet.WalletManager
 import com.dogechat.android.wallet.WalletManager.Companion.SpvController
 import com.dogechat.android.wallet.logging.AppLog
@@ -42,8 +50,162 @@ import com.dogechat.android.wallet.logging.SpvLogBuffer
 import com.dogechat.android.wallet.net.TorManagerWallet
 
 /**
- * About Sheet for dogechat app information
- * Matches the design language of LocationChannelsSheet
+ * Feature row for displaying app capabilities
+ */
+@Composable
+private fun FeatureRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = colorScheme.primary,
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurface.copy(alpha = 0.6f),
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+/**
+ * Theme selection chip with Apple-like styling
+ */
+@Composable
+private fun ThemeChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
+
+    Surface(
+        modifier = modifier,
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) {
+            if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
+        } else {
+            colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        }
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (selected) Color.White else colorScheme.onSurface.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+/**
+ * Unified settings toggle row with icon, title, subtitle, and switch
+ * Apple-like design with proper spacing
+ */
+@Composable
+private fun SettingsToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+    statusIndicator: (@Composable () -> Unit)? = null
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (enabled) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.3f),
+            modifier = Modifier.size(22.dp)
+        )
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = if (enabled) colorScheme.onSurface else colorScheme.onSurface.copy(alpha = 0.4f)
+                )
+                statusIndicator?.invoke()
+            }
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurface.copy(alpha = if (enabled) 0.6f else 0.3f),
+                lineHeight = 16.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Switch(
+            checked = checked,
+            onCheckedChange = { if (enabled) onCheckedChange(it) },
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D),
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = colorScheme.surfaceVariant
+            )
+        )
+    }
+}
+
+/**
+ * Apple-like About/Settings Sheet with high-quality design
+ * Professional UX optimized for checkout scenarios
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +247,7 @@ fun AboutSheet(
         }
     }
     val topBarAlpha by animateFloatAsState(
-        targetValue = if (isScrolled) 0.95f else 0f,
+        targetValue = if (isScrolled) 0.98f else 0f,
         label = "topBarAlpha"
     )
 
@@ -96,41 +258,30 @@ fun AboutSheet(
     val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
     val warnOrange = Color(0xFFFF9500)
 
-    // Flows for Network (chat Tor)
-    val torMode = remember { mutableStateOf(com.dogechat.android.net.TorPreferenceManager.get(context)) }
-    val torStatus by com.dogechat.android.net.TorManager.statusFlow.collectAsState()
-
-    // Flows for Wallet
-    val spvEnabled by SpvController.enabled.collectAsState(initial = false)
-    val spvStatus by SpvController.status.collectAsState()
-    val spvLogs by SpvLogBuffer.lines.collectAsState()
-    val walletTorMode by com.dogechat.android.wallet.net.WalletTorPreferenceManager.modeFlow.collectAsState(
-        initial = com.dogechat.android.net.TorMode.OFF
-    )
-    val walletTorStatus by TorManagerWallet.status.collectAsState()
-
     if (isPresented) {
         ModalBottomSheet(
             modifier = modifier.statusBarsPadding(),
             onDismissRequest = onDismiss,
             sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = colorScheme.background,
             dragHandle = null
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 LazyColumn(
                     state = lazyListState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 80.dp, bottom = 20.dp)
+                    contentPadding = PaddingValues(top = 80.dp, bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // Header Section
+                    // Header Section - App Identity
                     item(key = "header") {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 24.dp)
+                                .padding(horizontal = 20.dp)
                                 .padding(bottom = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -369,6 +520,11 @@ fun AboutSheet(
 
                         val powEnabled by PoWPreferenceManager.powEnabled.collectAsState()
                         val powDifficulty by PoWPreferenceManager.powDifficulty.collectAsState()
+                        var backgroundEnabled by remember { mutableStateOf(com.dogechat.android.service.MeshServicePreferences.isBackgroundEnabled(true)) }
+                        val torMode = remember { mutableStateOf(TorPreferenceManager.get(context)) }
+                        val torProvider = remember { ArtiTorManager.getInstance() }
+                        val torStatus by torProvider.statusFlow.collectAsState()
+                        val torAvailable = remember { torProvider.isTorAvailable() }
 
                         Column(
                             modifier = Modifier.padding(horizontal = 24.dp),
@@ -478,6 +634,18 @@ fun AboutSheet(
                         }
                     }
 
+    // Flows for Network (chat Tor)
+    val torMode = remember { mutableStateOf(com.dogechat.android.net.TorPreferenceManager.get(context)) }
+    val torStatus by com.dogechat.android.net.TorManager.statusFlow.collectAsState()
+
+    // Flows for Wallet
+    val spvEnabled by SpvController.enabled.collectAsState(initial = false)
+    val spvStatus by SpvController.status.collectAsState()
+    val spvLogs by SpvLogBuffer.lines.collectAsState()
+    val walletTorMode by com.dogechat.android.wallet.net.WalletTorPreferenceManager.modeFlow.collectAsState(
+        initial = com.dogechat.android.net.TorMode.OFF
+    )
+    val walletTorStatus by TorManagerWallet.status.collectAsState()
                     // Network (Tor) section
                     item(key = "network_section") {
                         Text(
@@ -851,7 +1019,7 @@ fun AboutSheet(
                         .height(64.dp)
                         .background(MaterialTheme.colorScheme.background.copy(alpha = topBarAlpha))
                 ) {
-                    TextButton(
+                    CloseButton(
                         onClick = onDismiss,
                         colors = ButtonDefaults.textButtonColors(contentColor = dogeGold), // Close button color -> dogeGold
                         modifier = Modifier
