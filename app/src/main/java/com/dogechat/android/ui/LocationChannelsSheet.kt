@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.PinDrop
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -43,7 +42,9 @@ import com.dogechat.android.geohash.LocationChannelManager
 import com.dogechat.android.geohash.GeohashBookmarksStore
 import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dogechat.android.R
+import com.dogechat.android.core.ui.component.button.CloseButton
 import com.dogechat.android.ui.theme.ThemeColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -66,18 +67,18 @@ fun LocationChannelsSheet(
     val bookmarksStore = remember { GeohashBookmarksStore.getInstance(context) }
 
     // Observe location manager state
-    val permissionState by locationManager.permissionState.observeAsState()
-    val availableChannels by locationManager.availableChannels.observeAsState(emptyList())
-    val selectedChannel by locationManager.selectedChannel.observeAsState()
-    val locationNames by locationManager.locationNames.observeAsState(emptyMap())
-    val locationServicesEnabled by locationManager.locationServicesEnabled.observeAsState(false)
+    val permissionState by locationManager.permissionState.collectAsStateWithLifecycle()
+    val availableChannels by locationManager.availableChannels.collectAsStateWithLifecycle()
+    val selectedChannel by locationManager.selectedChannel.collectAsStateWithLifecycle()
+    val locationNames by locationManager.locationNames.collectAsStateWithLifecycle()
+    val locationServicesEnabled by locationManager.locationServicesEnabled.collectAsStateWithLifecycle()
 
     // Observe bookmarks state
-    val bookmarks by bookmarksStore.bookmarks.observeAsState(emptyList())
-    val bookmarkNames by bookmarksStore.bookmarkNames.observeAsState(emptyMap())
+    val bookmarks by bookmarksStore.bookmarks.collectAsStateWithLifecycle()
+    val bookmarkNames by bookmarksStore.bookmarkNames.collectAsStateWithLifecycle()
 
     // Observe reactive participant counts
-    val geohashParticipantCounts by viewModel.geohashParticipantCounts.observeAsState(emptyMap())
+    val geohashParticipantCounts by viewModel.geohashParticipantCounts.collectAsStateWithLifecycle()
 
     // UI state
     var customGeohash by remember { mutableStateOf("") }
@@ -334,8 +335,11 @@ fun LocationChannelsSheet(
                     }
 
                     // Nearby options (only show if location services are enabled)
+                    // CRITICAL: Filter out .building level (precision 8) - iOS pattern
+                    // iOS: let nearby = manager.availableChannels.filter { $0.level != .building }
                     if (availableChannels.isNotEmpty() && locationServicesEnabled) {
-                        items(availableChannels) { channel ->
+                        val nearbyChannels = availableChannels.filter { it.level != GeohashChannelLevel.BUILDING }
+                        items(nearbyChannels) { channel ->
                             val coverage = coverageString(channel.geohash.length)
                             val nameBase = locationNames[channel.level]
                             val namePart = nameBase?.let { formattedNamePrefix(channel.level) + it }
@@ -644,18 +648,12 @@ fun LocationChannelsSheet(
                         .height(56.dp)
                         .background(MaterialTheme.colorScheme.background.copy(alpha = topBarAlpha))
                 ) {
-                    TextButton(
+                    CloseButton(
                         onClick = onDismiss,
-                        modifier = Modifier
+                        modifier = modifier
                             .align(Alignment.CenterEnd)
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.close_plain),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = dogeGold
-                        )
-                    }
+                            .padding(horizontal = 16.dp),
+                    )
                 }
             }
         }
@@ -666,8 +664,6 @@ fun LocationChannelsSheet(
         if (isPresented) {
             if (permissionState == LocationChannelManager.PermissionState.AUTHORIZED && locationServicesEnabled) {
                 locationManager.refreshChannels()
-            }
-            if (locationServicesEnabled) {
                 locationManager.beginLiveRefresh()
             }
             val geohashes = (availableChannels.map { it.geohash } + bookmarks).toSet().toList()
@@ -809,6 +805,7 @@ private fun geohashTitleWithCount(channel: GeohashChannel, participantCount: Int
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val peopleText = ctx.resources.getQuantityString(com.dogechat.android.R.plurals.people_count, participantCount, participantCount)
     val levelName = when (channel.level) {
+        com.dogechat.android.geohash.GeohashChannelLevel.BUILDING -> "Building" // iOS: precision 8 for location notes
         com.dogechat.android.geohash.GeohashChannelLevel.BLOCK -> stringResource(com.dogechat.android.R.string.location_level_block)
         com.dogechat.android.geohash.GeohashChannelLevel.NEIGHBORHOOD -> stringResource(com.dogechat.android.R.string.location_level_neighborhood)
         com.dogechat.android.geohash.GeohashChannelLevel.CITY -> stringResource(com.dogechat.android.R.string.location_level_city)
@@ -845,7 +842,8 @@ private fun levelForLength(length: Int): GeohashChannelLevel {
         5 -> GeohashChannelLevel.CITY
         6 -> GeohashChannelLevel.NEIGHBORHOOD
         7 -> GeohashChannelLevel.BLOCK
-        else -> GeohashChannelLevel.BLOCK
+        8 -> GeohashChannelLevel.BUILDING // iOS: precision 8 for building-level
+        else -> if (length > 8) GeohashChannelLevel.BUILDING else GeohashChannelLevel.BLOCK
     }
 }
 
