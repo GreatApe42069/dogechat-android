@@ -10,7 +10,6 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
@@ -25,9 +24,9 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.ui.media.FullScreenImageViewer
-
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -42,28 +41,29 @@ import com.dogechat.android.ui.media.FullScreenImageViewer
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     val colorScheme = MaterialTheme.colorScheme
-    val messages by viewModel.messages.observeAsState(emptyList())
-    val connectedPeers by viewModel.connectedPeers.observeAsState(emptyList())
-    val nickname by viewModel.nickname.observeAsState("")
-    val selectedPrivatePeer by viewModel.selectedPrivateChatPeer.observeAsState()
-    val currentChannel by viewModel.currentChannel.observeAsState()
-    val joinedChannels by viewModel.joinedChannels.observeAsState(emptySet())
-    val hasUnreadChannels by viewModel.unreadChannelMessages.observeAsState(emptyMap())
-    val hasUnreadPrivateMessages by viewModel.unreadPrivateMessages.observeAsState(emptySet())
-    val privateChats by viewModel.privateChats.observeAsState(emptyMap())
-    val channelMessages by viewModel.channelMessages.observeAsState(emptyMap())
-    val showSidebar by viewModel.showSidebar.observeAsState(false)
-    val showCommandSuggestions by viewModel.showCommandSuggestions.observeAsState(false)
-    val commandSuggestions by viewModel.commandSuggestions.observeAsState(emptyList())
-    val showMentionSuggestions by viewModel.showMentionSuggestions.observeAsState(false)
-    val mentionSuggestions by viewModel.mentionSuggestions.observeAsState(emptyList())
-    val showAppInfo by viewModel.showAppInfo.observeAsState(false)
+    val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val connectedPeers by viewModel.connectedPeers.collectAsStateWithLifecycle()
+    val nickname by viewModel.nickname.collectAsStateWithLifecycle()
+    val selectedPrivatePeer by viewModel.selectedPrivateChatPeer.collectAsStateWithLifecycle()
+    val currentChannel by viewModel.currentChannel.collectAsStateWithLifecycle()
+    val joinedChannels by viewModel.joinedChannels.collectAsStateWithLifecycle()
+    val hasUnreadChannels by viewModel.unreadChannelMessages.collectAsStateWithLifecycle()
+    val hasUnreadPrivateMessages by viewModel.unreadPrivateMessages.collectAsStateWithLifecycle()
+    val privateChats by viewModel.privateChats.collectAsStateWithLifecycle()
+    val channelMessages by viewModel.channelMessages.collectAsStateWithLifecycle()
+    val showSidebar by viewModel.showSidebar.collectAsStateWithLifecycle()
+    val showCommandSuggestions by viewModel.showCommandSuggestions.collectAsStateWithLifecycle()
+    val commandSuggestions by viewModel.commandSuggestions.collectAsStateWithLifecycle()
+    val showMentionSuggestions by viewModel.showMentionSuggestions.collectAsStateWithLifecycle()
+    val mentionSuggestions by viewModel.mentionSuggestions.collectAsStateWithLifecycle()
+    val showAppInfo by viewModel.showAppInfo.collectAsStateWithLifecycle()
 
     var messageText by remember { mutableStateOf(TextFieldValue("")) }
     var showPasswordPrompt by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
     var passwordInput by remember { mutableStateOf("") }
     var showLocationChannelsSheet by remember { mutableStateOf(false) }
+    var showLocationNotesSheet by remember { mutableStateOf(false) }
     var showUserSheet by remember { mutableStateOf(false) }
     var selectedUserForSheet by remember { mutableStateOf("") }
     var selectedMessageForSheet by remember { mutableStateOf<DogechatMessage?>(null) }
@@ -78,11 +78,11 @@ fun ChatScreen(viewModel: ChatViewModel) {
         showPasswordDialog = showPasswordPrompt
     }
 
-    val isConnected by viewModel.isConnected.observeAsState(false)
-    val passwordPromptChannel by viewModel.passwordPromptChannel.observeAsState(null)
+    val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
+    val passwordPromptChannel by viewModel.passwordPromptChannel.collectAsStateWithLifecycle()
 
     // Get location channel info for timeline switching
-    val selectedLocationChannel by viewModel.selectedLocationChannel.observeAsState()
+    val selectedLocationChannel by viewModel.selectedLocationChannel.collectAsStateWithLifecycle()
 
     // Determine what messages to show based on current context (unified timelines)
     val displayMessages = when {
@@ -97,6 +97,13 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 messages // Mesh timeline
             }
         }
+    }
+
+    // Determine whether to show media buttons (only hide in geohash location chats)
+    val showMediaButtons = when {
+        selectedPrivatePeer != null -> true
+        currentChannel != null -> true
+        else -> selectedLocationChannel !is com.dogechat.android.geohash.ChannelID.Location
     }
 
     // Use WindowInsets to handle keyboard properly
@@ -227,7 +234,8 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 selectedPrivatePeer = selectedPrivatePeer,
                 currentChannel = currentChannel,
                 nickname = nickname,
-                colorScheme = colorScheme
+                colorScheme = colorScheme,
+                showMediaButtons = showMediaButtons
             )
         }
 
@@ -242,7 +250,8 @@ fun ChatScreen(viewModel: ChatViewModel) {
             onSidebarToggle = { viewModel.showSidebar() },
             onShowAppInfo = { viewModel.showAppInfo() },
             onPanicClear = { viewModel.panicClearAllData() },
-            onLocationChannelsClick = { showLocationChannelsSheet = true }
+            onLocationChannelsClick = { showLocationChannelsSheet = true },
+            onLocationNotesClick = { showLocationNotesSheet = true }
         )
 
         // Divider under header - positioned after status bar + header height
@@ -355,6 +364,8 @@ fun ChatScreen(viewModel: ChatViewModel) {
         onAppInfoDismiss = { viewModel.hideAppInfo() },
         showLocationChannelsSheet = showLocationChannelsSheet,
         onLocationChannelsSheetDismiss = { showLocationChannelsSheet = false },
+        showLocationNotesSheet = showLocationNotesSheet,
+        onLocationNotesSheetDismiss = { showLocationNotesSheet = false },
         showUserSheet = showUserSheet,
         onUserSheetDismiss = { 
             showUserSheet = false
@@ -383,7 +394,8 @@ private fun ChatInputSection(
     selectedPrivatePeer: String?,
     currentChannel: String?,
     nickname: String,
-    colorScheme: ColorScheme
+    colorScheme: ColorScheme,
+    showMediaButtons: Boolean
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -419,6 +431,7 @@ private fun ChatInputSection(
                 selectedPrivatePeer = selectedPrivatePeer,
                 currentChannel = currentChannel,
                 nickname = nickname,
+                showMediaButtons = showMediaButtons,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -436,8 +449,12 @@ private fun ChatFloatingHeader(
     onSidebarToggle: () -> Unit,
     onShowAppInfo: () -> Unit,
     onPanicClear: () -> Unit,
-    onLocationChannelsClick: () -> Unit
+    onLocationChannelsClick: () -> Unit,
+    onLocationNotesClick: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val locationManager = remember { com.dogechat.android.geohash.LocationChannelManager.getInstance(context) }
+    
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -461,7 +478,12 @@ private fun ChatFloatingHeader(
                     onSidebarClick = onSidebarToggle,
                     onTripleClick = onPanicClear,
                     onShowAppInfo = onShowAppInfo,
-                    onLocationChannelsClick = onLocationChannelsClick
+                    onLocationChannelsClick = onLocationChannelsClick,
+                    onLocationNotesClick = {
+                        // Ensure location is loaded before showing sheet
+                        locationManager.refreshChannels()
+                        onLocationNotesClick()
+                    }
                 )
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -472,6 +494,7 @@ private fun ChatFloatingHeader(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatDialogs(
     showPasswordDialog: Boolean,
@@ -484,6 +507,8 @@ private fun ChatDialogs(
     onAppInfoDismiss: () -> Unit,
     showLocationChannelsSheet: Boolean,
     onLocationChannelsSheetDismiss: () -> Unit,
+    showLocationNotesSheet: Boolean,
+    onLocationNotesSheetDismiss: () -> Unit,
     showUserSheet: Boolean,
     onUserSheetDismiss: () -> Unit,
     selectedUserForSheet: String,
@@ -521,6 +546,14 @@ private fun ChatDialogs(
             isPresented = showLocationChannelsSheet,
             onDismiss = onLocationChannelsSheetDismiss,
             viewModel = viewModel
+        )
+    }
+    
+    // Location notes sheet (extracted to separate presenter)
+    if (showLocationNotesSheet) {
+        LocationNotesSheetPresenter(
+            viewModel = viewModel,
+            onDismiss = onLocationNotesSheetDismiss
         )
     }
     
