@@ -3,7 +3,6 @@ package com.dogechat.android.ui
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.viewModelScope
 import com.dogechat.android.geohash.Geohash
@@ -17,6 +16,7 @@ import com.dogechat.android.nostr.NostrSubscriptionManager
 import com.dogechat.android.nostr.PoWPreferenceManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.Collections
@@ -133,9 +133,9 @@ class GeohashViewModel(
     private var geoTimer: Job? = null
     private var locationChannelManager: com.dogechat.android.geohash.LocationChannelManager? = null
 
-    val geohashPeople: LiveData<List<GeoPerson>> = state.geohashPeople
-    val geohashParticipantCounts: LiveData<Map<String, Int>> = state.geohashParticipantCounts
-    val selectedLocationChannel: LiveData<com.dogechat.android.geohash.ChannelID?> = state.selectedLocationChannel
+    val geohashPeople: StateFlow<List<GeoPerson>> = state.geohashPeople
+    val geohashParticipantCounts: StateFlow<Map<String, Int>> = state.geohashParticipantCounts
+    val selectedLocationChannel: StateFlow<com.dogechat.android.geohash.ChannelID?> = state.selectedLocationChannel
 
     // Bridge observer (publish counts -> labels; counts -> heat points)
     private var countsObserver: Observer<Map<String, Int>>? = null
@@ -144,21 +144,26 @@ class GeohashViewModel(
         subscriptionManager.connect()
         val identity = NostrIdentityBridge.getCurrentNostrIdentity(getApplication())
         if (identity != null) {
+            // Use global chat-messages only for full account DMs (mesh context). For geohash DMs, subscribe per-geohash below.
             subscriptionManager.subscribeGiftWraps(
                 pubkey = identity.publicKeyHex,
                 sinceMs = System.currentTimeMillis() - 172800000L,
                 id = "chat-messages",
-                handler = { event -> dmHandler.onGiftWrap(event, "", identity) }
+                handler = { event -> dmHandler.onGiftWrap(event, "", identity) } // geohash="" means global account DM (not geohash identity)
             )
         }
         try {
             locationChannelManager = com.dogechat.android.geohash.LocationChannelManager.getInstance(getApplication())
-            locationChannelManager?.selectedChannel?.observeForever { channel ->
-                state.setSelectedLocationChannel(channel)
-                switchLocationChannel(channel)
+            viewModelScope.launch {
+                locationChannelManager?.selectedChannel?.collect { channel ->
+                    state.setSelectedLocationChannel(channel)
+                    switchLocationChannel(channel)
+                }
             }
-            locationChannelManager?.teleported?.observeForever { teleported ->
-                state.setIsTeleported(teleported)
+            viewModelScope.launch {
+                locationChannelManager?.teleported?.collect { teleported ->
+                    state.setIsTeleported(teleported)
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize location channel state: ${e.message}")
@@ -228,11 +233,12 @@ class GeohashViewModel(
                 }
                 try {
                     val identity = NostrIdentityBridge.deriveIdentity(forGeohash = channel.geohash, context = getApplication())
-                    val teleported = state.isTeleported.value ?: false
+                    val teleported = state.isTeleported.value
                     val event = NostrProtocol.createEphemeralGeohashEvent(content, channel.geohash, identity, nickname, teleported)
                     val relayManager = NostrRelayManager.getInstance(getApplication())
                     relayManager.sendEventToGeohash(event, channel.geohash, includeDefaults = false, nRelays = 5)
                 } finally {
+                    // Ensure we stop the per-message mining animation regardless of success/failure
                     if (startedMining) {
                         com.dogechat.android.ui.PoWMiningTracker.stopMiningMessage(tempId)
                     }
@@ -341,7 +347,7 @@ class GeohashViewModel(
                 runCatching {
                     val identity = NostrIdentityBridge.deriveIdentity(channel.channel.geohash, getApplication())
                     repo.updateParticipant(channel.channel.geohash, identity.publicKeyHex, Date())
-                    val teleported = state.isTeleported.value ?: false
+                    val teleported = state.isTeleported.value
                     if (teleported) repo.markTeleported(identity.publicKeyHex)
                 }.onFailure { Log.w(TAG, "Failed identity setup: ${it.message}") }
 
