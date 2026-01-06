@@ -13,7 +13,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -51,7 +50,7 @@ import com.dogechat.android.ui.theme.BASE_FONT_SIZE
 import com.google.gson.Gson
 
 @OptIn(ExperimentalMaterial3Api::class)
-class GeohashPickerActivity : ComponentActivity() {
+class GeohashPickerActivity : OrientationAwareActivity() {
 
     companion object {
         const val EXTRA_INITIAL_GEOHASH = "initial_geohash"
