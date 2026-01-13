@@ -636,7 +636,9 @@ fun AboutSheet(
 
     // Flows for Network (chat Tor)
     val torMode = remember { mutableStateOf(com.dogechat.android.net.TorPreferenceManager.get(context)) }
-    val torStatus by com.dogechat.android.net.TorManager.statusFlow.collectAsState()
+    val torProvider = remember { ArtiTorManager.getInstance() }
+    val torStatus by torProvider.statusFlow.collectAsState()
+    val torAvailable = remember { torProvider.isTorAvailable() }
 
     // Flows for Wallet
     val spvEnabled by SpvController.enabled.collectAsState(initial = false)
@@ -665,21 +667,24 @@ fun AboutSheet(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 FilterChip(
-                                    selected = torMode.value == com.dogechat.android.net.TorMode.OFF,
+                                    selected = torMode.value == TorMode.OFF,
                                     onClick = {
                                         AppLog.action("AboutSheet", "chatTor", "OFF")
-                                        torMode.value = com.dogechat.android.net.TorMode.OFF
-                                        com.dogechat.android.net.TorPreferenceManager.set(context, torMode.value)
+                                        torMode.value = TorMode.OFF
+                                        TorPreferenceManager.set(context, torMode.value)
                                     },
                                     label = { Text("tor off", fontFamily = FontFamily.Monospace) }
                                 )
                                 FilterChip(
-                                    selected = torMode.value == com.dogechat.android.net.TorMode.ON,
+                                    selected = torMode.value == TorMode.ON,
                                     onClick = {
                                         AppLog.action("AboutSheet", "chatTor", "ON")
-                                        torMode.value = com.dogechat.android.net.TorMode.ON
-                                        com.dogechat.android.net.TorPreferenceManager.set(context, torMode.value)
+                                        if (torAvailable) {
+                                            torMode.value = TorMode.ON
+                                            TorPreferenceManager.set(context, torMode.value)
+                                        }
                                     },
+                                    enabled = torAvailable,
                                     label = {
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -698,12 +703,49 @@ fun AboutSheet(
                                     }
                                 )
                             }
+
+                                if (!torAvailable) {
+                                    val tooltipState = rememberTooltipState()
+                                    val scope = rememberCoroutineScope()
+                                    TooltipBox(
+                                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                        tooltip = {
+                                            PlainTooltip {
+                                                Text(
+                                                    text = stringResource(R.string.tor_not_available_in_this_build),
+                                                    fontSize = 11.sp,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                            }
+                                        },
+                                        state = tooltipState
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    tooltipState.show()
+                                                }
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Info,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurface.copy(
+                                                    alpha = 0.6f
+                                                ),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                             Text(
                                 text = "Such route internet over tor for Very Enhanced privacy",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
-                            if (torMode.value == com.dogechat.android.net.TorMode.ON) {
+                            if (torMode.value == TorMode.ON) {
                                 val statusText = if (torStatus.running) "Running" else "Stopped"
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
