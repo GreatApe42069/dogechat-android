@@ -615,10 +615,12 @@ private fun MainHeader(
                 onClick = onLocationNotesClick
             )
 
-            // Tor status cable icon when Tor is enabled
-                TorStatusIcon(modifier = Modifier.size(14.dp))
-                    .padding(start = 0.dp, end = 2.dp)
-            )
+// Tor status cable icon when Tor is enabled
+TorStatusIcon(
+    modifier = Modifier
+        .size(14.dp)
+        .padding(start = 0.dp, end = 2.dp)
+)
             
             // PoW status indicator
             PoWStatusIndicator(
