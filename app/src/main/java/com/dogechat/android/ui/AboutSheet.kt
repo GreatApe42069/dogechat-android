@@ -48,6 +48,7 @@ import com.dogechat.android.wallet.WalletManager.Companion.SpvController
 import com.dogechat.android.wallet.logging.AppLog
 import com.dogechat.android.wallet.logging.SpvLogBuffer
 import com.dogechat.android.wallet.net.TorManagerWallet
+import com.dogechat.android.wallet.net.WalletTorPreferenceManager
 
 /**
  * Feature row for displaying app capabilities
@@ -223,7 +224,7 @@ fun AboutSheet(
 
     // Init wallet Tor prefs for wallet section
     LaunchedEffect(Unit) {
-        com.dogechat.android.wallet.net.WalletTorPreferenceManager.init(context)
+        WalletTorPreferenceManager.init(context)
     }
 
     // Get version name from package info
@@ -634,8 +635,9 @@ fun AboutSheet(
                         }
                     }
 
-    // Flows for Network (chat Tor)
-    val torMode = remember { mutableStateOf(com.dogechat.android.net.TorPreferenceManager.get(context)) }
+    // Flows for Network Tor Status (when enabled, chat Tor)
+    val torMode = remember { 
+mutableStateOf(TorPreferenceManager.get(context)) }
     val torProvider = remember { ArtiTorManager.getInstance() }
     val torStatus by torProvider.statusFlow.collectAsState()
     val torAvailable = remember { torProvider.isTorAvailable() }
@@ -644,8 +646,8 @@ fun AboutSheet(
     val spvEnabled by SpvController.enabled.collectAsState(initial = false)
     val spvStatus by SpvController.status.collectAsState()
     val spvLogs by SpvLogBuffer.lines.collectAsState()
-    val walletTorMode by com.dogechat.android.wallet.net.WalletTorPreferenceManager.modeFlow.collectAsState(
-        initial = com.dogechat.android.net.TorMode.OFF
+    val walletTorMode by WalletTorPreferenceManager.modeFlow.collectAsState(
+        initial = TorMode.OFF
     )
     val walletTorStatus by TorManagerWallet.status.collectAsState()
                     // Network (Tor) section
@@ -884,12 +886,12 @@ fun AboutSheet(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 FilterChip(
-                                    selected = walletTorMode == com.dogechat.android.net.TorMode.OFF,
+                                    selected = walletTorMode == TorMode.OFF,
                                     onClick = {
                                         AppLog.action("AboutSheet", "walletTor", "OFF")
-                                        com.dogechat.android.wallet.net.WalletTorPreferenceManager.set(
+                                        WalletTorPreferenceManager.set(
                                             context,
-                                            com.dogechat.android.net.TorMode.OFF
+                                            TorMode.OFF
                                         )
                                         TorManagerWallet.stop()
                                         WalletManager.instanceRef?.let {
@@ -902,7 +904,7 @@ fun AboutSheet(
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("wallet tor off", fontFamily = FontFamily.Monospace)
                                             // Only show red when OFF is selected AND the service is confirmed stopped
-                                            if (walletTorMode == com.dogechat.android.net.TorMode.OFF && !walletTorStatus.running) {
+                                            if (walletTorMode == TorMode.OFF && !walletTorStatus.running) {
                                                 Surface(color = Color.Red, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
                                                 }
@@ -911,12 +913,12 @@ fun AboutSheet(
                                     }
                                 )
                                 FilterChip(
-                                    selected = walletTorMode == com.dogechat.android.net.TorMode.ON,
+                                    selected = walletTorMode == TorMode.ON,
                                     onClick = {
                                         AppLog.action("AboutSheet", "walletTor", "ON")
-                                        com.dogechat.android.wallet.net.WalletTorPreferenceManager.set(
+                                        WalletTorPreferenceManager.set(
                                             context,
-                                            com.dogechat.android.net.TorMode.ON
+                                            TorMode.ON
                                         )
                                         TorManagerWallet.start(app)
                                         WalletManager.instanceRef?.let {
@@ -929,7 +931,7 @@ fun AboutSheet(
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("wallet tor on", fontFamily = FontFamily.Monospace)
                                             // Show indicator only when ON is selected
-                                            if (walletTorMode == com.dogechat.android.net.TorMode.ON) {
+                                            if (walletTorMode == TorMode.ON) {
                                                 val indColor = when {
                                                     !walletTorStatus.running -> Color.Red // Red only if ON selected but not running
                                                     walletTorStatus.bootstrapPercent < 100 -> warnOrange // Orange for bootstrapping
@@ -1099,7 +1101,7 @@ fun PasswordPromptDialog(
             onDismissRequest = onDismiss,
             title = {
                 Text(
-                    text = "Enter Channel Password",
+                    text = stringResource(R.string.pwd_prompt_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface
                 )
@@ -1107,7 +1109,7 @@ fun PasswordPromptDialog(
             text = {
                 Column {
                     Text(
-                        text = "Such Channel $channelName is So Password Protected. Enter the Secret Password to Very join.",
+                        text = stringResource(R.string.pwd_prompt_message, channelName ?: ""),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colorScheme.onSurface
                     )
