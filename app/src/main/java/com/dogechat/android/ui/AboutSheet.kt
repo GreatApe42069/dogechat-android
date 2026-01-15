@@ -217,11 +217,6 @@ fun AboutSheet(
     val brandAccent = Color(0xFFFFFF00) // bright doge yellow
     val warnOrange = Color(0xFFFF9500)
 
-    // Init wallet Tor prefs for wallet section
-    LaunchedEffect(Unit) {
-        com.dogechat.android.wallet.net.WalletTorPreferenceManager.init(context)
-    }
-
     // Get version name
     val versionName = remember {
         try {
