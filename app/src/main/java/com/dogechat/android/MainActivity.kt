@@ -202,7 +202,6 @@ class MainActivity : OrientationAwareActivity() {
             
             OnboardingState.BLUETOOTH_CHECK -> {
                 BluetoothCheckScreen(
-                    modifier = modifier,
                     status = bluetoothStatus,
                     onEnableBluetooth = {
                         mainViewModel.updateBluetoothLoading(true)
