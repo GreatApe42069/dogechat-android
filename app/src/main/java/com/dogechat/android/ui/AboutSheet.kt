@@ -13,9 +13,9 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.NetworkCheck
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
@@ -48,7 +48,6 @@ import com.dogechat.android.wallet.WalletManager.Companion.SpvController
 import com.dogechat.android.wallet.logging.AppLog
 import com.dogechat.android.wallet.logging.SpvLogBuffer
 import com.dogechat.android.wallet.net.TorManagerWallet
-import com.dogechat.android.wallet.net.WalletTorPreferenceManager
 
 /**
  * Feature row for displaying app capabilities
@@ -94,7 +93,7 @@ private fun FeatureRow(
 }
 
 /**
- * Theme selection chip with Apple-like styling
+ * Theme selection chip
  */
 @Composable
 private fun ThemeChip(
@@ -133,8 +132,7 @@ private fun ThemeChip(
 }
 
 /**
- * Unified settings toggle row with icon, title, subtitle, and switch
- * Apple-like design with proper spacing
+ * Unified settings toggle row
  */
 @Composable
 private fun SettingsToggleRow(
@@ -204,10 +202,6 @@ private fun SettingsToggleRow(
     }
 }
 
-/**
- * Apple-like About/Settings Sheet with high-quality design
- * Professional UX optimized for checkout scenarios
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutSheet(
@@ -218,46 +212,51 @@ fun AboutSheet(
 ) {
     val context = LocalContext.current
 
-    // Colors requested
+    // Existing Main Branch Colors, Themes, Style
     val dogeGold = Color(0xFFFFD700)
     val brandAccent = Color(0xFFFFFF00) // bright doge yellow
+    val warnOrange = Color(0xFFFF9500)
 
     // Init wallet Tor prefs for wallet section
     LaunchedEffect(Unit) {
-        WalletTorPreferenceManager.init(context)
+        com.dogechat.android.wallet.net.WalletTorPreferenceManager.init(context)
     }
 
-    // Get version name from package info
+    // Get version name
     val versionName = remember {
         try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         } catch (e: Exception) {
-            "1.0.0" // fallback version
+            "1.0.0"
         }
     }
 
-    // Bottom sheet state
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
-
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val lazyListState = rememberLazyListState()
     val isScrolled by remember {
-        derivedStateOf {
-            lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0
-        }
+        derivedStateOf { lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0 }
     }
     val topBarAlpha by animateFloatAsState(
-        targetValue = if (isScrolled) 0.98f else 0f,
+        targetValue = if (isScrolled) 0.95f else 0f,
         label = "topBarAlpha"
     )
 
-    // Color scheme
     val colorScheme = MaterialTheme.colorScheme
-    val isDark =
-        colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
+    val isDark = colorScheme.background.red + colorScheme.background.green + colorScheme.background.blue < 1.5f
     val standardGreen = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
-    val warnOrange = Color(0xFFFF9500)
+
+    // Network flows for Tor/chat
+    val torMode = remember { mutableStateOf(com.dogechat.android.net.TorPreferenceManager.get(context)) }
+    val torStatus by com.dogechat.android.net.TorManager.statusFlow.collectAsState()
+
+    // Wallet flows
+    val spvEnabled by SpvController.enabled.collectAsState(initial = false)
+    val spvStatus by SpvController.status.collectAsState()
+    val spvLogs by SpvLogBuffer.lines.collectAsState()
+    val walletTorMode by com.dogechat.android.wallet.net.WalletTorPreferenceManager.modeFlow.collectAsState(
+        initial = com.dogechat.android.net.TorMode.OFF
+    )
+    val walletTorStatus by TorManagerWallet.status.collectAsState()
 
     if (isPresented) {
         ModalBottomSheet(
@@ -274,15 +273,15 @@ fun AboutSheet(
                     contentPadding = PaddingValues(top = 80.dp, bottom = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // Header Section - App Identity
+                    // Header Section
                     item(key = "header") {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp)
+                                .padding(horizontal = 24.dp)
                                 .padding(bottom = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -295,11 +294,11 @@ fun AboutSheet(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
                                     ),
-                                    color = dogeGold // Title color -> dogeGold
+                                    color = dogeGold
                                 )
 
                                 Text(
-                                    text = stringResource(R.string.version_prefix, versionName?:""),
+                                    text = stringResource(R.string.version_prefix, versionName ?: ""),
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     color = colorScheme.onBackground.copy(alpha = 0.5f),
@@ -308,12 +307,11 @@ fun AboutSheet(
                                     )
                                 )
                             }
-
                             Text(
                                 text = "Đecentralized Mesh messaging • Much end-to-end encryption",
                                 fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                color = colorScheme.onBackground.copy(alpha = 0.7f),
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.Center,
                                 maxLines = 1,
@@ -323,134 +321,29 @@ fun AboutSheet(
                         }
                     }
 
-                    // Features section
-                    item(key = "feature_offline") {
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            modifier = Modifier
-                                .padding(horizontal = 24.dp)
-                                .padding(vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Bluetooth,
-                                contentDescription = stringResource(R.string.cd_offline_mesh_chat),
-                                tint = Color(0xFF007AFF), // Bluetooth icon color as requested
-                                modifier = Modifier
-                                    .padding(top = 2.dp)
-                                    .size(20.dp)
+                    // Features Section
+                    item(key = "features") {
+                        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+                            FeatureRow(
+                                icon = Icons.Filled.Bluetooth,
+                                title = stringResource(R.string.about_offline_mesh_title),
+                                subtitle = "Communicate directly via Bluetooth LE without internet or servers. Messages relay through nearby devices to extend range."
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.about_offline_mesh_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = brandAccent
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Communicate directly via Bluetooth LE without internet or servers. Messages relay through nearby devices to extend range.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-                    }
-                    item(key = "feature_geohash") {
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            modifier = Modifier
-                                .padding(horizontal = 24.dp)
-                                .padding(vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Public,
-                                contentDescription = stringResource(R.string.cd_online_geohash_channels),
-                                tint = standardGreen, // Geohash icon -> standardGreen
-                                modifier = Modifier
-                                    .padding(top = 2.dp)
-                                    .size(20.dp)
+                            FeatureRow(
+                                icon = Icons.Default.Public,
+                                title = stringResource(R.string.about_online_geohash_title),
+                                subtitle = "Connect with people in your area using geohash-based channels. Extend the mesh using public internet relays."
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.about_online_geohash_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = brandAccent
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Connect with people in your area using geohash-based channels. Extend the mesh using public internet relays.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-                    }
-                    item(key = "feature_encryption") {
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            modifier = Modifier
-                                .padding(horizontal = 24.dp)
-                                .padding(vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "End-to-End Encryption",
-                                tint = brandAccent, // E2EE icon -> brandAccent
-                                modifier = Modifier
-                                    .padding(top = 2.dp)
-                                    .size(20.dp)
+                            FeatureRow(
+                                icon = Icons.Default.Lock,
+                                title = "End-to-End Encryption",
+                                subtitle = "Private messages are encrypted. Channel messages are public."
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(
-                                    text = "End-to-End Encryption",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = brandAccent
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Private messages are encrypted. Channel messages are public.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-                    }
-                    // New: Dogecoin Wallet feature card (below encryption)
-                    item(key = "feature_wallet") {
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            modifier = Modifier
-                                .padding(horizontal = 24.dp)
-                                .padding(vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.AccountBalanceWallet,
-                                contentDescription = "Đogecoin Wallet",
-                                tint = dogeGold, // wallet icon -> dogeGold
-                                modifier = Modifier
-                                    .padding(top = 2.dp)
-                                    .size(20.dp)
+                            FeatureRow(
+                                icon = Icons.Filled.AccountBalanceWallet,
+                                title = "Đogecoin Wallet",
+                                subtitle = "Light doge wallet (spv) with tor support for privacy-preserving node connectivity. Manage addresses and send/receive dogecoin."
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(
-                                    text = "Đogecoin Wallet",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    color = brandAccent
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Light doge wallet (spv) with tor support for privacy-preserving node connectivity. Manage addresses and send/receive dogecoin.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
-                                )
-                            }
                         }
                     }
 
@@ -459,7 +352,7 @@ fun AboutSheet(
                         Text(
                             text = stringResource(R.string.about_appearance),
                             style = MaterialTheme.typography.labelLarge,
-                            color = brandAccent, // requested section title color
+                            color = brandAccent,
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 24.dp, bottom = 8.dp)
@@ -469,7 +362,9 @@ fun AboutSheet(
                             modifier = Modifier.padding(horizontal = 24.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            FilterChip(
+                            // Reusing ThemeChip and color logic from main branch
+                            ThemeChip(
+                                label = stringResource(R.string.about_system),
                                 selected = themePref.isSystem,
                                 onClick = {
                                     AppLog.action("AboutSheet", "theme", "system")
@@ -477,21 +372,21 @@ fun AboutSheet(
                                         context,
                                         com.dogechat.android.ui.theme.ThemePreference.System
                                     )
-                                },
-                                label = { Text(stringResource(R.string.about_system), fontFamily = FontFamily.Monospace) }
+                                }
                             )
-                            FilterChip(
+                            ThemeChip(
+                                label = "light",
                                 selected = themePref.isLight,
                                 onClick = {
-                                        AppLog.action("AboutSheet", "theme", "light")
-                                        com.dogechat.android.ui.theme.ThemePreferenceManager.set(
-                                            context,
-                                            com.dogechat.android.ui.theme.ThemePreference.Light
-                                        )
-                                },
-                                label = { Text("light", fontFamily = FontFamily.Monospace) }
+                                    AppLog.action("AboutSheet", "theme", "light")
+                                    com.dogechat.android.ui.theme.ThemePreferenceManager.set(
+                                        context,
+                                        com.dogechat.android.ui.theme.ThemePreference.Light
+                                    )
+                                }
                             )
-                            FilterChip(
+                            ThemeChip(
+                                label = "dark",
                                 selected = themePref.isDark,
                                 onClick = {
                                     AppLog.action("AboutSheet", "theme", "dark")
@@ -499,8 +394,7 @@ fun AboutSheet(
                                         context,
                                         com.dogechat.android.ui.theme.ThemePreference.Dark
                                     )
-                                },
-                                label = { Text("dark", fontFamily = FontFamily.Monospace) }
+                                }
                             )
                         }
                     }
@@ -510,7 +404,7 @@ fun AboutSheet(
                         Text(
                             text = "Such Proof of Work",
                             style = MaterialTheme.typography.labelLarge,
-                            color = brandAccent, // requested section title color
+                            color = brandAccent,
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 24.dp, bottom = 8.dp)
@@ -518,14 +412,8 @@ fun AboutSheet(
                         LaunchedEffect(Unit) {
                             PoWPreferenceManager.init(context)
                         }
-
                         val powEnabled by PoWPreferenceManager.powEnabled.collectAsState()
                         val powDifficulty by PoWPreferenceManager.powDifficulty.collectAsState()
-                        var backgroundEnabled by remember { mutableStateOf(com.dogechat.android.service.MeshServicePreferences.isBackgroundEnabled(true)) }
-                        val torMode = remember { mutableStateOf(TorPreferenceManager.get(context)) }
-                        val torProvider = remember { ArtiTorManager.getInstance() }
-                        val torStatus by torProvider.statusFlow.collectAsState()
-                        val torAvailable = remember { torProvider.isTorAvailable() }
 
                         Column(
                             modifier = Modifier.padding(horizontal = 24.dp),
@@ -584,7 +472,6 @@ fun AboutSheet(
                                         fontFamily = FontFamily.Monospace,
                                     )
 
-                                    // Slider track/thumb -> dogeGold
                                     Slider(
                                         value = powDifficulty.toFloat(),
                                         onValueChange = {
@@ -635,27 +522,12 @@ fun AboutSheet(
                         }
                     }
 
-    // Flows for Network Tor Status (when enabled, chat Tor)
-    val torMode = remember { 
-mutableStateOf(TorPreferenceManager.get(context)) }
-    val torProvider = remember { ArtiTorManager.getInstance() }
-    val torStatus by torProvider.statusFlow.collectAsState()
-    val torAvailable = remember { torProvider.isTorAvailable() }
-
-    // Flows for Wallet
-    val spvEnabled by SpvController.enabled.collectAsState(initial = false)
-    val spvStatus by SpvController.status.collectAsState()
-    val spvLogs by SpvLogBuffer.lines.collectAsState()
-    val walletTorMode by WalletTorPreferenceManager.modeFlow.collectAsState(
-        initial = TorMode.OFF
-    )
-    val walletTorStatus by TorManagerWallet.status.collectAsState()
-                    // Network (Tor) section
+                    // Network Tor Section (chat Tor)
                     item(key = "network_section") {
                         Text(
                             text = "Network",
                             style = MaterialTheme.typography.labelLarge,
-                            color = brandAccent, // requested section title color
+                            color = brandAccent,
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 24.dp, bottom = 8.dp)
@@ -669,24 +541,21 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 FilterChip(
-                                    selected = torMode.value == TorMode.OFF,
+                                    selected = torMode.value == com.dogechat.android.net.TorMode.OFF,
                                     onClick = {
                                         AppLog.action("AboutSheet", "chatTor", "OFF")
-                                        torMode.value = TorMode.OFF
-                                        TorPreferenceManager.set(context, torMode.value)
+                                        torMode.value = com.dogechat.android.net.TorMode.OFF
+                                        com.dogechat.android.net.TorPreferenceManager.set(context, torMode.value)
                                     },
                                     label = { Text("tor off", fontFamily = FontFamily.Monospace) }
                                 )
                                 FilterChip(
-                                    selected = torMode.value == TorMode.ON,
+                                    selected = torMode.value == com.dogechat.android.net.TorMode.ON,
                                     onClick = {
                                         AppLog.action("AboutSheet", "chatTor", "ON")
-                                        if (torAvailable) {
-                                            torMode.value = TorMode.ON
-                                            TorPreferenceManager.set(context, torMode.value)
-                                        }
+                                        torMode.value = com.dogechat.android.net.TorMode.ON
+                                        com.dogechat.android.net.TorPreferenceManager.set(context, torMode.value)
                                     },
-                                    enabled = torAvailable,
                                     label = {
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -705,49 +574,12 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                                     }
                                 )
                             }
-
-                                if (!torAvailable) {
-                                    val tooltipState = rememberTooltipState()
-                                    val scope = rememberCoroutineScope()
-                                    TooltipBox(
-                                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                        tooltip = {
-                                            PlainTooltip {
-                                                Text(
-                                                    text = stringResource(R.string.tor_not_available_in_this_build),
-                                                    fontSize = 11.sp,
-                                                    fontFamily = FontFamily.Monospace
-                                                )
-                                            }
-                                        },
-                                        state = tooltipState
-                                    ) {
-                                        IconButton(
-                                            onClick = {
-                                                scope.launch {
-                                                    tooltipState.show()
-                                                }
-                                            },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Info,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSurface.copy(
-                                                    alpha = 0.6f
-                                                ),
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
                             Text(
                                 text = "Such route internet over tor for Very Enhanced privacy",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                color = colorScheme.onSurface.copy(alpha = 0.6f)
                             )
-                            if (torMode.value == TorMode.ON) {
+                            if (torMode.value == com.dogechat.android.net.TorMode.ON) {
                                 val statusText = if (torStatus.running) "Running" else "Stopped"
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
@@ -777,12 +609,12 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                         }
                     }
 
-                    // Wallet (SPV) section
+                    // Main Branch Wallet SPV Section
                     item(key = "wallet_spv_section") {
                         Text(
                             text = "Đoge Wallet (spv)",
                             style = MaterialTheme.typography.labelLarge,
-                            color = brandAccent, // requested section title color
+                            color = brandAccent,
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 24.dp, bottom = 8.dp)
@@ -825,9 +657,9 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                                             // Show indicator only when ON is selected
                                             if (spvEnabled) {
                                                 val indColor = when {
-                                                    !spvStatus.running -> Color.Red // Red only if ON selected but not running
-                                                    spvStatus.syncPercent < 100 -> warnOrange // Orange for syncing
-                                                    else -> standardGreen // Green for fully synced
+                                                    !spvStatus.running -> Color.Red
+                                                    spvStatus.syncPercent < 100 -> warnOrange
+                                                    else -> standardGreen
                                                 }
                                                 Surface(color = indColor, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
@@ -866,13 +698,13 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                         }
                     }
 
-                    // Wallet Tor (SPV only) section
+                    // Main Branch Wallet tor (SPV only)
                     item(key = "wallet_tor_section") {
                         val app = context.applicationContext as Application
                         Text(
                             text = "Wallet tor (spv only)",
                             style = MaterialTheme.typography.labelLarge,
-                            color = brandAccent, // requested section title color
+                            color = brandAccent,
                             modifier = Modifier
                                 .padding(horizontal = 24.dp)
                                 .padding(top = 16.dp, bottom = 8.dp)
@@ -886,12 +718,12 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 FilterChip(
-                                    selected = walletTorMode == TorMode.OFF,
+                                    selected = walletTorMode == com.dogechat.android.net.TorMode.OFF,
                                     onClick = {
                                         AppLog.action("AboutSheet", "walletTor", "OFF")
-                                        WalletTorPreferenceManager.set(
+                                        com.dogechat.android.wallet.net.WalletTorPreferenceManager.set(
                                             context,
-                                            TorMode.OFF
+                                            com.dogechat.android.net.TorMode.OFF
                                         )
                                         TorManagerWallet.stop()
                                         WalletManager.instanceRef?.let {
@@ -904,7 +736,7 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("wallet tor off", fontFamily = FontFamily.Monospace)
                                             // Only show red when OFF is selected AND the service is confirmed stopped
-                                            if (walletTorMode == TorMode.OFF && !walletTorStatus.running) {
+                                            if (walletTorMode == com.dogechat.android.net.TorMode.OFF && !walletTorStatus.running) {
                                                 Surface(color = Color.Red, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
                                                 }
@@ -913,12 +745,12 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                                     }
                                 )
                                 FilterChip(
-                                    selected = walletTorMode == TorMode.ON,
+                                    selected = walletTorMode == com.dogechat.android.net.TorMode.ON,
                                     onClick = {
                                         AppLog.action("AboutSheet", "walletTor", "ON")
-                                        WalletTorPreferenceManager.set(
+                                        com.dogechat.android.wallet.net.WalletTorPreferenceManager.set(
                                             context,
-                                            TorMode.ON
+                                            com.dogechat.android.net.TorMode.ON
                                         )
                                         TorManagerWallet.start(app)
                                         WalletManager.instanceRef?.let {
@@ -931,11 +763,11 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("wallet tor on", fontFamily = FontFamily.Monospace)
                                             // Show indicator only when ON is selected
-                                            if (walletTorMode == TorMode.ON) {
+                                            if (walletTorMode == com.dogechat.android.net.TorMode.ON) {
                                                 val indColor = when {
-                                                    !walletTorStatus.running -> Color.Red // Red only if ON selected but not running
-                                                    walletTorStatus.bootstrapPercent < 100 -> warnOrange // Orange for bootstrapping
-                                                    else -> standardGreen // Green for fully connected
+                                                    !walletTorStatus.running -> Color.Red
+                                                    walletTorStatus.bootstrapPercent < 100 -> warnOrange
+                                                    else -> standardGreen
                                                 }
                                                 Surface(color = indColor, shape = CircleShape) {
                                                     Box(Modifier.size(8.dp))
@@ -977,7 +809,6 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                     // Emergency Warning Section
                     item(key = "warning_section") {
                         val errorColor = colorScheme.error
-
                         Surface(
                             modifier = Modifier
                                 .padding(horizontal = 24.dp, vertical = 24.dp)
@@ -1061,11 +892,11 @@ mutableStateOf(TorPreferenceManager.get(context)) }
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .height(64.dp)
-                        .background(MaterialTheme.colorScheme.background.copy(alpha = topBarAlpha))
+                        .background(colorScheme.background.copy(alpha = topBarAlpha))
                 ) {
-                    CloseButton(
+                    TextButton(
                         onClick = onDismiss,
-                        colors = ButtonDefaults.textButtonColors(contentColor = dogeGold), // Close button color -> dogeGold
+                        colors = ButtonDefaults.textButtonColors(contentColor = dogeGold),
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .padding(horizontal = 16.dp)
@@ -1101,7 +932,7 @@ fun PasswordPromptDialog(
             onDismissRequest = onDismiss,
             title = {
                 Text(
-                    text = stringResource(R.string.pwd_prompt_title),
+                    text = "Enter Channel Password",
                     style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface
                 )
@@ -1109,7 +940,7 @@ fun PasswordPromptDialog(
             text = {
                 Column {
                     Text(
-                        text = stringResource(R.string.pwd_prompt_message, channelName ?: ""),
+                        text = "Such Channel $channelName is So Password Protected. Enter the Secret Password to Very join.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = colorScheme.onSurface
                     )
