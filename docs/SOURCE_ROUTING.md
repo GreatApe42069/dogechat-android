@@ -1,6 +1,6 @@
-# Source-Based Routing for BitChat Packets (v2)
+# Source-Based Routing for Dogechat Packets (v2)
 
-This document specifies the Source-Based Routing extension (v2) for the BitChat protocol. This upgrade enables efficient unicast routing across the mesh by allowing senders to specify an explicit path of intermediate relays.
+This document specifies the Source-Based Routing extension (v2) for the Dogechat protocol. This upgrade enables efficient unicast routing across the mesh by allowing senders to specify an explicit path of intermediate relays.
 
 **Status:** Implemented in Android and iOS. Backward compatible (v1 clients ignore routing data).
 
