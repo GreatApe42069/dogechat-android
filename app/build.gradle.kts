@@ -20,7 +20,6 @@ android {
         applicationId = "com.dogechat.android"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-
         versionCode = 15
         versionName = "1.4.1"
 
@@ -37,21 +36,11 @@ android {
         includeInBundle = false
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = file("dogechat-release-key.jks")
-            storePassword = "Your_Keystore_pass_goes_Here"  // Replace with your actual keystore password
-            keyAlias = "dogechat-key"
-            keyPassword = "Your_Key_Pass_goes_Here"  // Replace with your actual key password
-        }
-    }
-
-
     buildTypes {
         debug {
             ndk {
                 // Include x86_64 for emulator support during development
-                abiFilters += listOf("arm64-v8a", "x86_64")
+                abiFilters += listOf("arm64-v8a", "x86_64", "armeabi-v7a", "x86")
             }
         }
         release {
@@ -61,16 +50,24 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            ndk {
-                // ARM64-only to minimize APK size (~5.8MB savings)
-                // Excludes x86_64 as emulator not needed for production builds
-                abiFilters += listOf("arm64-v8a")
-            }
-            signingConfig = signingConfigs.getByName("release")
         }
-        debug {
-            // Faster local iteration
-            isMinifyEnabled = false
+    }
+
+    // APK splits for GitHub releases - creates arm64, x86_64, and universal APKs
+    // AAB for Play Store handles architecture distribution automatically
+    // Auto-detects: splits enabled for assemble tasks, disabled for bundle tasks
+    // Works in Android Studio GUI and CLI without needing extra properties
+    val enableSplits = gradle.startParameter.taskNames.any { taskName ->
+        taskName.contains("assemble", ignoreCase = true) &&
+        !taskName.contains("bundle", ignoreCase = true)
+    }
+
+    splits {
+        abi {
+            isEnable = enableSplits
+            reset()
+            include("arm64-v8a", "x86_64", "armeabi-v7a", "x86")
+            isUniversalApk = true  // For F-Droid and fallback
         }
     }
 
@@ -136,7 +133,7 @@ dependencies {
 
     // Lifecycle
     implementation(libs.bundles.lifecycle)
-    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.process)
 
     // Navigation
     implementation(libs.androidx.navigation.compose)
@@ -153,6 +150,15 @@ dependencies {
 
     // ---- Permissions (Accompanist) ----
     implementation(libs.accompanist.permissions)
+
+    // QR
+    implementation(libs.zxing.core)
+    implementation(libs.mlkit.barcode.scanning)
+
+    // CameraX
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.compose)
 
     // ---- Material / ConstraintLayout ----
     implementation(libs.material)
