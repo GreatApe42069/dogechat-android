@@ -41,6 +41,12 @@ class DogechatApplication : Application() {
         // Initialize debug preference manager (persists debug toggles)
         try { com.dogechat.android.ui.debug.DebugPreferenceManager.init(this) } catch (_: Exception) { }
 
+        // Initialize Geohash Registries for persistence
+        try {
+            com.dogechat.android.nostr.GeohashAliasRegistry.initialize(this)
+            com.dogechat.android.nostr.GeohashConversationRegistry.initialize(this)
+        } catch (_: Exception) { }
+
         // Initialize mesh service preferences
         try { com.dogechat.android.service.MeshServicePreferences.init(this) } catch (_: Exception) { }
 
