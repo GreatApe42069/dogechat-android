@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Đogechat</string>
+    <string name="app_name">dogechat</string>
 
     <!-- 권한 안내 -->
     <string name="permission_bluetooth_rationale">인터넷 없이 다른 사람과 직접 채팅하려면 블루투스 권한이 필요합니다.</string>
@@ -70,7 +70,7 @@
     <string name="cd_remove_favorite">즐겨찾기에서 제거</string>
     <string name="cd_add_bookmark">북마크 추가</string>
 
-    <!-- 채팅 헤더 & 접근성 -->
+    <!-- 채팅 헤더 &amp; 접근성 -->
     <string name="chat_back">뒤로</string>
     <string name="chat_channel_prefix">채널: %1$s</string>
     <string name="chat_leave">나가기</string>
@@ -170,7 +170,7 @@
     <string name="cd_online_geohash_channels">온라인 geohash 채널</string>
     <string name="cd_end_to_end_encryption">종단간 암호화</string>
 
-    <!-- 이미지 & 파일 -->
+    <!-- 이미지 &amp; 파일 -->
     <string name="image_page_of">이미지 %1$d / %2$d</string>
     <string name="image_unavailable">이미지를 사용할 수 없음</string>
     <string name="image_saved_to_downloads">이미지가 \"Downloads\"에 저장됨</string>
@@ -247,7 +247,6 @@
     <string name="debug_relays_window_fmt">마지막 10초: %1$d • 1분: %2$d • 15분: %3$d</string>
     <string name="debug_derived_p_fmt">유도 P: %1$s • 예상 최대 요소: %2$s</string>
     <string name="debug_direct_suffix"> • 직접</string>
-   
     <string name="debug_role_server">서버로서 (우리가 호스트)</string>
     <string name="debug_role_client">클라이언트로서 (우리가 연결)</string>
 
@@ -350,4 +349,54 @@
         <item quantity="other">%d명</item>
     </plurals>
 
+  <plurals name="location_notes_title">
+    <item quantity="one">#%1$s ± 1 • %2$d개의 노트</item>
+    <item quantity="other">#%1$s ± 1 • %2$d개의 노트</item>
+  </plurals>
+  <string name="location_notes_description">다른 방문자들이 볼 수 있도록 이 위치에 짧은 영구 노트를 추가하세요.</string>
+  <string name="location_notes_relays_unavailable">지오 릴레이를 사용할 수 없음; 노트 일시 중지됨</string>
+  <string name="location_notes_no_relays_title">주변에 지오 릴레이가 없음</string>
+  <string name="location_notes_no_relays_desc">노트는 지오 릴레이에 의존합니다. 연결을 확인하고 다시 시도하세요.</string>
+  <string name="loading_location_notes">노트 불러오는 중…</string>
+  <string name="location_notes_empty_title">아직 노트가 없습니다</string>
+  <string name="location_notes_empty_desc">이 장소에 첫 번째 노트를 추가해 보세요.</string>
+  <string name="dismiss">닫기</string>
+  <string name="location_notes_input_placeholder">이 장소에 노트 추가</string>
+    <string name="mesh_service_notification_content">메시 실행 중 — %1$d 피어</string>
+
+  <string name="verify_title">verify</string>
+  <string name="verify_my_qr_title">scan to verify me</string>
+  <string name="verify_scan_prompt_friend">scan someone elses qr</string>
+  <string name="verify_scan_someone">scan someone elses qr</string>
+  <string name="verify_show_my_qr">show my qr</string>
+  <string name="verify_remove">remove verification</string>
+  <string name="verify_qr_unavailable">qr unavailable</string>
+  <string name="verify_camera_permission">camera permission is needed to scan qr codes</string>
+  <string name="verify_request_camera">enable camera</string>
+  <string name="verify_paste_label">paste verification url</string>
+  <string name="verify_validate">validate</string>
+  <string name="verify_scanned">verification requested</string>
+  <string name="security_verification_title">security verification</string>
+  <string name="fingerprint_their">their fingerprint</string>
+  <string name="fingerprint_yours">your fingerprint</string>
+  <string name="fingerprint_pending">handshake pending</string>
+  <string name="fingerprint_no_peer">open a private chat to view fingerprints</string>
+  <string name="fingerprint_status_verified">encrypted &amp; verified</string>
+  <string name="fingerprint_status_encrypted">encrypted</string>
+  <string name="fingerprint_status_handshaking">handshaking</string>
+  <string name="fingerprint_status_failed">handshake failed</string>
+  <string name="fingerprint_status_uninitialized">not encrypted</string>
+  <string name="fingerprint_verified_label">verified</string>
+  <string name="fingerprint_verified_message">you have verified this persons identity.</string>
+  <string name="fingerprint_not_verified_label">not verified</string>
+  <string name="fingerprint_not_verified_message_fmt">compare these fingerprints with %1$s using a secure channel.</string>
+  <string name="fingerprint_mark_verified">mark as verified</string>
+  <string name="fingerprint_start_handshake">start handshake</string>
+  <string name="fingerprint_copy">copy</string>
+  <string name="verify_mutual_match_title">Mutual verification</string>
+  <string name="verify_mutual_match_body">You and %1$s verified each other</string>
+  <string name="verify_mutual_system_message">mutual verification with %1$s</string>
+  <string name="verify_success_title">Verified</string>
+  <string name="verify_success_body">You verified %1$s</string>
+  <string name="verify_success_system_message">verified %1$s</string>
 </resources>
