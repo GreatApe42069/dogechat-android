@@ -26,6 +26,7 @@ import com.dogechat.android.onboarding.BatteryOptimizationManager
 import com.dogechat.android.onboarding.BatteryOptimizationPreferenceManager
 import com.dogechat.android.onboarding.BatteryOptimizationScreen
 import com.dogechat.android.onboarding.BatteryOptimizationStatus
+import com.dogechat.android.onboarding.BackgroundLocationPermissionScreen
 import com.dogechat.android.onboarding.InitializationErrorScreen
 import com.dogechat.android.onboarding.InitializingScreen
 import com.dogechat.android.onboarding.LocationCheckScreen
@@ -40,6 +41,7 @@ import com.dogechat.android.ui.ChatViewModel
 import com.dogechat.android.ui.OrientationAwareActivity
 import com.dogechat.android.ui.theme.DogechatTheme
 import com.dogechat.android.nostr.PoWPreferenceManager
+import com.dogechat.android.services.VerificationService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -70,9 +72,37 @@ class MainActivity : OrientationAwareActivity() {
             }
         }
     }
-    
+
+    private val forceFinishReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
+            if (intent.action == com.dogechat.android.util.AppConstants.UI.ACTION_FORCE_FINISH) {
+                android.util.Log.i("MainActivity", "Received force finish broadcast, closing UI")
+                finishAffinity()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Register receiver for force finish signal from shutdown coordinator
+        val filter = android.content.IntentFilter(com.dogechat.android.util.AppConstants.UI.ACTION_FORCE_FINISH)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(
+                forceFinishReceiver,
+                filter,
+                com.dogechat.android.util.AppConstants.UI.PERMISSION_FORCE_FINISH,
+                null,
+                android.content.Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(
+                forceFinishReceiver,
+                filter,
+                com.dogechat.android.util.AppConstants.UI.PERMISSION_FORCE_FINISH,
+                null
+            )
+        }
 
         // Check if this is a quit request from the notification
         if (intent.getBooleanExtra("ACTION_QUIT_APP", false)) {
@@ -80,6 +110,8 @@ class MainActivity : OrientationAwareActivity() {
             finish()
             return
         }
+
+        com.dogechat.android.service.AppShutdownCoordinator.cancelPendingShutdown()
         
         // ADDED: remove gray flash and set edge-to-edge with brand system bars
         window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
@@ -128,6 +160,9 @@ class MainActivity : OrientationAwareActivity() {
             activity = this,
             permissionManager = permissionManager,
             onOnboardingComplete = ::handleOnboardingComplete,
+            onBackgroundLocationRequired = {
+                mainViewModel.updateOnboardingState(OnboardingState.BACKGROUND_LOCATION_EXPLANATION)
+            },
             onOnboardingFailed = ::handleOnboardingFailed
         )
         
@@ -202,6 +237,7 @@ class MainActivity : OrientationAwareActivity() {
             
             OnboardingState.BLUETOOTH_CHECK -> {
                 BluetoothCheckScreen(
+                    modifier = modifier,
                     status = bluetoothStatus,
                     onEnableBluetooth = {
                         mainViewModel.updateBluetoothLoading(true)
@@ -255,6 +291,21 @@ class MainActivity : OrientationAwareActivity() {
                     onContinue = {
                         mainViewModel.updateOnboardingState(OnboardingState.PERMISSION_REQUESTING)
                         onboardingCoordinator.requestPermissions()
+                    }
+                )
+            }
+
+            OnboardingState.BACKGROUND_LOCATION_EXPLANATION -> {
+                BackgroundLocationPermissionScreen(
+                    modifier = modifier,
+                    onContinue = {
+                        onboardingCoordinator.requestBackgroundLocation()
+                    },
+                    onRetry = {
+                        onboardingCoordinator.checkBackgroundLocationAndProceed()
+                    },
+                    onSkip = {
+                        onboardingCoordinator.skipBackgroundLocation()
                     }
                 )
             }
@@ -372,10 +423,17 @@ class MainActivity : OrientationAwareActivity() {
             if (permissionManager.isFirstTimeLaunch()) {
                 Log.d("MainActivity", "First time launch, showing permission explanation")
                 mainViewModel.updateOnboardingState(OnboardingState.PERMISSION_EXPLANATION)
-            } else if (permissionManager.areAllPermissionsGranted()) {
-                Log.d("MainActivity", "Existing user with permissions, initializing app")
-                mainViewModel.updateOnboardingState(OnboardingState.INITIALIZING)
-                initializeApp()
+            } else if (permissionManager.areRequiredPermissionsGranted()) {
+                Log.d("MainActivity", "Existing user with required permissions")
+                if (permissionManager.needsBackgroundLocationPermission() &&
+                    !permissionManager.isBackgroundLocationGranted() &&
+                    !com.dogechat.android.onboarding.BackgroundLocationPreferenceManager.isSkipped(this@MainActivity)
+                ) {
+                    mainViewModel.updateOnboardingState(OnboardingState.BACKGROUND_LOCATION_EXPLANATION)
+                } else {
+                    mainViewModel.updateOnboardingState(OnboardingState.INITIALIZING)
+                    initializeApp()
+                }
             } else {
                 Log.d("MainActivity", "Existing user missing permissions, showing explanation")
                 mainViewModel.updateOnboardingState(OnboardingState.PERMISSION_EXPLANATION)
@@ -393,7 +451,7 @@ class MainActivity : OrientationAwareActivity() {
         checkLocationAndProceed()
     }
 
-    // ADDED: force-lock location channels immediately (intentionally does not mirror bitchat behavior)
+    // ADDED: force-lock location channels immediately (intentionally does not mirror dogechat behavior)
     private fun lockLocationNow() {
         runCatching {
             val mgr = LocationChannelManager.getInstance(this)
@@ -681,6 +739,7 @@ class MainActivity : OrientationAwareActivity() {
                 
                 // Handle any notification intent
                 handleNotificationIntent(intent)
+                handleVerificationIntent(intent)
                 
                 // Small delay to ensure mesh service is fully initialized
                 delay(500)
@@ -703,10 +762,13 @@ class MainActivity : OrientationAwareActivity() {
             finish()
             return
         }
+
+        com.dogechat.android.service.AppShutdownCoordinator.cancelPendingShutdown()
         
         // Handle notification intents when app is already running
         if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
             handleNotificationIntent(intent)
+            handleVerificationIntent(intent)
         }
     }
     
@@ -778,8 +840,9 @@ class MainActivity : OrientationAwareActivity() {
                 if (peerID != null) {
                     Log.d("MainActivity", "Opening private chat with $senderNickname (peerID: $peerID) from notification")
                     
-                    // Open the private chat with this peer
-                    chatViewModel.startPrivateChat(peerID)
+                    // Open the private chat sheet with this peer
+                    chatViewModel.showMeshPeerList()
+                    chatViewModel.showPrivateChatSheet(peerID)
                     
                     // Clear notifications for this sender since user is now viewing the chat
                     chatViewModel.clearNotificationsForSender(peerID)
@@ -815,9 +878,21 @@ class MainActivity : OrientationAwareActivity() {
         }
     }
 
-    
+    private fun handleVerificationIntent(intent: Intent) {
+        val uri = intent.data ?: return
+        if (uri.scheme != "bitchat" || uri.host != "verify") return
+
+        chatViewModel.showVerificationSheet()
+        val qr = VerificationService.verifyScannedQR(uri.toString())
+        if (qr != null) {
+            chatViewModel.beginQRVerification(qr)
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+
+        try { unregisterReceiver(forceFinishReceiver) } catch (_: Exception) { }
         
         // Cleanup location status manager
         try {
