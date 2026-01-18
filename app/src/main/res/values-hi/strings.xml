@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Đogechat</string>
+    <string name="app_name">dogechat</string>
 
     <!-- अनुमति के कारण -->
     <string name="permission_bluetooth_rationale">ब्लूटूथ अनुमति इंटरनेट के बिना सीधे दूसरों से चैट करने के लिए आवश्यक है।</string>
@@ -70,7 +70,7 @@
     <string name="cd_remove_favorite">पसंदीदा से हटाएँ</string>
     <string name="cd_add_bookmark">बुकमार्क जोड़ें</string>
 
-    <!-- चैट हेडर & एक्सेसिबिलिटी -->
+    <!-- चैट हेडर &amp; एक्सेसिबिलिटी -->
     <string name="chat_back">वापस</string>
     <string name="chat_channel_prefix">चैनल: %1$s</string>
     <string name="chat_leave">छोड़ें</string>
@@ -247,7 +247,6 @@
     <string name="debug_relays_window_fmt">पिछले 10 से.: %1$d • 1 मि.: %2$d • 15 मि.: %3$d</string>
     <string name="debug_derived_p_fmt">व्युत्पन्न P: %1$s • अनुमानित अधिकतम आइटम: %2$s</string>
     <string name="debug_direct_suffix"> • डायरेक्ट</string>
-   
     <string name="debug_role_server">सर्वर के रूप में (हम होस्ट करते हैं)</string>
     <string name="debug_role_client">क्लाइंट के रूप में (हम कनेक्ट करते हैं)</string>
 
@@ -350,4 +349,54 @@
         <item quantity="other">%d लोग</item>
     </plurals>
 
+  <plurals name="location_notes_title">
+    <item quantity="one">#%1$s ± 1 • %2$d नोट</item>
+    <item quantity="other">#%1$s ± 1 • %2$d नोट्स</item>
+  </plurals>
+  <string name="location_notes_description">अन्य आगंतुकों के लिए इस स्थान पर छोटी स्थायी नोट्स जोड़ें।</string>
+  <string name="location_notes_relays_unavailable">जियो रिले उपलब्ध नहीं; नोट्स विरामित</string>
+  <string name="location_notes_no_relays_title">आसपास कोई जियो रिले नहीं</string>
+  <string name="location_notes_no_relays_desc">नोट्स जियो रिले पर निर्भर हैं। कनेक्शन जांचें और फिर से प्रयास करें।</string>
+  <string name="loading_location_notes">नोट्स लोड हो रहे हैं…</string>
+  <string name="location_notes_empty_title">अभी कोई नोट नहीं</string>
+  <string name="location_notes_empty_desc">इस स्थान के लिए पहला नोट जोड़ें।</string>
+  <string name="dismiss">बंद करें</string>
+  <string name="location_notes_input_placeholder">इस स्थान के लिए एक नोट जोड़ें</string>
+    <string name="mesh_service_notification_content">मेश चल रहा है — %1$d पीयर्स</string>
+
+  <string name="verify_title">verify</string>
+  <string name="verify_my_qr_title">scan to verify me</string>
+  <string name="verify_scan_prompt_friend">scan someone elses qr</string>
+  <string name="verify_scan_someone">scan someone elses qr</string>
+  <string name="verify_show_my_qr">show my qr</string>
+  <string name="verify_remove">remove verification</string>
+  <string name="verify_qr_unavailable">qr unavailable</string>
+  <string name="verify_camera_permission">camera permission is needed to scan qr codes</string>
+  <string name="verify_request_camera">enable camera</string>
+  <string name="verify_paste_label">paste verification url</string>
+  <string name="verify_validate">validate</string>
+  <string name="verify_scanned">verification requested</string>
+  <string name="security_verification_title">security verification</string>
+  <string name="fingerprint_their">their fingerprint</string>
+  <string name="fingerprint_yours">your fingerprint</string>
+  <string name="fingerprint_pending">handshake pending</string>
+  <string name="fingerprint_no_peer">open a private chat to view fingerprints</string>
+  <string name="fingerprint_status_verified">encrypted &amp; verified</string>
+  <string name="fingerprint_status_encrypted">encrypted</string>
+  <string name="fingerprint_status_handshaking">handshaking</string>
+  <string name="fingerprint_status_failed">handshake failed</string>
+  <string name="fingerprint_status_uninitialized">not encrypted</string>
+  <string name="fingerprint_verified_label">verified</string>
+  <string name="fingerprint_verified_message">you have verified this persons identity.</string>
+  <string name="fingerprint_not_verified_label">not verified</string>
+  <string name="fingerprint_not_verified_message_fmt">compare these fingerprints with %1$s using a secure channel.</string>
+  <string name="fingerprint_mark_verified">mark as verified</string>
+  <string name="fingerprint_start_handshake">start handshake</string>
+  <string name="fingerprint_copy">copy</string>
+  <string name="verify_mutual_match_title">Mutual verification</string>
+  <string name="verify_mutual_match_body">You and %1$s verified each other</string>
+  <string name="verify_mutual_system_message">mutual verification with %1$s</string>
+  <string name="verify_success_title">Verified</string>
+  <string name="verify_success_body">You verified %1$s</string>
+  <string name="verify_success_system_message">verified %1$s</string>
 </resources>
