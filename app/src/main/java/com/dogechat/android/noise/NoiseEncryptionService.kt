@@ -1,4 +1,4 @@
-﻿package com.dogechat.android.noise
+package com.dogechat.android.noise
 
 import android.content.Context
 import android.util.Log
@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Main Noise encryption service - 100% compatible with iOS implementation
- *
+ * 
  * This service manages:
  * - Static identity keys (persistent across sessions)
  * - Noise session management for each peer
@@ -19,43 +19,69 @@ import java.util.concurrent.ConcurrentHashMap
  * - Peer fingerprint mapping and identity persistence
  */
 class NoiseEncryptionService(private val context: Context) {
-
+    
     companion object {
         private const val TAG = "NoiseEncryptionService"
-
+        
         // Session limits for performance and security
         private const val REKEY_TIME_LIMIT = com.dogechat.android.util.AppConstants.Noise.REKEY_TIME_LIMIT_MS // 1 hour (same as iOS)
         private const val REKEY_MESSAGE_LIMIT = com.dogechat.android.util.AppConstants.Noise.REKEY_MESSAGE_LIMIT_ENCRYPTION // 1k messages (matches iOS) (same as iOS)
     }
-
+    
     // Static identity key (persistent across app restarts) - loaded from secure storage
-    private val staticIdentityPrivateKey: ByteArray
-    private val staticIdentityPublicKey: ByteArray
-
+    private var staticIdentityPrivateKey: ByteArray
+    private var staticIdentityPublicKey: ByteArray
+    
     // Ed25519 signing key (persistent across app restarts) - loaded from secure storage
-    private val signingPrivateKey: ByteArray
-    private val signingPublicKey: ByteArray
-
+    private var signingPrivateKey: ByteArray
+    private var signingPublicKey: ByteArray
+    
     // Session management
-    private val sessionManager: NoiseSessionManager
-
+    private lateinit var sessionManager: NoiseSessionManager
+    
     // Channel encryption for password-protected channels
     private val channelEncryption = NoiseChannelEncryption()
-
+    
     // Identity management for peer ID rotation support
     private val identityStateManager: SecureIdentityStateManager
-
+    
     // Centralized fingerprint management - NO LOCAL STORAGE
     private val fingerprintManager = PeerFingerprintManager.getInstance()
-
+    
     // Callbacks
     var onPeerAuthenticated: ((String, String) -> Unit)? = null // (peerID, fingerprint)
     var onHandshakeRequired: ((String) -> Unit)? = null // peerID needs handshake
-
+    
     init {
         // Initialize identity state manager for persistent storage
         identityStateManager = SecureIdentityStateManager(context)
-
+        
+        // Load or create keys - temporary placeholders
+        staticIdentityPrivateKey = ByteArray(32)
+        staticIdentityPublicKey = ByteArray(32)
+        signingPrivateKey = ByteArray(32)
+        signingPublicKey = ByteArray(32)
+        
+        loadOrGenerateKeys()
+        
+        // Initialize session manager
+        initializeSessionManager()
+    }
+    
+    private fun initializeSessionManager() {
+        // Create new session manager with current keys
+        sessionManager = NoiseSessionManager(staticIdentityPrivateKey, staticIdentityPublicKey)
+        
+        // Set up session callbacks
+        sessionManager.onSessionEstablished = { peerID, remoteStaticKey ->
+            handleSessionEstablished(peerID, remoteStaticKey)
+        }
+        
+        // Ensure any other callbacks are wired if needed
+        // sessionManager.onSessionFailed could be wired if we exposed it
+    }
+    
+    private fun loadOrGenerateKeys() {
         // Load or create static identity key (persistent across sessions)
         val loadedKeyPair = identityStateManager.loadStaticKey()
         if (loadedKeyPair != null) {
@@ -67,13 +93,13 @@ class NoiseEncryptionService(private val context: Context) {
             val keyPair = generateKeyPair()
             staticIdentityPrivateKey = keyPair.first
             staticIdentityPublicKey = keyPair.second
-
+            
             // Save to secure storage
             identityStateManager.saveStaticKey(staticIdentityPrivateKey, staticIdentityPublicKey)
             Log.d(TAG, "Generated and saved new static identity key")
         }
-
-        // Load or create Ed25519 signing key (persistent across app restarts)
+        
+        // Load or create Ed25519 signing key (persistent across sessions)
         val loadedSigningKeyPair = identityStateManager.loadSigningKey()
         if (loadedSigningKeyPair != null) {
             signingPrivateKey = loadedSigningKeyPair.first
@@ -84,23 +110,15 @@ class NoiseEncryptionService(private val context: Context) {
             val signingKeyPair = generateEd25519KeyPair()
             signingPrivateKey = signingKeyPair.first
             signingPublicKey = signingKeyPair.second
-
+            
             // Save to secure storage
             identityStateManager.saveSigningKey(signingPrivateKey, signingPublicKey)
             Log.d(TAG, "Generated and saved new Ed25519 signing key")
         }
-
-        // Initialize session manager
-        sessionManager = NoiseSessionManager(staticIdentityPrivateKey, staticIdentityPublicKey)
-
-        // Set up session callbacks
-        sessionManager.onSessionEstablished = { peerID, remoteStaticKey ->
-            handleSessionEstablished(peerID, remoteStaticKey)
-        }
     }
 
     // MARK: - Public Interface
-
+    
     /**
      * Get our static public key data for sharing (32 bytes)
      */
@@ -114,7 +132,7 @@ class NoiseEncryptionService(private val context: Context) {
     fun getSigningPublicKeyData(): ByteArray {
         return signingPublicKey.clone()
     }
-
+    
     /**
      * Get our identity fingerprint (SHA-256 hash of static public key)
      */
@@ -123,23 +141,39 @@ class NoiseEncryptionService(private val context: Context) {
         val hash = digest.digest(staticIdentityPublicKey)
         return hash.joinToString("") { "%02x".format(it) }
     }
-
+    
     /**
      * Get peer's public key data (if we have a session)
      */
     fun getPeerPublicKeyData(peerID: String): ByteArray? {
         return sessionManager.getRemoteStaticKey(peerID)
     }
-
+    
     /**
      * Clear persistent identity (for panic mode)
      */
     fun clearPersistentIdentity() {
+        Log.w(TAG, "🚨 Panic Mode: Clearing persistent identity and rotating in-memory keys")
+        
+        // 1. Clear storage
         identityStateManager.clearIdentityData()
+        
+        // 2. Clear all sessions immediately
+        if (::sessionManager.isInitialized) {
+            sessionManager.shutdown()
+        }
+        
+        // 3. Regenerate keys immediately (in-memory rotation)
+        loadOrGenerateKeys()
+        
+        // 4. Re-initialize SessionManager with new keys
+        initializeSessionManager()
+        
+        Log.d(TAG, "✅ Identity cleared and keys rotated")
     }
-
+    
     // MARK: - Handshake Management
-
+    
     /**
      * Initiate a Noise handshake with a peer
      * Returns the first handshake message to send
@@ -152,7 +186,7 @@ class NoiseEncryptionService(private val context: Context) {
             null
         }
     }
-
+    
     /**
      * Process an incoming handshake message
      * Returns response message if needed, null if handshake complete or failed
@@ -165,23 +199,23 @@ class NoiseEncryptionService(private val context: Context) {
             null
         }
     }
-
+    
     /**
      * Check if we have an established session with a peer
      */
     fun hasEstablishedSession(peerID: String): Boolean {
         return sessionManager.hasEstablishedSession(peerID)
     }
-
+    
     /**
      * Get session state for a peer (for UI state display)
      */
     fun getSessionState(peerID: String): NoiseSession.NoiseSessionState {
         return sessionManager.getSessionState(peerID)
     }
-
+    
     // MARK: - Encryption/Decryption
-
+    
     /**
      * Encrypt data for a specific peer using established Noise session
      */
@@ -191,7 +225,7 @@ class NoiseEncryptionService(private val context: Context) {
             onHandshakeRequired?.invoke(peerID)
             return null
         }
-
+        
         return try {
             sessionManager.encrypt(data, peerID)
         } catch (e: Exception) {
@@ -199,7 +233,7 @@ class NoiseEncryptionService(private val context: Context) {
             null
         }
     }
-
+    
     /**
      * Decrypt data from a specific peer using established Noise session
      */
@@ -208,7 +242,7 @@ class NoiseEncryptionService(private val context: Context) {
             Log.w(TAG, "No established session with $peerID")
             return null
         }
-
+        
         return try {
             sessionManager.decrypt(encryptedData, peerID)
         } catch (e: Exception) {
@@ -216,33 +250,33 @@ class NoiseEncryptionService(private val context: Context) {
             null
         }
     }
-
+    
     // MARK: - Peer Management
-
+    
     /**
      * Get fingerprint for a peer (returns null if peer unknown)
      */
     fun getPeerFingerprint(peerID: String): String? {
         return fingerprintManager.getFingerprintForPeer(peerID)
     }
-
+    
     /**
      * Get current peer ID for a fingerprint (returns null if not currently online)
      */
     fun getPeerID(fingerprint: String): String? {
         return fingerprintManager.getPeerIDForFingerprint(fingerprint)
     }
-
+    
     /**
      * Remove a peer session (called when peer disconnects)
      */
     fun removePeer(peerID: String) {
         sessionManager.removeSession(peerID)
-
+        
         // Clean up fingerprint mappings via centralized manager
         fingerprintManager.removePeer(peerID)
     }
-
+    
     /**
      * Update peer ID mapping (for peer ID rotation)
      * This allows favorites/blocking to persist across peer ID changes
@@ -251,16 +285,16 @@ class NoiseEncryptionService(private val context: Context) {
         // Use centralized fingerprint manager for peer ID rotation
         fingerprintManager.updatePeerIDMapping(oldPeerID, newPeerID, fingerprint)
     }
-
+    
     // MARK: - Channel Encryption
-
+    
     /**
      * Set password for a channel (derives encryption key)
      */
     fun setChannelPassword(password: String, channel: String) {
         channelEncryption.setChannelPassword(password, channel)
     }
-
+    
     /**
      * Encrypt message for a password-protected channel
      */
@@ -272,7 +306,7 @@ class NoiseEncryptionService(private val context: Context) {
             null
         }
     }
-
+    
     /**
      * Decrypt channel message
      */
@@ -284,63 +318,62 @@ class NoiseEncryptionService(private val context: Context) {
             null
         }
     }
-
+    
     /**
      * Remove channel password (when leaving channel)
      */
     fun removeChannelPassword(channel: String) {
         channelEncryption.removeChannelPassword(channel)
     }
-
+    
     // MARK: - Session Maintenance
-
+    
     /**
      * Get sessions that need rekey based on time or message count
      */
     fun getSessionsNeedingRekey(): List<String> {
         return sessionManager.getSessionsNeedingRekey()
     }
-
+    
     /**
      * Initiate rekey for a session (replaces old session with new handshake)
      */
     fun initiateRekey(peerID: String): ByteArray? {
         Log.d(TAG, "Initiating rekey for session with $peerID")
-
+        
         // Remove old session
         sessionManager.removeSession(peerID)
-
+        
         // Start new handshake
         return initiateHandshake(peerID)
     }
-
+    
     // MARK: - Private Helpers
-
+    
     /**
      * Generate a new Curve25519 key pair using the real Noise library
      * Returns (privateKey, publicKey) as 32-byte arrays
      */
     private fun generateKeyPair(): Pair<ByteArray, ByteArray> {
         try {
-            // Use imported Noise class (from southernstorm protocol) to create DH state
-            val dhState = Noise.createDH("25519")
+            val dhState = com.dogechat.android.noise.southernstorm.protocol.Noise.createDH("25519")
             dhState.generateKeyPair()
-
+            
             val privateKey = ByteArray(32)
             val publicKey = ByteArray(32)
-
+            
             dhState.getPrivateKey(privateKey, 0)
             dhState.getPublicKey(publicKey, 0)
-
+            
             dhState.destroy()
-
+            
             return Pair(privateKey, publicKey)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to generate key pair: ${e.message}")
             throw e
         }
     }
-
+    
     /**
      * Handle session establishment (called when Noise handshake completes)
      */
@@ -348,16 +381,16 @@ class NoiseEncryptionService(private val context: Context) {
         // Store fingerprint mapping via centralized manager
         // This is the ONLY place where fingerprints are stored - after successful Noise handshake
         fingerprintManager.storeFingerprintForPeer(peerID, remoteStaticKey)
-
+        
         // Calculate fingerprint for logging and callback
         val fingerprint = calculateFingerprint(remoteStaticKey)
-
+        
         Log.d(TAG, "Session established with $peerID, fingerprint: ${fingerprint.take(16)}...")
-
+        
         // Notify about authentication
         onPeerAuthenticated?.invoke(peerID, fingerprint)
     }
-
+    
     /**
      * Calculate fingerprint from public key (SHA-256 hash)
      */
@@ -366,32 +399,32 @@ class NoiseEncryptionService(private val context: Context) {
         val hash = digest.digest(publicKey)
         return hash.joinToString("") { "%02x".format(it) }
     }
-
+    
     // MARK: - Packet Signing/Verification
 
     /**
-     * Sign a DogechatPacket using our Ed25519 signing key
+     * Sign a dogechatPacket using our Ed25519 signing key
      */
-    fun signPacket(packet: com.dogechat.android.protocol.DogechatPacket): com.dogechat.android.protocol.DogechatPacket? {
+    fun signPacket(packet: com.dogechat.android.protocol.dogechatPacket): com.dogechat.android.protocol.dogechatPacket? {
         // Create canonical packet bytes for signing
         val packetData = packet.toBinaryDataForSigning() ?: return null
-
+        
         // Sign with our Ed25519 signing private key
         val signature = signData(packetData) ?: return null
-
+        
         // Return new packet with signature
         return packet.copy(signature = signature)
     }
 
     /**
-     * Verify a DogechatPacket signature using the provided public key
+     * Verify a dogechatPacket signature using the provided public key
      */
-    fun verifyPacketSignature(packet: com.dogechat.android.protocol.DogechatPacket, publicKey: ByteArray): Boolean {
+    fun verifyPacketSignature(packet: com.dogechat.android.protocol.dogechatPacket, publicKey: ByteArray): Boolean {
         val signature = packet.signature ?: return false
-
+        
         // Create canonical packet bytes for verification (without signature)
         val packetData = packet.toBinaryDataForSigning() ?: return false
-
+        
         // Verify signature using the provided Ed25519 public key
         return verifySignature(signature, packetData, publicKey)
     }
@@ -432,10 +465,10 @@ class NoiseEncryptionService(private val context: Context) {
             val keyGen = org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator()
             keyGen.init(org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters(SecureRandom()))
             val keyPair = keyGen.generateKeyPair()
-
+            
             val privateKey = (keyPair.private as org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters).encoded
             val publicKey = (keyPair.public as org.bouncycastle.crypto.params.Ed25519PublicKeyParameters).encoded
-
+            
             return Pair(privateKey, publicKey)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to generate Ed25519 key pair: ${e.message}")
@@ -479,7 +512,9 @@ class NoiseEncryptionService(private val context: Context) {
      * Clean shutdown
      */
     fun shutdown() {
-        sessionManager.shutdown()
+        if (::sessionManager.isInitialized) {
+            sessionManager.shutdown()
+        }
         channelEncryption.clear()
         // No need to clear fingerprints here - they are managed centrally
     }
