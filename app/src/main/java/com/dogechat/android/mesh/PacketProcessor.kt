@@ -1,7 +1,7 @@
-﻿package com.dogechat.android.mesh
+package com.dogechat.android.mesh
 
 import android.util.Log
-import com.dogechat.android.protocol.DogechatPacket
+import com.dogechat.android.protocol.dogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.model.RoutedPacket
 import kotlinx.coroutines.*
@@ -78,8 +78,6 @@ class PacketProcessor(private val myPeerID: String) {
             Log.w(TAG, "Received packet with no peer ID, skipping")
             return
         }
-
-
         
         // Get or create actor for this peer
         val actor = actors.getOrPut(peerID) { getOrCreateActorForPeer(peerID) }
@@ -111,6 +109,9 @@ class PacketProcessor(private val myPeerID: String) {
             
             override fun broadcastPacket(routed: RoutedPacket) {
                 delegate?.relayPacket(routed)
+            }
+            override fun sendToPeer(peerID: String, routed: RoutedPacket): Boolean {
+                return delegate?.sendToPeer(peerID, routed) ?: false
             }
         }
     }
@@ -300,7 +301,7 @@ class PacketProcessor(private val myPeerID: String) {
  */
 interface PacketProcessorDelegate {
     // Security validation
-    fun validatePacketSecurity(packet: DogechatPacket, peerID: String): Boolean
+    fun validatePacketSecurity(packet: dogechatPacket, peerID: String): Boolean
     
     // Peer management
     fun updatePeerLastSeen(peerID: String)
@@ -316,11 +317,12 @@ interface PacketProcessorDelegate {
     fun handleAnnounce(routed: RoutedPacket)
     fun handleMessage(routed: RoutedPacket)
     fun handleLeave(routed: RoutedPacket)
-    fun handleFragment(packet: DogechatPacket): DogechatPacket?
+    fun handleFragment(packet: dogechatPacket): dogechatPacket?
     fun handleRequestSync(routed: RoutedPacket)
     
     // Communication
     fun sendAnnouncementToPeer(peerID: String)
     fun sendCachedMessages(peerID: String)
     fun relayPacket(routed: RoutedPacket)
+    fun sendToPeer(peerID: String, routed: RoutedPacket): Boolean
 }
