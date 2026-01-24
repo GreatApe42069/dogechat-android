@@ -1,5 +1,7 @@
 package com.dogechat.android.ui.media
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.dogechat.android.features.media.ImageUtils
 import java.io.File
@@ -85,13 +88,28 @@ fun CameraPickerButton(
             )
             capturedImagePath = file.absolutePath
             takePictureLauncher.launch(uri)
-        } catch (_: Exception) {
-            // Ignore errors; no-op
+        } catch (e: Exception) {
+            android.util.Log.e("ImagePickerButton", "Camera capture failed", e)
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            startCameraCapture()
         }
     }
 
     IconButton(
-        onClick = { startCameraCapture() },
+        onClick = {
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        startCameraCapture()
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                }
+            ),
         modifier = modifier.size(32.dp)
     ) {
         Icon(
