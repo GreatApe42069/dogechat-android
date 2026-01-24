@@ -2,9 +2,13 @@ package com.dogechat.android.nostr
 
 import android.app.Application
 import android.util.Log
-import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.dogechatFilePacket
+import com.dogechat.android.model.dogechatMessage
 import com.dogechat.android.model.DeliveryStatus
-import com.dogechat.android.protocol.DogechatPacket
+import com.dogechat.android.model.NoisePayload
+import com.dogechat.android.model.NoisePayloadType
+import com.dogechat.android.model.PrivateMessagePacket
+import com.dogechat.android.protocol.dogechatPacket
 import com.dogechat.android.services.SeenMessageStore
 import com.dogechat.android.ui.ChatState
 import com.dogechat.android.ui.MeshDelegateHandler
@@ -67,11 +71,11 @@ class NostrDirectMessageHandler(
 
                 val base64Content = content.removePrefix("dogechat1:")
                 val packetData = base64URLDecode(base64Content) ?: return@launch
-                val packet = DogechatPacket.fromBinaryData(packetData) ?: return@launch
+                val packet = dogechatPacket.fromBinaryData(packetData) ?: return@launch
 
                 if (packet.type != com.dogechat.android.protocol.MessageType.NOISE_ENCRYPTED.value) return@launch
 
-                val noisePayload = com.dogechat.android.model.NoisePayload.decode(packet.payload) ?: return@launch
+                val noisePayload = NoisePayload.decode(packet.payload) ?: return@launch
                 val messageTimestamp = Date(giftWrap.createdAt * 1000L)
                 val convKey = "nostr_${senderPubkey.take(16)}"
                 repo.putNostrKeyMapping(convKey, senderPubkey)
@@ -104,7 +108,7 @@ class NostrDirectMessageHandler(
     }
 
     private suspend fun processNoisePayload(
-        payload: com.dogechat.android.model.NoisePayload,
+        payload: NoisePayload,
         convKey: String,
         senderNickname: String,
         timestamp: Date,
@@ -112,12 +116,12 @@ class NostrDirectMessageHandler(
         recipientIdentity: NostrIdentity
     ) {
         when (payload.type) {
-            com.dogechat.android.model.NoisePayloadType.PRIVATE_MESSAGE -> {
-                val pm = com.dogechat.android.model.PrivateMessagePacket.decode(payload.data) ?: return
+            NoisePayloadType.PRIVATE_MESSAGE -> {
+                val pm = PrivateMessagePacket.decode(payload.data) ?: return
                 val existingMessages = state.getPrivateChatsValue()[convKey] ?: emptyList()
                 if (existingMessages.any { it.id == pm.messageID }) return
 
-                val message = DogechatMessage(
+                val message = dogechatMessage(
                     id = pm.messageID,
                     sender = senderNickname,
                     content = pm.content,
@@ -148,25 +152,25 @@ class NostrDirectMessageHandler(
                     seenStore.markRead(pm.messageID)
                 }
             }
-            com.dogechat.android.model.NoisePayloadType.DELIVERED -> {
+            NoisePayloadType.DELIVERED -> {
                 val messageId = String(payload.data, Charsets.UTF_8)
                 withContext(Dispatchers.Main) {
                     meshDelegateHandler.didReceiveDeliveryAck(messageId, convKey)
                 }
             }
-            com.dogechat.android.model.NoisePayloadType.READ_RECEIPT -> {
+            NoisePayloadType.READ_RECEIPT -> {
                 val messageId = String(payload.data, Charsets.UTF_8)
                 withContext(Dispatchers.Main) {
                     meshDelegateHandler.didReceiveReadReceipt(messageId, convKey)
                 }
             }
-            com.dogechat.android.model.NoisePayloadType.FILE_TRANSFER -> {
+            NoisePayloadType.FILE_TRANSFER -> {
                 // Properly handle encrypted file transfer
-                val file = com.dogechat.android.model.DogechatFilePacket.decode(payload.data)
+                val file = dogechatFilePacket.decode(payload.data)
                 if (file != null) {
                     val uniqueMsgId = java.util.UUID.randomUUID().toString().uppercase()
                     val savedPath = com.dogechat.android.features.file.FileUtils.saveIncomingFile(application, file)
-                    val message = DogechatMessage(
+                    val message = dogechatMessage(
                         id = uniqueMsgId,
                         sender = senderNickname,
                         content = savedPath,
@@ -185,6 +189,8 @@ class NostrDirectMessageHandler(
                     Log.w(TAG, "⚠️ Failed to decode Nostr file transfer from $convKey")
                 }
             }
+            NoisePayloadType.VERIFY_CHALLENGE,
+            NoisePayloadType.VERIFY_RESPONSE -> Unit // Ignore verification payloads in Nostr direct messages
         }
     }
 
