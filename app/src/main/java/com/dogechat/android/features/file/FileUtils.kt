@@ -130,7 +130,7 @@ object FileUtils {
      * Get MIME type for a file based on extension
      */
     fun getMimeTypeFromExtension(fileName: String): String {
-        return when (getExtension(fileName)) {
+        return when (fileName.substringAfterLast(".", "").lowercase()) {
             "pdf" -> "application/pdf"
             "doc" -> "application/msword"
             "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -182,10 +182,11 @@ object FileUtils {
      * Check if file is viewable in system viewer
      */
     fun isFileViewable(fileName: String): Boolean {
-        return getExtension(fileName) in listOf(
+        val extension = fileName.substringAfterLast(".", "").lowercase()
+        return extension in listOf(
             "pdf", "txt", "json", "xml", "html", "htm", "csv",
             "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg",
-            "mp4", "mov", "avi"
+            "mp4", "mov", "avi", "mp3", "m4a"
         )
     }
 
@@ -215,7 +216,10 @@ object FileUtils {
             isAudio -> "audio/incoming"
             else -> "files/incoming"
         }
-        val baseDir = context.filesDir
+        // FIX: Use cacheDir instead of filesDir to prevent storage exhaustion attacks (Issue #592)
+        // Files in cacheDir are eligible for automatic system cleanup when space is low
+        val baseDir = context.cacheDir
+        val subdir = if (isImage) "images/incoming" else "files/incoming"
         val dir = java.io.File(baseDir, subdir).apply { mkdirs() }
 
         fun extFromMime(m: String): String = when (m.lowercase()) {
@@ -223,15 +227,18 @@ object FileUtils {
             "image/png" -> ".png"
             "image/webp" -> ".webp"
             "video/mp4" -> ".mp4"
+            "video/mp4" -> ".mov"
+            "video/mp4" -> ".avi"
             "audio/mp4" -> ".m4a"
+            "audio/mp3" -> ".mp3"
             "application/pdf" -> ".pdf"
             "text/plain" -> ".txt"
-            else -> ".bin"
+            else -> if (isImage) ".jpg" else ".bin"
         }
 
         // Prefer transmitted original name; ensure uniqueness to avoid overwrites
         val baseName = (file.fileName.takeIf { it.isNotBlank() }
-            ?: "file")
+            ?: (if (isImage) "img" else "file"))
             .replace(Regex("[^A-Za-z0-9._-]"), "_")
         val ext = extFromMime(lowerMime)
         var safeName = if (baseName.contains('.')) baseName else baseName + ext
@@ -272,7 +279,7 @@ object FileUtils {
                 out.outputStream().use { it.write(file.content) }
                 out.absolutePath
             } catch (_: Exception) {
-                val tmp = java.io.File.createTempFile("file_", ".bin")
+                val tmp = java.io.File.createTempFile(if (isImage) "img_" else "file_", if (isImage) ".jpg" else ".bin")
                 tmp.writeBytes(file.content)
                 tmp.absolutePath
             }
@@ -289,6 +296,62 @@ object FileUtils {
             lower.startsWith("audio/") -> com.dogechat.android.model.DogechatMessageType.Audio
             lower.startsWith("video/") -> com.dogechat.android.model.DogechatMessageType.Video
             else -> com.dogechat.android.model.DogechatMessageType.File
+        }
+    }
+
+    /**
+     * Recursively delete all media files (incoming and outgoing)
+     * Used for Panic Mode cleanup
+     */
+    fun clearAllMedia(context: Context) {
+        try {
+            // Clear files dir subdirectories (legacy storage and outgoing)
+            val filesDir = context.filesDir
+            val dirsToClear = listOf(
+                "files/incoming",
+                "files/outgoing",
+                "images/incoming",
+                "images/outgoing",
+                "audio/incoming",
+                "audio/outgoing",
+                "videos/incoming",
+                "videos/outgoing",
+                "voicenotes"
+            )
+
+            dirsToClear.forEach { subDir ->
+                val dir = File(filesDir, subDir)
+                if (dir.exists()) {
+                    dir.deleteRecursively()
+                    Log.d(TAG, "Deleted media directory from filesDir: $subDir")
+                }
+            }
+            
+            // Clear cache dir subdirectories (new incoming storage)
+            // Note: cacheDir.deleteRecursively() below would handle this, but being explicit ensures these
+            // specific media folders are targeted even if full cache clear fails or is modified later.
+            val cacheDir = context.cacheDir
+            val cacheDirsToClear = listOf(
+                "files/incoming",
+                "images/incoming",
+                "videos/incoming",
+                "audio/incoming"
+            )
+            
+            cacheDirsToClear.forEach { subDir ->
+                val dir = File(cacheDir, subDir)
+                if (dir.exists()) {
+                    dir.deleteRecursively()
+                    Log.d(TAG, "Deleted media directory from cacheDir: $subDir")
+                }
+            }
+            
+            // Also clear entire cache dir as a catch-all
+            context.cacheDir.deleteRecursively()
+            Log.d(TAG, "Cleared entire cache directory")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear media files", e)
         }
     }
 }
