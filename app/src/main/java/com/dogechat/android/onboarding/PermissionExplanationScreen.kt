@@ -260,28 +260,6 @@ private fun PermissionCategoryCard(
                     lineHeight = 18.sp
                 )
             )
-
-            if (category.type == PermissionType.PRECISE_LOCATION) {
-                // Extra emphasis for location permission
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "⚠️",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.location_tracking_warning),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFFFF9800)
-                        )
-                    )
-                }
-            }
         }
     }
 }
@@ -290,6 +268,7 @@ private fun getPermissionEmoji(permissionType: PermissionType): String {
     return when (permissionType) {
         PermissionType.NEARBY_DEVICES -> "📱"
         PermissionType.PRECISE_LOCATION -> "📍"
+        PermissionType.BACKGROUND_LOCATION -> "🗺️"
         PermissionType.NOTIFICATIONS -> "🔔"
         PermissionType.BATTERY_OPTIMIZATION -> "🔋"
         PermissionType.MICROPHONE -> "🎙️"
@@ -301,6 +280,7 @@ private fun getPermissionIconColor(permissionType: PermissionType): Color {
     return when (permissionType) {
         PermissionType.NEARBY_DEVICES -> Color(0xFF2196F3) // Blue
         PermissionType.PRECISE_LOCATION -> Color(0xFFFFD700) // Gold
+        PermissionType.BACKGROUND_LOCATION -> Color(0xFF2196F3) // Blue
         PermissionType.NOTIFICATIONS -> Color(0xFFFFD700) // Gold
         PermissionType.BATTERY_OPTIMIZATION -> Color(0xFFF44336) // Red
         PermissionType.MICROPHONE -> Color(0xFFFF9800) // Orange
