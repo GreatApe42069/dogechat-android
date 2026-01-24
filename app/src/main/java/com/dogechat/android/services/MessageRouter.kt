@@ -25,7 +25,7 @@ class MessageRouter private constructor(
                     MessageRouter(context.applicationContext, mesh, nostr).also { instance ->
                         // Register for favorites changes to flush outbox
                         try {
-                            com.bitchat.android.favorites.FavoritesPersistenceService.shared.addListener(instance.favoriteListener)
+                            com.dogechat.android.favorites.FavoritesPersistenceService.shared.addListener(instance.favoriteListener)
                         } catch (_: Exception) {}
                         INSTANCE = instance
                     }

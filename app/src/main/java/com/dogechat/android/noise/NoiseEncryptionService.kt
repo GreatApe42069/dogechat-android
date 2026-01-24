@@ -403,9 +403,9 @@ class NoiseEncryptionService(private val context: Context) {
     // MARK: - Packet Signing/Verification
 
     /**
-     * Sign a dogechatPacket using our Ed25519 signing key
+     * Sign a DogechatPacket using our Ed25519 signing key
      */
-    fun signPacket(packet: com.dogechat.android.protocol.dogechatPacket): com.dogechat.android.protocol.dogechatPacket? {
+    fun signPacket(packet: com.dogechat.android.protocol.DogechatPacket): com.dogechat.android.protocol.DogechatPacket? {
         // Create canonical packet bytes for signing
         val packetData = packet.toBinaryDataForSigning() ?: return null
         
@@ -417,9 +417,9 @@ class NoiseEncryptionService(private val context: Context) {
     }
 
     /**
-     * Verify a dogechatPacket signature using the provided public key
+     * Verify a DogechatPacket signature using the provided public key
      */
-    fun verifyPacketSignature(packet: com.dogechat.android.protocol.dogechatPacket, publicKey: ByteArray): Boolean {
+    fun verifyPacketSignature(packet: com.dogechat.android.protocol.DogechatPacket, publicKey: ByteArray): Boolean {
         val signature = packet.signature ?: return false
         
         // Create canonical packet bytes for verification (without signature)

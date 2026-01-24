@@ -2,13 +2,13 @@ package com.dogechat.android.nostr
 
 import android.app.Application
 import android.util.Log
-import com.dogechat.android.model.dogechatFilePacket
-import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DogechatFilePacket
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.model.DeliveryStatus
 import com.dogechat.android.model.NoisePayload
 import com.dogechat.android.model.NoisePayloadType
 import com.dogechat.android.model.PrivateMessagePacket
-import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.services.SeenMessageStore
 import com.dogechat.android.ui.ChatState
 import com.dogechat.android.ui.MeshDelegateHandler
@@ -71,7 +71,7 @@ class NostrDirectMessageHandler(
 
                 val base64Content = content.removePrefix("dogechat1:")
                 val packetData = base64URLDecode(base64Content) ?: return@launch
-                val packet = dogechatPacket.fromBinaryData(packetData) ?: return@launch
+                val packet = DogechatPacket.fromBinaryData(packetData) ?: return@launch
 
                 if (packet.type != com.dogechat.android.protocol.MessageType.NOISE_ENCRYPTED.value) return@launch
 
@@ -121,7 +121,7 @@ class NostrDirectMessageHandler(
                 val existingMessages = state.getPrivateChatsValue()[convKey] ?: emptyList()
                 if (existingMessages.any { it.id == pm.messageID }) return
 
-                val message = dogechatMessage(
+                val message = DogechatMessage(
                     id = pm.messageID,
                     sender = senderNickname,
                     content = pm.content,
@@ -166,11 +166,11 @@ class NostrDirectMessageHandler(
             }
             NoisePayloadType.FILE_TRANSFER -> {
                 // Properly handle encrypted file transfer
-                val file = dogechatFilePacket.decode(payload.data)
+                val file = DogechatFilePacket.decode(payload.data)
                 if (file != null) {
                     val uniqueMsgId = java.util.UUID.randomUUID().toString().uppercase()
                     val savedPath = com.dogechat.android.features.file.FileUtils.saveIncomingFile(application, file)
-                    val message = dogechatMessage(
+                    val message = DogechatMessage(
                         id = uniqueMsgId,
                         sender = senderNickname,
                         content = savedPath,

@@ -51,7 +51,7 @@ object SpecialRecipients {
  * - Signature: 64 bytes (if hasSignature flag set)
  */
 @Parcelize
-data class dogechatPacket(
+data class DogechatPacket(
     val version: UByte = 1u,
     val type: UByte,
     val senderID: ByteArray,
@@ -90,7 +90,7 @@ data class dogechatPacket(
     fun toBinaryDataForSigning(): ByteArray? {
         // Create a copy without signature and with fixed TTL for signing
         // TTL must be excluded because it changes during relay
-        val unsignedPacket = dogechatPacket(
+        val unsignedPacket = DogechatPacket(
             version = version,
             type = type,
             senderID = senderID,
@@ -105,7 +105,7 @@ data class dogechatPacket(
     }
 
     companion object {
-        fun fromBinaryData(data: ByteArray): dogechatPacket? {
+        fun fromBinaryData(data: ByteArray): DogechatPacket? {
             return BinaryProtocol.decode(data)
         }
         
@@ -135,7 +135,7 @@ data class dogechatPacket(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as dogechatPacket
+        other as DogechatPacket
 
         if (version != other.version) return false
         if (type != other.type) return false
@@ -198,7 +198,7 @@ object BinaryProtocol {
         }
     }
     
-    fun encode(packet: dogechatPacket): ByteArray? {
+    fun encode(packet: DogechatPacket): ByteArray? {
         try {
             // Try to compress payload if beneficial
             var payload = packet.payload
@@ -318,7 +318,7 @@ object BinaryProtocol {
         }
     }
     
-    fun decode(data: ByteArray): dogechatPacket? {
+    fun decode(data: ByteArray): DogechatPacket? {
         // Try decode as-is first (robust when padding wasn't applied) - iOS fix
         decodeCore(data)?.let { return it }
         
@@ -332,7 +332,7 @@ object BinaryProtocol {
     /**
      * Core decoding implementation used by decode() with and without padding removal - iOS fix
      */
-    private fun decodeCore(raw: ByteArray): dogechatPacket? {
+    private fun decodeCore(raw: ByteArray): DogechatPacket? {
         try {
             if (raw.size < HEADER_SIZE_V1 + SENDER_ID_SIZE) return null
 
@@ -455,7 +455,7 @@ object BinaryProtocol {
                 signatureBytes
             } else null
             
-            return dogechatPacket(
+            return DogechatPacket(
                 version = version,
                 type = type,
                 senderID = senderID,

@@ -1,11 +1,11 @@
 package com.dogechat.android.mesh
 
 import android.util.Log
-import com.dogechat.android.model.dogechatMessage
-import com.dogechat.android.model.dogechatMessageType
+import com.dogechat.android.model.DogechatMessage
+import com.dogechat.android.model.DogechatMessageType
 import com.dogechat.android.model.IdentityAnnouncement
 import com.dogechat.android.model.RoutedPacket
-import com.dogechat.android.protocol.dogechatPacket
+import com.dogechat.android.protocol.DogechatPacket
 import com.dogechat.android.protocol.MessageType
 import com.dogechat.android.util.toHexString
 import kotlinx.coroutines.*
@@ -89,8 +89,8 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
                             return
                         }
                         
-                        // Create dogechatMessage - preserve source packet timestamp
-                        val message = dogechatMessage(
+                        // Create DogechatMessage - preserve source packet timestamp
+                        val message = DogechatMessage(
                             id = privateMessage.messageID,
                             sender = delegate?.getPeerNickname(peerID) ?: "Unknown",
                             content = privateMessage.content,
@@ -113,12 +113,12 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
                 
                 com.dogechat.android.model.NoisePayloadType.FILE_TRANSFER -> {
                     // Handle encrypted file transfer; generate unique message ID
-                    val file = com.dogechat.android.model.dogechatFilePacket.decode(noisePayload.data)
+                    val file = com.dogechat.android.model.DogechatFilePacket.decode(noisePayload.data)
                     if (file != null) {
                         Log.d(TAG, "🔓 Decrypted encrypted file from $peerID: name='${file.fileName}', size=${file.fileSize}, mime='${file.mimeType}'")
                         val uniqueMsgId = java.util.UUID.randomUUID().toString().uppercase()
                         val savedPath = com.dogechat.android.features.file.FileUtils.saveIncomingFile(appContext, file)
-                        val message = dogechatMessage(
+                        val message = DogechatMessage(
                             id = uniqueMsgId,
                             sender = delegate?.getPeerNickname(peerID) ?: "Unknown",
                             content = savedPath,
@@ -191,7 +191,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
             }
             
             // Create NOISE_ENCRYPTED packet exactly like iOS
-                val packet = dogechatPacket(
+                val packet = DogechatPacket(
                     version = 1u,
                     type = MessageType.NOISE_ENCRYPTED.value,
                     senderID = hexStringToByteArray(myPeerID),
@@ -325,7 +325,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
                 Log.d(TAG, "Generated handshake response for $peerID (${response.size} bytes)")
                 
                 // Send response using same packet type (simplified iOS approach)
-                val responsePacket = dogechatPacket(
+                val responsePacket = DogechatPacket(
                     version = 1u,
                     type = MessageType.NOISE_HANDSHAKE.value,
                     senderID = hexStringToByteArray(myPeerID),
@@ -393,13 +393,13 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
         try {
             // Try file packet first (voice, image, etc.) and log outcome for FILE_TRANSFER
             val isFileTransfer = com.dogechat.android.protocol.MessageType.fromValue(packet.type) == com.dogechat.android.protocol.MessageType.FILE_TRANSFER
-            val file = com.dogechat.android.model.dogechatFilePacket.decode(packet.payload)
+            val file = com.dogechat.android.model.DogechatFilePacket.decode(packet.payload)
             if (file != null) {
                 if (isFileTransfer) {
                     Log.d(TAG, "📥 FILE_TRANSFER decode success (broadcast): name='${file.fileName}', size=${file.fileSize}, mime='${file.mimeType}', from=${peerID.take(8)}")
                 }
                 val savedPath = com.dogechat.android.features.file.FileUtils.saveIncomingFile(appContext, file)
-                val message = dogechatMessage(
+                val message = DogechatMessage(
                     id = java.util.UUID.randomUUID().toString().uppercase(),
                     sender = delegate?.getPeerNickname(peerID) ?: "unknown",
                     content = savedPath,
@@ -415,7 +415,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
             }
 
             // Fallback: plain text
-            val message = dogechatMessage(
+            val message = DogechatMessage(
                 sender = delegate?.getPeerNickname(peerID) ?: "unknown",
                 content = String(packet.payload, Charsets.UTF_8),
                 senderPeerID = peerID,
@@ -430,7 +430,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
     /**
      * Handle (decrypted) private message addressed to us
      */
-    private suspend fun handlePrivateMessage(packet: dogechatPacket, peerID: String) {
+    private suspend fun handlePrivateMessage(packet: DogechatPacket, peerID: String) {
         try {
             // Verify signature if present
             if (packet.signature != null && !delegate?.verifySignature(packet, peerID)!!) {
@@ -440,13 +440,13 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
 
             // Try file packet first (voice, image, etc.) and log outcome for FILE_TRANSFER
             val isFileTransfer = com.dogechat.android.protocol.MessageType.fromValue(packet.type) == com.dogechat.android.protocol.MessageType.FILE_TRANSFER
-            val file = com.dogechat.android.model.dogechatFilePacket.decode(packet.payload)
+            val file = com.dogechat.android.model.DogechatFilePacket.decode(packet.payload)
             if (file != null) {
                 if (isFileTransfer) {
                     Log.d(TAG, "📥 FILE_TRANSFER decode success (private): name='${file.fileName}', size=${file.fileSize}, mime='${file.mimeType}', from=${peerID.take(8)}")
                 }
                 val savedPath = com.dogechat.android.features.file.FileUtils.saveIncomingFile(appContext, file)
-                val message = dogechatMessage(
+                val message = DogechatMessage(
                     id = java.util.UUID.randomUUID().toString().uppercase(),
                     sender = delegate?.getPeerNickname(peerID) ?: "unknown",
                     content = savedPath,
@@ -464,7 +464,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
             }
 
             // Fallback: plain text
-            val message = dogechatMessage(
+            val message = DogechatMessage(
                 sender = delegate?.getPeerNickname(peerID) ?: "unknown",
                 content = String(packet.payload, Charsets.UTF_8),
                 senderPeerID = peerID,
@@ -572,7 +572,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
 
                 // Emit system message via delegate callback
                 val action = if (isFavorite) "favorited" else "unfavorited"
-                val sys = com.dogechat.android.model.dogechatMessage(
+                val sys = com.dogechat.android.model.DogechatMessage(
                     sender = "system",
                     content = "${peerInfo.nickname} $action you$guidance",
                     timestamp = java.util.Date(),
@@ -601,12 +601,12 @@ interface MessageHandlerDelegate {
     fun updatePeerInfo(peerID: String, nickname: String, noisePublicKey: ByteArray, signingPublicKey: ByteArray, isVerified: Boolean): Boolean
     
     // Packet operations
-    fun sendPacket(packet: dogechatPacket)
+    fun sendPacket(packet: DogechatPacket)
     fun relayPacket(routed: RoutedPacket)
     fun getBroadcastRecipient(): ByteArray
     
     // Cryptographic operations
-    fun verifySignature(packet: dogechatPacket, peerID: String): Boolean
+    fun verifySignature(packet: DogechatPacket, peerID: String): Boolean
     fun encryptForPeer(data: ByteArray, recipientPeerID: String): ByteArray?
     fun decryptFromPeer(encryptedData: ByteArray, senderPeerID: String): ByteArray?
     fun verifyEd25519Signature(signature: ByteArray, data: ByteArray, publicKey: ByteArray): Boolean
@@ -622,7 +622,7 @@ interface MessageHandlerDelegate {
     fun decryptChannelMessage(encryptedContent: ByteArray, channel: String): String?
 
     // Callbacks
-    fun onMessageReceived(message: dogechatMessage)
+    fun onMessageReceived(message: DogechatMessage)
     fun onChannelLeave(channel: String, fromPeer: String)
     fun onDeliveryAckReceived(messageID: String, peerID: String)
     fun onReadReceiptReceived(messageID: String, peerID: String)

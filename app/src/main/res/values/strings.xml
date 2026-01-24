@@ -326,9 +326,9 @@
   <string name="location_needs_bullets">• Bluetooth device Such Scanning\n• Điscovering nearby Shibes on the Mesh Network\n• Geohash chat feature\n• No tracking or location collection</string>
   <string name="background_location_required_title">Background Location Recommended</string>
   <string name="background_location_required_subtitle">optional, improves mesh reliability</string>
-  <string name="background_location_explanation">Android recommends background location so bitchat can scan for nearby devices while the app is not open. This keeps the mesh alive after reboot.</string>
+  <string name="background_location_explanation">Android recommends background location so dogechat can scan for nearby devices while the app is not open. This keeps the mesh alive after reboot.</string>
   <string name="background_location_settings_tip">When settings opens, choose "Allow all the time".</string>
-  <string name="background_location_needs_for">bitchat uses background location for:</string>
+  <string name="background_location_needs_for">dogechat uses background location for:</string>
   <string name="background_location_needs_bullets">- scan for nearby devices while the app is closed\n- reconnect after reboot\n- keep the mesh running in the background</string>
   <string name="background_location_privacy_note">We NEVER collect or store your location. Your privacy is safe.</string>
   <string name="grant_background_location">Allow Background Location</string>

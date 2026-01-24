@@ -61,8 +61,8 @@ graph TD
     style D fill:#7eadff
 ```
 
-*   **Application Layer:** Defines the structure of user-facing messages (`dogechatMessage`), acknowledgments (`DeliveryAck`), and other application-level data.
-*   **Session Layer:** Manages the overall communication packet (`dogechatPacket`). This includes routing information (TTL), message typing, fragmentation, and serialization into a compact binary format.
+*   **Application Layer:** Defines the structure of user-facing messages (`DogechatMessage`), acknowledgments (`DeliveryAck`), and other application-level data.
+*   **Session Layer:** Manages the overall communication packet (`DogechatPacket`). This includes routing information (TTL), message typing, fragmentation, and serialization into a compact binary format.
 *   **Encryption Layer:** Establishes and manages secure channels using the Noise Protocol Framework. It is responsible for the cryptographic handshake, session management, and transport message encryption/decryption.
 *   **Transport Layer:** The underlying physical medium used for data transmission, such as Bluetooth Low Energy (BLE). This layer is abstracted away from the core protocol.
 
@@ -161,11 +161,11 @@ The `NoiseSessionManager` class manages all active Noise sessions. It handles:
 
 ## 6. The dogechat Session and Application Protocol
 
-Once a Noise session is established, peers exchange `dogechatPacket` structures, which are encrypted as the payload of Noise transport messages.
+Once a Noise session is established, peers exchange `DogechatPacket` structures, which are encrypted as the payload of Noise transport messages.
 
-### 6.1. Binary Packet Format (`dogechatPacket`)
+### 6.1. Binary Packet Format (`DogechatPacket`)
 
-To minimize bandwidth, `dogechatPacket`s are serialized into a compact binary format. The structure is designed to be fixed-size where possible to resist traffic analysis.
+To minimize bandwidth, `DogechatPacket`s are serialized into a compact binary format. The structure is designed to be fixed-size where possible to resist traffic analysis.
 
 | Field           | Size (bytes) | Description                                                                                             |
 |-----------------|--------------|---------------------------------------------------------------------------------------------------------|
@@ -184,9 +184,9 @@ To minimize bandwidth, `dogechatPacket`s are serialized into a compact binary fo
 
 **Padding:** All packets are padded to the next standard block size (256, 512, 1024, or 2048 bytes) using a PKCS#7-style scheme to obscure the true message length from network observers.
 
-### 6.2. Application Message Format (`dogechatMessage`)
+### 6.2. Application Message Format (`DogechatMessage`)
 
-For packets of type `message`, the payload is a binary-serialized `dogechatMessage` containing the chat content.
+For packets of type `message`, the payload is a binary-serialized `DogechatMessage` containing the chat content.
 
 | Field               | Size (bytes) | Description                                                              |
 |---------------------|--------------|--------------------------------------------------------------------------|
@@ -224,13 +224,13 @@ This mechanism allows packets to "flood" through the network efficiently, maximi
 
 ### 7.3. Time-To-Live (TTL)
 
-Every `dogechatPacket` contains an 8-doge TTL field. This value is set by the originating peer and is decremented by one at each relay hop. If a peer receives a packet and decrements its TTL to 0, it will process the packet (if it is the recipient) but will not relay it further. This is a crucial mechanism to prevent packets from circulating endlessly in the mesh.
+Every `DogechatPacket` contains an 8-doge TTL field. This value is set by the originating peer and is decremented by one at each relay hop. If a peer receives a packet and decrements its TTL to 0, it will process the packet (if it is the recipient) but will not relay it further. This is a crucial mechanism to prevent packets from circulating endlessly in the mesh.
 
 ### 7.4. Private vs. Broadcast Messages
 
 The routing logic respects the confidentiality of private messages:
 
-*   **Private Messages:** A packet with a specific `recipientID` is a private message. Relay nodes forward the entire, encrypted Noise message without being able to access the inner `dogechatPacket` or its payload. Only the final recipient, who shares the correct Noise session keys with the sender, can decrypt the packet.
+*   **Private Messages:** A packet with a specific `recipientID` is a private message. Relay nodes forward the entire, encrypted Noise message without being able to access the inner `DogechatPacket` or its payload. Only the final recipient, who shares the correct Noise session keys with the sender, can decrypt the packet.
 *   **Broadcast Messages:** A packet with the special broadcast `recipientID` (`0xFFFFFFFFFFFFFFFF`) is intended for all peers. Any peer that receives and decrypts a broadcast message will process its content. It will still be relayed according to the flooding algorithm to ensure it reaches the entire network.
 
 ### 7.5. Message Reliability and Lifecycle

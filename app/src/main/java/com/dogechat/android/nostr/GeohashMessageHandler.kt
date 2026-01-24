@@ -2,7 +2,7 @@ package com.dogechat.android.nostr
 
 import android.app.Application
 import android.util.Log
-import com.dogechat.android.model.dogechatMessage
+import com.dogechat.android.model.DogechatMessage
 import com.dogechat.android.ui.ChatState
 import com.dogechat.android.ui.MessageManager
 import kotlinx.coroutines.CoroutineScope
@@ -90,7 +90,7 @@ class GeohashMessageHandler(
 
                 val senderName = repo.displayNameForNostrPubkeyUI(event.pubkey)
                 val hasNonce = try { NostrProofOfWork.hasNonce(event) } catch (_: Exception) { false }
-                val msg = dogechatMessage(
+                val msg = DogechatMessage(
                     id = event.id,
                     sender = senderName,
                     content = event.content,
