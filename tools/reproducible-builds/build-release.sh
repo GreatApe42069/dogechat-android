@@ -9,8 +9,8 @@ OUTPUT_DIR="${1:-$PROJECT_ROOT/.reproducible-build/release}"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/TOOLCHAIN.env"
 
-if [ "${BITCHAT_SOURCE_TREE_VERIFIED:-0}" != "1" ] &&
-  [ "${BITCHAT_ALLOW_DIRTY:-0}" != "1" ] &&
+if [ "${DOGECHAT_SOURCE_TREE_VERIFIED:-0}" != "1" ] &&
+  [ "${DOGECHAT_ALLOW_DIRTY:-0}" != "1" ] &&
   [ -n "$(git -C "$PROJECT_ROOT" status --porcelain --untracked-files=normal)" ]; then
   echo "error: reproducible builds require a clean source tree" >&2
   exit 1
@@ -32,7 +32,7 @@ fi
 
 "$PROJECT_ROOT/tools/arti-build/verify-checksums.sh"
 
-export GRADLE_USER_HOME="${BITCHAT_GRADLE_USER_HOME:-$PROJECT_ROOT/.reproducible-build/gradle-home}"
+export GRADLE_USER_HOME="${DOGECHAT_GRADLE_USER_HOME:-$PROJECT_ROOT/.reproducible-build/gradle-home}"
 export LC_ALL=C.UTF-8
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$PROJECT_ROOT" log -1 --format=%ct)}"
 export TZ=UTC
@@ -81,7 +81,7 @@ for source_name in "${!apk_names[@]}"; do
   cp "$source_path" "$OUTPUT_DIR/${apk_names[$source_name]}"
 done
 
-source_commit="${BITCHAT_SOURCE_COMMIT:-$(git -C "$PROJECT_ROOT" rev-parse HEAD)}"
+source_commit="${DOGECHAT_SOURCE_COMMIT:-$(git -C "$PROJECT_ROOT" rev-parse HEAD)}"
 if ! [[ "$source_commit" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
   echo "error: source commit must be a full Git object ID" >&2
   exit 1
