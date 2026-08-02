@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.wear.compose.material3.ColorScheme
 import androidx.wear.compose.material3.MaterialTheme
 
-val dogechatWearColorScheme = ColorScheme(
+val DogechatWearColorScheme = ColorScheme(
     primary = Color(0xFF32D74B),
     onPrimary = Color.Black,
     primaryContainer = Color(0xFF163D1D),
@@ -31,11 +31,11 @@ val dogechatWearColorScheme = ColorScheme(
 )
 
 @Composable
-fun dogechatWearTheme(content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocaldogechatPalette provides DarkdogechatPalette) {
+fun DogechatWearTheme(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalDogechatPalette provides DarkDogechatPalette) {
         MaterialTheme(
-            colorScheme = dogechatWearColorScheme,
-            typography = dogechatWearTypography,
+            colorScheme = DogechatWearColorScheme,
+            typography = DogechatWearTypography,
             content = content
         )
     }
