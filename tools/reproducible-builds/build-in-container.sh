@@ -4,9 +4,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-IMAGE_NAME="bitchat-android-reproducible-builder:21.0.11"
+IMAGE_NAME="dogechat-android-reproducible-builder:21.0.11"
 OUTPUT_DIR="${1:-$PROJECT_ROOT/.reproducible-build/release}"
-GRADLE_HOME_NAME="${BITCHAT_CONTAINER_GRADLE_HOME_NAME:-gradle-home-container}"
+GRADLE_HOME_NAME="${DOGECHAT_CONTAINER_GRADLE_HOME_NAME:-gradle-home-container}"
 CONTAINER_LOCAL_PROPERTIES="$SCRIPT_DIR/container-local.properties"
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -18,7 +18,7 @@ if [ ! -f "$CONTAINER_LOCAL_PROPERTIES" ]; then
   exit 1
 fi
 
-if [ "${BITCHAT_ALLOW_DIRTY:-0}" != "1" ] && [ -n "$(git -C "$PROJECT_ROOT" status --porcelain --untracked-files=normal)" ]; then
+if [ "${DOGECHAT_ALLOW_DIRTY:-0}" != "1" ] && [ -n "$(git -C "$PROJECT_ROOT" status --porcelain --untracked-files=normal)" ]; then
   echo "error: reproducible builds require a clean source tree" >&2
   exit 1
 fi
@@ -27,7 +27,7 @@ source_commit="$(git -C "$PROJECT_ROOT" rev-parse HEAD)"
 source_date_epoch="$(git -C "$PROJECT_ROOT" log -1 --format=%ct)"
 
 if ! [[ "$GRADLE_HOME_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
-  echo "error: BITCHAT_CONTAINER_GRADLE_HOME_NAME must be a simple directory name" >&2
+  echo "error: DOGECHAT_CONTAINER_GRADLE_HOME_NAME must be a simple directory name" >&2
   exit 1
 fi
 
@@ -61,10 +61,10 @@ docker run \
   --rm \
   --platform linux/amd64 \
   --user "$(id -u):$(id -g)" \
-  --env BITCHAT_ALLOW_DIRTY="${BITCHAT_ALLOW_DIRTY:-0}" \
-  --env BITCHAT_GRADLE_USER_HOME=/gradle-home \
-  --env BITCHAT_SOURCE_COMMIT="$source_commit" \
-  --env BITCHAT_SOURCE_TREE_VERIFIED=1 \
+  --env DOGECHAT_ALLOW_DIRTY="${DOGECHAT_ALLOW_DIRTY:-0}" \
+  --env DOGECHAT_GRADLE_USER_HOME=/gradle-home \
+  --env DOGECHAT_SOURCE_COMMIT="$source_commit" \
+  --env DOGECHAT_SOURCE_TREE_VERIFIED=1 \
   --env HOME=/tmp/build-home \
   --env SOURCE_DATE_EPOCH="$source_date_epoch" \
   --volume "$staging_root:/workspace" \
